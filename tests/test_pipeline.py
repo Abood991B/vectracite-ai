@@ -297,14 +297,14 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
     dash = client.get("/")
     assert dash.status_code == 200
     assert "VectraCite-AI" in dash.text
-    assert "PDF verification studio" in dash.text
-    assert "Ask, inspect, verify" in dash.text
-    assert "Search scope" in dash.text
-    assert "System accuracy" in dash.text
+    assert "PDF evidence workspace" in dash.text
+    assert "Trace every answer to its evidence" in dash.text
+    assert "All documents" in dash.text
+    assert "Retrieval accuracy" in dash.text
     assert 'src="/assets/logo.svg"' in dash.text
     assert 'id="pdfUploadInput"' in dash.text
     assert 'safeFetch("/ingest/pdf"' in dash.text
-    assert "Run Live Benchmark Now" in dash.text
+    assert "Run benchmark" in dash.text
     assert "/documents/" in dash.text and "/pages/" in dash.text and "/image" in dash.text
     assert 'id="zoomOut"' in dash.text
     assert 'id="zoomIn"' in dash.text
