@@ -1,23 +1,23 @@
 {
   "dense_only": {
-    "precision_at_1": 0.75,
+    "precision_at_1": 0.5,
     "recall_at_3": 1.0,
-    "mrr": 0.875,
-    "avg_latency_ms": 26.47,
+    "mrr": 0.75,
+    "avg_latency_ms": 27.88,
     "queries_evaluated": 4
   },
   "hybrid_rrf": {
     "precision_at_1": 0.75,
     "recall_at_3": 1.0,
-    "mrr": 0.875,
-    "avg_latency_ms": 24.89,
+    "mrr": 0.8333,
+    "avg_latency_ms": 26.73,
     "queries_evaluated": 4
   },
   "hybrid_plus_reranker": {
     "precision_at_1": 1.0,
     "recall_at_3": 1.0,
     "mrr": 1.0,
-    "avg_latency_ms": 172.66,
+    "avg_latency_ms": 173.26,
     "queries_evaluated": 4
   },
   "per_query_breakdown": [
@@ -27,7 +27,7 @@
       "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
       "ranks": {
         "dense_only": 2,
-        "hybrid_rrf": 2,
+        "hybrid_rrf": 3,
         "hybrid_plus_reranker": 1
       }
     },
@@ -36,7 +36,7 @@
       "expected_page": 62,
       "question": "According to Microsoft's Note 19 Segment Revenue table, what was Intelligent Cloud and Productivity revenue in FY23 compared to FY22?",
       "ranks": {
-        "dense_only": 1,
+        "dense_only": 2,
         "hybrid_rrf": 1,
         "hybrid_plus_reranker": 1
       }

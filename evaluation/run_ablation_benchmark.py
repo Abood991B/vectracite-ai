@@ -13,7 +13,10 @@ from typing import Any, Dict, List
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-import mlflow
+try:
+    import mlflow
+except ModuleNotFoundError:  # Optional for local evaluation and CI environments.
+    mlflow = None
 
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk, MultimodalFinancialParser
@@ -152,23 +155,24 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
 
     summary["per_query_breakdown"] = per_query_breakdown
 
-    try:
-        mlflow.set_tracking_uri("file:./mlruns")
-        mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
-        for mode_name in modes:
-            with mlflow.start_run(run_name=f"eval_{mode_name}"):
-                mlflow.log_param("retrieval_mode", mode_name)
-                mlflow.log_param("embedding_model", settings.EMBEDDING_MODEL)
-                mlflow.log_param("reranker_model", settings.RERANKER_MODEL)
-                mlflow.log_metrics(
-                    {
-                        key: float(value)
-                        for key, value in summary[mode_name].items()
-                        if isinstance(value, (int, float))
-                    }
-                )
-    except Exception as exc:
-        logger.warning("MLflow logging note: %s", exc)
+    if mlflow is not None:
+        try:
+            mlflow.set_tracking_uri("file:./mlruns")
+            mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
+            for mode_name in modes:
+                with mlflow.start_run(run_name=f"eval_{mode_name}"):
+                    mlflow.log_param("retrieval_mode", mode_name)
+                    mlflow.log_param("embedding_model", settings.EMBEDDING_MODEL)
+                    mlflow.log_param("reranker_model", settings.RERANKER_MODEL)
+                    mlflow.log_metrics(
+                        {
+                            key: float(value)
+                            for key, value in summary[mode_name].items()
+                            if isinstance(value, (int, float))
+                        }
+                    )
+        except Exception as exc:
+            logger.warning("MLflow logging note: %s", exc)
 
     report_path = settings.DATA_DIR / "latest_evaluation_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
