@@ -1,0 +1,20 @@
+{
+  "dense_only": {
+    "precision_at_1": 0.75,
+    "recall_at_3": 1.0,
+    "mrr": 0.875,
+    "avg_latency_ms": 26.09
+  },
+  "hybrid_rrf": {
+    "precision_at_1": 0.75,
+    "recall_at_3": 1.0,
+    "mrr": 0.875,
+    "avg_latency_ms": 26.32
+  },
+  "hybrid_plus_reranker": {
+    "precision_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "mrr": 1.0,
+    "avg_latency_ms": 89.93
+  }
+}

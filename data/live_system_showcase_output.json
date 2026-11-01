@@ -1,0 +1,132 @@
+{
+  "health_check": {
+    "status": "healthy",
+    "service": "VectraCite-AI",
+    "version": "1.0.0",
+    "indexed_chunks": 8,
+    "indexed_documents": 4,
+    "cache": {
+      "backend": "in_memory_fallback",
+      "hits": 0,
+      "misses": 0,
+      "hit_rate": 0.0
+    }
+  },
+  "cold_hybrid_rag_query": {
+    "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
+    "answer": "Verified from [AMD_2022_10K, Page 51]: Total net revenue (FY 2022): $ 23,601; Total net revenue (FY 2021): $ 16,434; Total net revenue (FY 2020): $ 9,763; Gross profit (FY 2022): $ 10,603.",
+    "matched_cells": [
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Total net revenue",
+        "col_header": "FY 2022",
+        "value": "$ 23,601"
+      },
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Total net revenue",
+        "col_header": "FY 2021",
+        "value": "$ 16,434"
+      },
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Total net revenue",
+        "col_header": "FY 2020",
+        "value": "$ 9,763"
+      },
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Gross profit",
+        "col_header": "FY 2022",
+        "value": "$ 10,603"
+      },
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Gross profit",
+        "col_header": "FY 2021",
+        "value": "$ 7,929"
+      },
+      {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "row_key": "Operating income",
+        "col_header": "FY 2022",
+        "value": "$ 1,264"
+      }
+    ],
+    "computed_deltas": [
+      {
+        "row_key": "Total net revenue",
+        "comparison": "FY 2022 vs FY 2021",
+        "absolute_change": "+7,167.00",
+        "pct_change": "+43.61%"
+      },
+      {
+        "row_key": "Gross profit",
+        "comparison": "FY 2022 vs FY 2021",
+        "absolute_change": "+2,674.00",
+        "pct_change": "+33.72%"
+      }
+    ],
+    "citations": [
+      {
+        "chunk_id": "77eee0ac9ba7",
+        "doc_name": "AMD_2022_10K",
+        "page_number": 51,
+        "contains_table": true,
+        "rerank_score": 0.6647,
+        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 51]\nITEM 8. AMD CONSOLIDATED STATEMENTS OF OPERATIONS TABLE (in millions)\n| Consolidated Line Item | FY 2022 | FY 2021 | FY 2020 |\n| --- | --- | --- | --- |\n| Total net revenue | $ 23,601 | $ 16,434 | $ 9,763 |\n| Cost of sales | $ 12,998 | $ 8,505 "
+      },
+      {
+        "chunk_id": "84a662dc5398",
+        "doc_name": "JPM_2022_10K",
+        "page_number": 88,
+        "contains_table": true,
+        "rerank_score": 0.3249,
+        "excerpt": "[DOCUMENT: JPM_2022_10K | PAGE: 88]\nJPMORGAN CHASE BASEL III REGULATORY CAPITAL TABLE (DEC 31, 2022)\n| JPMorgan Chase Regulatory Ratio | Dec 31, 2022 | Dec 31, 2021 |\n| --- | --- | --- | --- |\n| Standardized CET1 capital ratio | 13.2% | 13.1% |\n| Tier 1 capital ratio | 14.9% | 15"
+      }
+    ],
+    "verification": {
+      "is_fully_grounded": true,
+      "numeric_grounding_score": 1.0,
+      "verified_figures": [
+        "$ 23,601",
+        "$ 16,434",
+        "$ 9,763",
+        "$ 10,603"
+      ],
+      "unverified_figures": []
+    },
+    "cache_hit": false,
+    "cache_similarity": null,
+    "latency_ms": 416.53,
+    "guardrail_flags": [],
+    "metadata": {
+      "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
+      "candidates_evaluated": 6
+    }
+  },
+  "warm_semantic_cache_hit": {
+    "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
+    "cache_hit": true,
+    "cache_similarity": 1.0,
+    "latency_ms": 0.41
+  },
+  "guardrail_interception": {
+    "http_status": 400,
+    "response": {
+      "detail": {
+        "error": "Query blocked by Enterprise AI Guardrails.",
+        "triggered_rules": [
+          "PROMPT_INJECTION_DETECTED:ignore\\s+(all\\s+)?(previous|prior|above)\\s+instructions",
+          "PROMPT_INJECTION_DETECTED:system\\s*prompt"
+        ]
+      }
+    }
+  }
+}
