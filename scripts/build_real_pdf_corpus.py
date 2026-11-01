@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.config import settings
 from src.ingestion.dataset_loader import FinanceBenchLoader
-from src.ingestion.pdf_parser import render_pages_to_pdf_bytes
+from src.ingestion.pdf_parser import MultimodalFinancialParser
 
 
 CORPUS_PAGES: Dict[str, List[Dict[str, Any]]] = {
@@ -256,7 +256,7 @@ def build_corpus() -> None:
     settings.CORPUS_PDF_DIR.mkdir(parents=True, exist_ok=True)
     for doc_name, pages in CORPUS_PAGES.items():
         pdf_path = settings.CORPUS_PDF_DIR / f"{doc_name}.pdf"
-        pdf_path.write_bytes(render_pages_to_pdf_bytes(doc_name, pages))
+        pdf_path.write_bytes(MultimodalFinancialParser.render_pages_to_pdf_bytes(doc_name, pages))
 
     queries_path = settings.DATA_DIR / "benchmark_queries.json"
     queries_path.write_text(json.dumps(BENCHMARK_QUERIES, indent=2), encoding="utf-8")
