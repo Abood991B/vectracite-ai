@@ -1,6 +1,7 @@
 """PDF parsing, section-aware chunking, and deterministic PDF rendering."""
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import asdict, dataclass
@@ -18,6 +19,7 @@ SECTION_HEADER_REGEX = re.compile(
     r"PART\s+[IVX]+|[A-Z][A-Z0-9\s,&\-/]{3,45})$"
 )
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
+TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
 
 
 @dataclass
@@ -36,7 +38,14 @@ class DocumentChunk:
 
 
 class MultimodalFinancialParser:
-    """Parse filings, CVs, academic documents, trials, and technical PDFs."""
+    """
+    Parse filings, CVs, academic documents, trials, and technical PDFs.
+
+    The parser treats a PDF as untrusted input: malformed streams, password
+    protection, and image-only pages receive explicit user-facing errors.
+    Generated PDFs carry a compact table manifest in metadata so a render and
+    reload cannot silently lose table cells.
+    """
 
     def __init__(self, chunk_size: int = 1400, chunk_overlap: int = 150) -> None:
         if chunk_overlap >= chunk_size:
@@ -46,6 +55,8 @@ class MultimodalFinancialParser:
 
     def parse_pdf(self, pdf_path: Path, max_pages: int | None = None) -> List[DocumentChunk]:
         """Parse a PDF from disk in strict reading order."""
+        if not pdf_path.exists():
+            raise ValueError(f"PDF file not found: {pdf_path}")
         return self.parse_pdf_bytes(
             pdf_path.read_bytes(),
             doc_name=pdf_path.stem,
@@ -55,24 +66,88 @@ class MultimodalFinancialParser:
     def parse_pdf_bytes(
         self, pdf_bytes: bytes, doc_name: str, max_pages: int | None = None
     ) -> List[DocumentChunk]:
-        """Parse a PDF byte stream and recover native tables when available."""
+        """Parse a PDF byte stream and recover native and manifest-backed tables."""
+        if not pdf_bytes or len(pdf_bytes) < 8:
+            raise ValueError("Empty or truncated PDF file uploaded.")
+        if not pdf_bytes.lstrip().startswith(b"%PDF-"):
+            raise ValueError("Invalid or corrupted PDF file: missing PDF header.")
+
         clean_name = doc_name[:-4] if doc_name.lower().endswith(".pdf") else doc_name
-        document = fitz.open(stream=pdf_bytes, filetype="pdf")
         try:
+            document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        except Exception as exc:
+            raise ValueError(f"Invalid or corrupted PDF file: {exc}") from exc
+
+        try:
+            if document.is_encrypted and not document.authenticate(""):
+                raise ValueError(
+                    "PDF is password-protected/encrypted. Please unlock the PDF before uploading."
+                )
+            if len(document) == 0:
+                raise ValueError("PDF contains 0 pages.")
+
+            manifest_tables = self._load_manifest(document)
             total_pages = len(document) if max_pages is None else min(len(document), max_pages)
             chunks: List[DocumentChunk] = []
+            total_images_seen = 0
+
             for page_index in range(total_pages):
-                chunks.extend(self._parse_page(document[page_index], clean_name, page_index))
-            return chunks
+                page = document[page_index]
+                total_images_seen += len(page.get_images())
+                try:
+                    chunks.extend(
+                        self._parse_page(
+                            page=page,
+                            doc_name=clean_name,
+                            physical_page_index=page_index,
+                            manifest_tables=manifest_tables,
+                        )
+                    )
+                except ValueError:
+                    raise
+                except Exception as exc:
+                    raise ValueError(f"Invalid or corrupted PDF file: {exc}") from exc
         finally:
             document.close()
 
+        if not chunks:
+            if total_images_seen > 0:
+                raise ValueError(
+                    "Scanned or image-only PDF detected (no extractable text layer found). "
+                    "Please run OCR on the PDF before uploading."
+                )
+            raise ValueError("No readable text or tables found in PDF.")
+        return chunks
+
+    @staticmethod
+    def _load_manifest(document: fitz.Document) -> Dict[int, List[str]]:
+        raw_keywords = (document.metadata or {}).get("keywords", "") or ""
+        if not raw_keywords.startswith(TABLE_MANIFEST_PREFIX):
+            return {}
+        try:
+            decoded = json.loads(raw_keywords[len(TABLE_MANIFEST_PREFIX) :])
+            return {int(page): list(blocks) for page, blocks in decoded.items()}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            logger.warning("Ignoring malformed VectraCite table manifest")
+            return {}
+
     def _parse_page(
-        self, page: fitz.Page, doc_name: str, physical_page_index: int
+        self,
+        page: fitz.Page,
+        doc_name: str,
+        physical_page_index: int,
+        manifest_tables: Dict[int, List[str]] | None = None,
     ) -> List[DocumentChunk]:
         raw_text = page.get_text("text", sort=True).strip()
         page_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
         page_number = int(page_match.group(1)) if page_match else physical_page_index + 1
+        raw_text = re.sub(
+            r"^.*?\(SOURCE PAGE:\s*\d+\)\s*",
+            "",
+            raw_text,
+            count=1,
+            flags=re.IGNORECASE | re.DOTALL,
+        ).strip()
         raw_text = re.sub(
             r"OFFICIAL FILING:.*?SOURCE PAGE:\s*\d+\s*",
             "",
@@ -80,17 +155,12 @@ class MultimodalFinancialParser:
             flags=re.IGNORECASE | re.DOTALL,
         ).strip()
 
-        table_markdown_blocks: List[str] = []
-        try:
-            table_finder = page.find_tables()
-            for table in table_finder.tables:
-                markdown = table.to_markdown()
-                if markdown and len(markdown.strip()) > 20:
-                    table_markdown_blocks.append(markdown.strip())
-        except Exception as exc:
-            logger.debug("Native table detection unavailable: %s", exc)
-
-        has_inline_markdown_table = "|" in raw_text and "---" in raw_text
+        table_markdown_blocks = self._extract_table_blocks(
+            page=page,
+            raw_text=raw_text,
+            manifest_tables=(manifest_tables or {}).get(page_number, []),
+        )
+        has_inline_markdown_table = self._has_inline_markdown_table(raw_text)
         contains_table = bool(table_markdown_blocks) or has_inline_markdown_table
         document_header = f"[DOCUMENT: {doc_name} | PAGE: {page_number}]"
 
@@ -110,25 +180,116 @@ class MultimodalFinancialParser:
             contains_table=contains_table,
         )
 
+    @classmethod
+    def _extract_table_blocks(
+        cls,
+        page: fitz.Page,
+        raw_text: str,
+        manifest_tables: List[str],
+    ) -> List[str]:
+        """Combine lossless metadata, native tables, and aligned text tables."""
+        blocks: List[str] = []
+        seen: set[str] = set()
+
+        def add_block(block: str) -> None:
+            normalized = re.sub(r"\s+", "", block).casefold()
+            if normalized and normalized not in seen and len(block.strip()) > 20:
+                blocks.append(block.strip())
+                seen.add(normalized)
+
+        for block in manifest_tables:
+            add_block(str(block))
+
+        if not manifest_tables:
+            try:
+                for table in page.find_tables().tables:
+                    markdown = table.to_markdown()
+                    if markdown:
+                        add_block(markdown)
+            except Exception as exc:
+                logger.debug("Native table detection unavailable: %s", exc)
+
+        for block in cls._extract_pipe_tables(raw_text):
+            add_block(block)
+        for block in cls._extract_whitespace_tables(raw_text):
+            add_block(block)
+        return blocks
+
+    @staticmethod
+    def _has_inline_markdown_table(text: str) -> bool:
+        lines = [line.strip() for line in text.splitlines()]
+        return any(
+            line.startswith("|")
+            and line.endswith("|")
+            and TABLE_DIVIDER_REGEX.fullmatch(line)
+            for line in lines
+        )
+
+    @staticmethod
+    def _extract_pipe_tables(text: str) -> List[str]:
+        groups: List[List[str]] = []
+        current: List[str] = []
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            is_table_line = line.startswith("|") and line.endswith("|")
+            if is_table_line:
+                current.append(line)
+            elif current:
+                if any(TABLE_DIVIDER_REGEX.fullmatch(item) for item in current):
+                    groups.append(current)
+                current = []
+        if current and any(TABLE_DIVIDER_REGEX.fullmatch(item) for item in current):
+            groups.append(current)
+        return ["\n".join(group) for group in groups]
+
+    @staticmethod
+    def _extract_whitespace_tables(text: str) -> List[str]:
+        """Recover simple column-aligned tables from text-only PDF extraction."""
+        candidates: List[tuple[int, List[str]]] = []
+        for line_number, raw_line in enumerate(text.splitlines()):
+            line = raw_line.strip()
+            cells = [cell.strip() for cell in re.split(r"\s{2,}", line) if cell.strip()]
+            if len(cells) < 2 or not any(re.search(r"\d", cell) for cell in cells[1:]):
+                continue
+            candidates.append((line_number, cells))
+
+        groups: List[List[List[str]]] = []
+        current: List[List[str]] = []
+        previous_line = -2
+        for line_number, cells in candidates:
+            if line_number - previous_line > 2 and current:
+                if len(current) >= 2:
+                    groups.append(current)
+                current = []
+            current.append(cells)
+            previous_line = line_number
+        if len(current) >= 2:
+            groups.append(current)
+
+        blocks: List[str] = []
+        for rows in groups:
+            column_count = max(len(row) for row in rows)
+            if column_count < 2:
+                continue
+            normalized_rows = [
+                row + [""] * (column_count - len(row)) for row in rows
+            ]
+            header = normalized_rows[0]
+            markdown = [
+                "| " + " | ".join(header) + " |",
+                "| " + " | ".join("---" for _ in header) + " |",
+            ]
+            markdown.extend("| " + " | ".join(row) + " |" for row in normalized_rows[1:])
+            blocks.append("\n".join(markdown))
+        return blocks
+
     def parse_raw_pages(
         self, doc_name: str, pages: List[Dict[str, Any]]
     ) -> List[DocumentChunk]:
-        """Chunk structured in-memory pages without losing section boundaries."""
-        chunks: List[DocumentChunk] = []
-        for item in pages:
-            page_number = int(item.get("page_number", 1))
-            text = str(item.get("text", "")).strip()
-            contains_table = "|" in text and "---" in text
-            formatted = f"[DOCUMENT: {doc_name} | PAGE: {page_number}]\n{text}"
-            chunks.extend(
-                self._chunk_text_content(
-                    text=formatted,
-                    doc_name=doc_name,
-                    page_number=page_number,
-                    contains_table=contains_table,
-                )
-            )
-        return chunks
+        """Chunk structured in-memory pages through the same PDF round-trip as uploads."""
+        clean_name = doc_name[:-4] if doc_name.lower().endswith(".pdf") else doc_name
+        pdf_bytes = self.render_pages_to_pdf_bytes(clean_name, pages)
+        return self.parse_pdf_bytes(pdf_bytes, doc_name=clean_name)
 
     @staticmethod
     def _is_section_header(line: str) -> bool:
@@ -139,43 +300,39 @@ class MultimodalFinancialParser:
             and bool(SECTION_HEADER_REGEX.fullmatch(line))
         )
 
-    def _split_long_block(self, block: str) -> List[str]:
-        """Split an oversized block at sentences, then words as a last resort."""
-        if len(block) <= self.chunk_size:
+    def _split_oversized_block(self, block: str) -> List[str]:
+        """Split an oversized block at sentence and word boundaries."""
+        if len(block) <= self.chunk_size or ("|" in block and "---" in block):
             return [block]
-
-        units = [unit.strip() for unit in re.split(r"(?<=[.!?])\s+|\n", block) if unit.strip()]
-        if not units:
-            return [block]
-
-        pieces: List[str] = []
+        sentences = [
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+|\n", block)
+            if sentence.strip()
+        ]
+        parts: List[str] = []
         current = ""
-        for unit in units:
-            candidate = f"{current} {unit}".strip() if current else unit
+        for sentence in sentences:
+            candidate = f"{current} {sentence}".strip() if current else sentence
             if len(candidate) <= self.chunk_size:
                 current = candidate
                 continue
             if current:
-                pieces.append(current)
-            if len(unit) <= self.chunk_size:
-                current = unit
+                parts.append(current)
+            if len(sentence) <= self.chunk_size:
+                current = sentence
                 continue
-
-            words: List[str] = []
-            word_length = 0
-            for word in unit.split():
-                next_length = word_length + len(word) + (1 if words else 0)
-                if words and next_length > self.chunk_size:
-                    pieces.append(" ".join(words))
-                    words = []
-                    word_length = 0
-                words.append(word)
-                word_length += len(word) + (1 if len(words) > 1 else 0)
-            current = " ".join(words)
-
+            words = sentence.split()
+            current = ""
+            for word in words:
+                candidate = f"{current} {word}".strip() if current else word
+                if current and len(candidate) > self.chunk_size:
+                    parts.append(current)
+                    current = word
+                else:
+                    current = candidate
         if current:
-            pieces.append(current)
-        return pieces
+            parts.append(current)
+        return parts or [block]
 
     def _chunk_text_content(
         self,
@@ -186,11 +343,11 @@ class MultimodalFinancialParser:
     ) -> List[DocumentChunk]:
         """Split on sections/paragraphs and never cut a word or sentence by index."""
         cleaned = re.sub(r"\n{3,}", "\n\n", text).strip()
-        if len(cleaned) < 15:
-            return []
-
         document_header = f"[DOCUMENT: {doc_name} | PAGE: {page_number}]"
         body = cleaned[len(document_header) :].strip() if cleaned.startswith(document_header) else cleaned
+        if len(body) < 5:
+            return []
+
         blocks: List[str] = []
         current_block: List[str] = []
 
@@ -212,7 +369,7 @@ class MultimodalFinancialParser:
         raw_chunks: List[str] = []
         current_chunk = ""
         for block in blocks:
-            for piece in self._split_long_block(block):
+            for piece in self._split_oversized_block(block):
                 candidate = f"{current_chunk}\n\n{piece}".strip() if current_chunk else piece
                 if current_chunk and len(candidate) > self.chunk_size:
                     raw_chunks.append(current_chunk)
@@ -252,8 +409,9 @@ class MultimodalFinancialParser:
 
     @staticmethod
     def render_pages_to_pdf_bytes(doc_name: str, pages: List[Dict[str, Any]]) -> bytes:
-        """Render pages with vector-drawn, shaded, bordered tables."""
+        """Render vector tables and store their exact Markdown grids in PDF metadata."""
         document = fitz.open()
+        manifest: Dict[str, List[str]] = {}
         try:
             for item in pages:
                 page_number = int(item.get("page_number", 1))
@@ -276,6 +434,7 @@ class MultimodalFinancialParser:
                 y_cursor = 66.0
                 prose_lines: List[str] = []
                 table_rows: List[List[str]] = []
+                raw_table_lines: List[str] = []
 
                 def flush_prose() -> None:
                     nonlocal y_cursor
@@ -283,7 +442,9 @@ class MultimodalFinancialParser:
                         return
                     joined = "\n".join(prose_lines)
                     prose_lines.clear()
-                    estimated_lines = sum(max(1, len(line) // 88 + 1) for line in joined.splitlines())
+                    estimated_lines = sum(
+                        max(1, len(line) // 88 + 1) for line in joined.splitlines()
+                    )
                     box_height = min(660.0, max(28.0, estimated_lines * 14.5))
                     page.insert_textbox(
                         fitz.Rect(40, y_cursor, 572, min(750.0, y_cursor + box_height)),
@@ -299,12 +460,16 @@ class MultimodalFinancialParser:
                     if len(table_rows) < 2:
                         prose_lines.extend("  ".join(row) for row in table_rows)
                         table_rows.clear()
+                        raw_table_lines.clear()
                         flush_prose()
                         return
 
+                    manifest.setdefault(str(page_number), []).append(
+                        "\n".join(raw_table_lines)
+                    )
+                    raw_table_lines.clear()
                     column_count = max(len(row) for row in table_rows)
-                    table_width = 532.0
-                    column_width = table_width / max(column_count, 1)
+                    column_width = 532.0 / max(column_count, 1)
                     row_height = 24.0
                     for row_index, row in enumerate(table_rows):
                         if y_cursor + row_height > 750.0:
@@ -334,6 +499,7 @@ class MultimodalFinancialParser:
                 for raw_line in text.splitlines():
                     line = raw_line.strip()
                     if line.startswith("|") and line.endswith("|"):
+                        raw_table_lines.append(line)
                         if TABLE_DIVIDER_REGEX.fullmatch(line):
                             continue
                         flush_prose()
@@ -348,6 +514,13 @@ class MultimodalFinancialParser:
                     flush_table()
                 flush_prose()
 
+            if manifest:
+                document.set_metadata(
+                    {
+                        "keywords": TABLE_MANIFEST_PREFIX
+                        + json.dumps(manifest, ensure_ascii=False, separators=(",", ":"))
+                    }
+                )
             return document.tobytes(garbage=4, deflate=True)
         finally:
             document.close()

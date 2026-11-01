@@ -23,6 +23,7 @@ from src.inference.llm_client import UnifiedLLMClient
 from src.inference.schemas import (
     CitationItem,
     IngestRequest,
+    LLMConfigRequest,
     NumericVerificationSchema,
     PdfUploadRequest,
     RowDeltaSchema,
@@ -223,6 +224,27 @@ def _build_scenarios() -> List[Dict[str, Any]]:
     return scenarios
 
 
+def _answer_contributors(
+    answer: str,
+    chunks: List[Any],
+) -> List[Any]:
+    """Keep only evidence pages explicitly cited by the synthesized answer."""
+    cited_pages = {
+        (match.group(1).strip(), int(match.group(2)))
+        for match in re.finditer(r"\[([^,\]]+),\s*Page\s+(\d+)\]", answer)
+    }
+    if not cited_pages:
+        return []
+    contributors: List[Any] = []
+    seen: set[str] = set()
+    for chunk in chunks:
+        key = (chunk.doc_name, chunk.page_number)
+        if key in cited_pages and chunk.chunk_id not in seen:
+            contributors.append(chunk)
+            seen.add(chunk.chunk_id)
+    return contributors
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -280,6 +302,22 @@ async def health_check() -> Dict[str, Any]:
         "indexed_documents": len(retriever.list_documents()),
         "cache": semantic_cache.stats(),
     }
+
+
+@app.get("/config/llm")
+async def get_llm_config() -> Dict[str, Any]:
+    """Return safe runtime provider metadata without exposing the API key."""
+    return llm_client.get_provider_status()
+
+
+@app.post("/config/llm")
+async def configure_llm(payload: LLMConfigRequest) -> Dict[str, Any]:
+    """Update the optional OpenAI-compatible provider without restarting."""
+    return llm_client.configure_provider(
+        base_url=payload.base_url,
+        api_key=payload.api_key,
+        model_name=payload.model_name,
+    )
 
 
 @app.get("/documents")
@@ -432,12 +470,13 @@ async def ingest_pdf_file(payload: PdfUploadRequest) -> Dict[str, Any]:
     try:
         raw_bytes = base64.b64decode(payload.pdf_base64, validate=True)
         clean_name = _clean_doc_name(payload.doc_name)
-        retriever.delete_document(clean_name)
         chunks = parser.parse_pdf_bytes(raw_bytes, doc_name=clean_name)
         if not chunks:
             raise ValueError("No readable text or tables found in PDF.")
+        retriever.delete_document(clean_name)
         _persist_pdf(clean_name, raw_bytes)
         indexed_count = retriever.index_chunks(chunks)
+        semantic_cache.clear()
         return {
             "status": "indexed_pdf",
             "doc_name": clean_name,
@@ -459,6 +498,7 @@ async def ingest_document(payload: IngestRequest) -> Dict[str, Any]:
     retriever.delete_document(clean_name)
     _persist_pdf(clean_name, render_pages_to_pdf_bytes(clean_name, raw_pages))
     indexed_count = retriever.index_chunks(chunks)
+    semantic_cache.clear()
     return {
         "status": "indexed",
         "doc_name": clean_name,
@@ -471,13 +511,14 @@ async def ingest_document(payload: IngestRequest) -> Dict[str, Any]:
 async def update_or_replace_document(doc_name: str, payload: IngestRequest) -> Dict[str, Any]:
     """Atomically replaces an indexed document and its persisted PDF."""
     clean_name = _clean_doc_name(doc_name)
-    removed = retriever.delete_document(clean_name)
     raw_pages = [{"page_number": p.page_number, "text": p.text} for p in payload.pages]
     chunks = parser.parse_raw_pages(doc_name=clean_name, pages=raw_pages)
     if not chunks:
         raise HTTPException(status_code=400, detail="No readable text or tables found in document.")
+    removed = retriever.delete_document(clean_name)
     _persist_pdf(clean_name, render_pages_to_pdf_bytes(clean_name, raw_pages))
     indexed_count = retriever.index_chunks(chunks)
+    semantic_cache.clear()
     return {
         "status": "updated",
         "doc_name": clean_name,
@@ -580,10 +621,19 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
         top_n=payload.top_k,
     )
 
+    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
+    raw_answer = await llm_client.generate_answer(
+        input_check.sanitized_text,
+        reranked_chunks,
+        indexed_docs=indexed_docs,
+    )
+    output_check = guardrails.sanitize_output(raw_answer)
+    answer_chunks = _answer_contributors(output_check.sanitized_text, reranked_chunks)
+
     matched_cells = []
     computed_deltas = []
-    if reranked_chunks:
-        top_c = reranked_chunks[0]
+    if answer_chunks:
+        top_c = answer_chunks[0]
         raw_cells = TableASTParser.match_query_cells(
             input_check.sanitized_text,
             top_c.text,
@@ -596,14 +646,7 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
             for delta in TableASTParser.compute_row_deltas(raw_cells)
         ]
 
-    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
-    raw_answer = await llm_client.generate_answer(
-        input_check.sanitized_text,
-        reranked_chunks,
-        indexed_docs=indexed_docs,
-    )
-    output_check = guardrails.sanitize_output(raw_answer)
-    verification = numeric_verifier.verify(output_check.sanitized_text, reranked_chunks)
+    verification = numeric_verifier.verify(output_check.sanitized_text, answer_chunks)
 
     citations: List[CitationItem] = [
         CitationItem(
@@ -614,7 +657,7 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
             rerank_score=round(float(c.rerank_score or c.rrf_score), 4),
             excerpt=c.text[:280],
         )
-        for c in reranked_chunks
+        for c in answer_chunks
     ]
 
     latency_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
@@ -674,11 +717,14 @@ async def stream_query_documents(payload: QueryRequest) -> StreamingResponse:
 @app.get("/metrics")
 async def service_metrics() -> Dict[str, Any]:
     """Exposes operational telemetry for monitoring dashboards."""
+    provider_status = llm_client.get_provider_status()
     return {
         "indexed_chunks": len(retriever.chunks_store),
         "indexed_documents": len(retriever.list_documents()),
         "semantic_cache": semantic_cache.stats(),
         "embedding_model": settings.EMBEDDING_MODEL,
         "reranker_model": settings.RERANKER_MODEL,
-        "llm_model": settings.LLM_MODEL_NAME,
+        "llm_model": provider_status["model_name"],
+        "llm_base_url": provider_status["base_url"],
+        "llm_api_key_configured": provider_status["api_key_configured"],
     }

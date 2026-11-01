@@ -6,6 +6,7 @@ benchmark questions, and adds schema-derived cases for new table-bearing PDFs.
 
 import json
 import logging
+import math
 import sys
 import time
 from pathlib import Path
@@ -70,8 +71,7 @@ def build_dynamic_eval_queries(chunks: List[DocumentChunk]) -> List[Dict[str, An
                 "doc_name": chunk.doc_name,
                 "page_number": chunk.page_number,
                 "question": (
-                    f"In {chunk.doc_name}, what was {first_row} for "
-                    f"{' vs '.join(columns[:2])}?"
+                    f"What was {first_row} for {' vs '.join(columns[:2])}?"
                 ),
             }
         )
@@ -111,6 +111,7 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
         hits_at_1 = 0
         hits_at_3 = 0
         mrr_total = 0.0
+        ndcg_total = 0.0
         start_t = time.perf_counter()
 
         for idx, case in enumerate(eval_cases):
@@ -142,6 +143,8 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
                 hits_at_3 += 1
             if rank_found is not None:
                 mrr_total += 1.0 / rank_found
+                if rank_found <= 3:
+                    ndcg_total += 1.0 / math.log2(rank_found + 1)
 
         query_count = max(len(eval_cases), 1)
         avg_latency = ((time.perf_counter() - start_t) * 1000.0) / query_count
@@ -149,6 +152,7 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
             "precision_at_1": round(hits_at_1 / query_count, 4),
             "recall_at_3": round(hits_at_3 / query_count, 4),
             "mrr": round(mrr_total / query_count, 4),
+            "ndcg_at_3": round(ndcg_total / query_count, 4),
             "avg_latency_ms": round(avg_latency, 2),
             "queries_evaluated": len(eval_cases),
         }

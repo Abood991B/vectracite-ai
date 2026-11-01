@@ -16,7 +16,12 @@ class LightweightCrossEncoder:
 
     @staticmethod
     def _tokens(value: str) -> set[str]:
-        return set(re.findall(r"[a-zA-Z0-9_$\.%]+", value.lower()))
+        cleaned = re.sub(r"['’]s\b", "", value.lower())
+        return {
+            token
+            for token in re.findall(r"[\w$\.%]+", cleaned, flags=re.UNICODE)
+            if len(token) >= 2 or token.isdigit()
+        }
 
     def predict(self, pairs: List[tuple[str, str]], show_progress_bar: bool = False) -> List[float]:
         del show_progress_bar

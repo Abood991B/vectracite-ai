@@ -27,6 +27,12 @@ class QueryRequest(BaseModel):
     )
 
 
+class LLMConfigRequest(BaseModel):
+    base_url: str | None = Field(default=None, min_length=1)
+    api_key: str | None = Field(default=None)
+    model_name: str | None = Field(default=None, min_length=1)
+
+
 class TableCellSchema(BaseModel):
     doc_name: str
     page_number: int

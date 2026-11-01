@@ -11,6 +11,7 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk
+from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +171,30 @@ class HybridRetriever:
 
     @staticmethod
     def _tokenize(text: str) -> List[str]:
-        return re.findall(r"[a-zA-Z0-9_$\.%]+", text.lower())
+        cleaned = re.sub(r"['’]s\b", "", text.lower())
+        return [
+            token
+            for token in re.findall(r"[\w$\.%]+", cleaned, flags=re.UNICODE)
+            if len(token) >= 2 or token.isdigit()
+        ]
+
+    @classmethod
+    def _query_entities(cls, query: str) -> List[set[str]]:
+        tokens = set(cls._tokenize(query))
+        folded = query.casefold()
+        return [
+            aliases
+            for aliases in KNOWN_ENTITY_ALIASES.values()
+            if any(alias in tokens or alias in folded for alias in aliases)
+        ]
+
+    @classmethod
+    def _chunk_matches_entity(
+        cls, chunk: DocumentChunk, entity_aliases: set[str]
+    ) -> bool:
+        doc_name = chunk.doc_name.casefold()
+        text_tokens = set(cls._tokenize(chunk.text))
+        return any(alias in text_tokens or alias in doc_name for alias in entity_aliases)
 
     def index_chunks(self, chunks: List[DocumentChunk]) -> int:
         """Indexes DocumentChunks into both Qdrant (dense vectors) and BM25 (sparse lexical)."""
@@ -253,6 +277,12 @@ class HybridRetriever:
         candidate_limit = max(top_k * 2, 15)
         q_vec = self._encode_texts([query])[0].tolist()
         dense_hits = self._search_dense(q_vec, candidate_limit, doc_name=scope)
+        if scope:
+            dense_hits = [
+                hit
+                for hit in dense_hits
+                if (hit.payload or {}).get("doc_name") == scope
+            ]
 
         dense_ranks: Dict[str, int] = {}
         dense_scores: Dict[str, float] = {}
@@ -286,6 +316,7 @@ class HybridRetriever:
         # Reciprocal Rank Fusion (RRF)
         all_candidate_ids = set(dense_ranks.keys()) | set(bm25_ranks.keys())
         fused_results: List[RetrievedDocument] = []
+        query_entities = self._query_entities(query) if scope is None else []
 
         for cid in all_candidate_ids:
             chunk = chunk_lookup.get(cid)
@@ -295,11 +326,20 @@ class HybridRetriever:
             d_rank = dense_ranks.get(cid, candidate_limit + 50)
             b_rank = bm25_ranks.get(cid, candidate_limit + 50)
             table_bonus = 0.0003 if chunk.contains_table else 0.0
-            rrf_score = (
+            base_rrf_score = (
                 (0.45 / (self.rrf_k + d_rank))
                 + (0.55 / (self.rrf_k + b_rank))
                 + table_bonus
             )
+            anchor_multiplier = (
+                1.35
+                if any(
+                    self._chunk_matches_entity(chunk, entity_aliases)
+                    for entity_aliases in query_entities
+                )
+                else 1.0
+            )
+            rrf_score = base_rrf_score * anchor_multiplier
 
             fused_results.append(
                 RetrievedDocument(
@@ -314,7 +354,10 @@ class HybridRetriever:
                 )
             )
 
-        fused_results.sort(key=lambda x: x.rrf_score, reverse=True)
+        fused_results.sort(
+            key=lambda x: (x.rrf_score, x.contains_table),
+            reverse=True,
+        )
         return fused_results[:top_k]
 
     def clear(self) -> None:

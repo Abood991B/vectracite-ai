@@ -232,10 +232,22 @@ BENCHMARK_QUERIES = [
         "gold_keywords": ["23,601", "1,264"],
     },
     {
+        "doc_name": "AMD_2022_10K",
+        "page_number": 67,
+        "question": "What were AMD's FY 2022 net revenue and operating income for the United States and China & Taiwan regions?",
+        "gold_keywords": ["7,890", "9,120", "412", "530"],
+    },
+    {
         "doc_name": "MSFT_2023_10K",
         "page_number": 62,
         "question": "According to Microsoft's Note 19 Segment Revenue table, what was Intelligent Cloud and Productivity revenue in FY23 compared to FY22?",
         "gold_keywords": ["87,907", "74,965"],
+    },
+    {
+        "doc_name": "MSFT_2023_10K",
+        "page_number": 62,
+        "question": "What was More Personal Computing revenue in FY23 compared with FY22?",
+        "gold_keywords": ["54,734", "59,941"],
     },
     {
         "doc_name": "JPM_2022_10K",
@@ -244,10 +256,22 @@ BENCHMARK_QUERIES = [
         "gold_keywords": ["13.2%", "14.9%"],
     },
     {
+        "doc_name": "JPM_2022_10K",
+        "page_number": 88,
+        "question": "What were the total capital ratio values on Dec 31, 2022 and Dec 31, 2021?",
+        "gold_keywords": ["16.8%"],
+    },
+    {
         "doc_name": "ONCOLOGY_TRIAL_2025",
         "page_number": 14,
         "question": "In the Phase-III Clinical Trial Efficacy & Dosage table, what were the Median Progression-Free Survival (months) and Objective Response Rate (%) for the 80mg Cohort?",
         "gold_keywords": ["18.4 months", "64.2%"],
+    },
+    {
+        "doc_name": "ONCOLOGY_TRIAL_2025",
+        "page_number": 14,
+        "question": "What were the Grade >=3 adverse event percentages for the 80mg Cohort and Standard Care?",
+        "gold_keywords": ["14.1%", "29.4%"],
     },
 ]
 

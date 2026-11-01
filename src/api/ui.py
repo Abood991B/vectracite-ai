@@ -178,6 +178,18 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       z-index: 10;
       backdrop-filter: blur(12px);
     }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .llm-settings-button {
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink-soft);
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .llm-settings-button:hover { border-color: #9cb7f5; color: var(--blue-dark); }
     .header-title { font-size: 18px; line-height: 24px; font-weight: 650; letter-spacing: -0.025em; }
     .header-note { color: var(--muted); font-size: 12px; margin-top: 2px; }
     .mode-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
@@ -295,7 +307,37 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .source-tab { min-height: 30px; flex: 1; border: 0; border-radius: 5px; color: var(--ink-soft); background: transparent; font-size: 11px; font-weight: 600; }
     .source-tab.active { color: var(--blue-dark); background: var(--surface); box-shadow: 0 1px 3px rgba(18, 32, 51, 0.1); }
     .source-pane { margin-top: 12px; }
-    .page-image { display: block; width: 100%; height: 410px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #e9edf1; }
+    .page-image-viewport {
+      height: 410px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #e9edf1;
+      touch-action: none;
+    }
+    .page-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform: translate(0, 0) scale(1);
+      transform-origin: center;
+      user-select: none;
+      cursor: grab;
+    }
+    .page-image-viewport.dragging .page-image { cursor: grabbing; }
+    .zoom-toolbar { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+    .zoom-toolbar button {
+      min-height: 28px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink-soft);
+      background: var(--surface);
+      font-size: 11px;
+    }
+    .zoom-toolbar button:hover { border-color: #9cb7f5; color: var(--blue-dark); }
+    .zoom-value { min-width: 48px; color: var(--muted); font-family: var(--mono); font-size: 11px; text-align: center; }
     .pdf-frame { width: 100%; height: 410px; border: 1px solid var(--line); border-radius: 8px; background: #e9edf1; }
     .page-switcher { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
     .page-switcher button { min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-soft); background: var(--surface); font-size: 11px; }
@@ -347,6 +389,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .preview-page { padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-warm); }
     .preview-page-head { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-soft); font-family: var(--mono); font-size: 11px; }
     .preview-page p { margin: 9px 0 0; color: var(--ink-soft); font-size: 12px; white-space: pre-wrap; }
+    .settings-copy { color: var(--ink-soft); font-size: 12px; line-height: 19px; }
+    .settings-copy strong { color: var(--ink); }
+    .settings-form { display: grid; gap: 10px; margin-top: 16px; }
+    .settings-form label { display: grid; gap: 5px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
+    .settings-form input { min-height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--paper-warm); }
+    .settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .settings-status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 11px; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .manual-input { width: 100%; margin-top: 7px; padding: 8px; border: 1px solid #38516b; border-radius: 6px; color: var(--sidebar-text); background: #102437; font-size: 11px; }
     .manual-input::placeholder { color: #7991a7; }
@@ -373,7 +422,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       .question-row { flex-direction: column; }
       .ask-btn { width: 100%; }
       .answer-box { font-size: 14px; line-height: 22px; }
-      .page-image, .pdf-frame { height: 280px; }
+      .page-image-viewport, .pdf-frame { height: 280px; }
       .benchmark-hero-head { flex-direction: column; }
       .benchmark-run { width: 100%; }
     }
@@ -429,10 +478,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           <div class="header-title">Ask, inspect, verify</div>
           <div class="header-note">Every answer stays connected to a page, a table, and a document scope</div>
         </div>
-        <nav class="mode-switch" aria-label="Studio views">
-          <button id="modeWorkspace" class="mode-btn active" type="button">Workspace</button>
-          <button id="modeBenchmark" class="mode-btn" type="button">System accuracy</button>
-        </nav>
+        <div class="header-actions">
+          <button id="llmSettingsButton" class="llm-settings-button" type="button">AI setup</button>
+          <nav class="mode-switch" aria-label="Studio views">
+            <button id="modeWorkspace" class="mode-btn active" type="button">Workspace</button>
+            <button id="modeBenchmark" class="mode-btn" type="button">System accuracy</button>
+          </nav>
+        </div>
       </header>
 
       <main>
@@ -498,7 +550,16 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                     <button id="fullPdfTab" class="source-tab" type="button" role="tab" aria-selected="false">Full PDF</button>
                   </div>
                   <div id="pageImagePane" class="source-pane">
-                    <img id="pageImage" class="page-image" alt="Rendered cited PDF page with highlighted query terms" />
+                    <div id="pageImageViewport" class="page-image-viewport">
+                      <img id="pageImage" class="page-image" alt="Rendered cited PDF page with highlighted query terms" />
+                    </div>
+                    <div class="zoom-toolbar" aria-label="Page image zoom and pan controls">
+                      <button id="zoomOut" type="button" aria-label="Zoom out">Zoom −</button>
+                      <span id="zoomValue" class="zoom-value">100%</span>
+                      <button id="zoomIn" type="button" aria-label="Zoom in">Zoom +</button>
+                      <button id="fitPage" type="button">Fit</button>
+                      <button id="resetPage" type="button">Reset</button>
+                    </div>
                     <div class="page-switcher">
                       <button id="prevPage" type="button">‹ Prev page</button>
                       <span id="pageCount" class="page-count">Page -</span>
@@ -534,6 +595,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                   <div class="metric-definition"><strong>Precision@1</strong><span>How often the first result is the exact page we expected.</span></div>
                   <div class="metric-definition"><strong>Recall@3</strong><span>How often the expected page appears somewhere in the first three results.</span></div>
                   <div class="metric-definition"><strong>MRR</strong><span>Mean reciprocal rank: 1.00 means rank one, 0.50 means rank two, and 0.00 means it was not found.</span></div>
+                  <div class="metric-definition"><strong>nDCG@3</strong><span>Discounted rank quality: a correct result at rank one scores 1.00, with lower credit for ranks two or three.</span></div>
                   <div class="metric-definition"><strong>Mean latency</strong><span>Average CPU time for one query after model warmup.</span></div>
                 </div>
                 <div class="metric-scale">Score scale: 0.00 = no correct result · 1.00 = correct result at rank one</div>
@@ -555,6 +617,34 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         </section>
       </main>
     </div>
+  </div>
+
+  <div id="llmSettingsBackdrop" class="modal-backdrop" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="llmSettingsTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="llmSettingsTitle">LLM &amp; API setup</h2>
+          <div class="panel-sub">Optional provider settings for Stage 5 phrasing</div>
+        </div>
+        <button id="closeLlmSettings" class="close-btn" type="button" aria-label="Close AI setup">×</button>
+      </div>
+      <p class="settings-copy">
+        <strong>Runs locally for free:</strong> PyMuPDF parsing, BAAI/bge-small-en-v1.5 embeddings,
+        BAAI/bge-reranker-base scoring, and DeterministicNumericVerifier checks.
+        An optional OpenAI-compatible key is only for a future Stage 5 generative phrasing provider;
+        confidential PDF bytes remain local in the default deterministic path.
+      </p>
+      <div class="settings-form">
+        <label for="llmBaseUrl">Provider base URL<input id="llmBaseUrl" type="url" placeholder="http://localhost:8000/v1" /></label>
+        <label for="llmModelName">Model name<input id="llmModelName" type="text" placeholder="meta-llama/Llama-3.1-8B-Instruct" /></label>
+        <label for="llmApiKey">API key (stored in memory only)<input id="llmApiKey" type="password" placeholder="Leave blank to keep the current key" /></label>
+      </div>
+      <div id="llmSettingsStatus" class="settings-status" role="status"></div>
+      <div class="settings-actions">
+        <button id="cancelLlmSettings" class="action-btn" type="button">Cancel</button>
+        <button id="saveLlmSettings" class="ask-btn" type="button">Save settings</button>
+      </div>
+    </section>
   </div>
 
   <div id="previewBackdrop" class="modal-backdrop" role="presentation">
@@ -587,6 +677,12 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     let currentCitation = null;
     let currentPageNumbers = [];
     let currentPageIndex = 0;
+    let pageZoom = 1;
+    let pagePanX = 0;
+    let pagePanY = 0;
+    let pageDragging = false;
+    let pageDragStartX = 0;
+    let pageDragStartY = 0;
 
     const byId = id => document.getElementById(id);
     const escapeHtml = value => String(value ?? "")
@@ -771,6 +867,74 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("fullPdfTab").setAttribute("aria-selected", String(!imageActive));
     }
 
+    function applyPageTransform() {
+      const image = byId("pageImage");
+      if (!image) return;
+      image.style.transform = "translate(" + pagePanX + "px, " + pagePanY + "px) scale(" + pageZoom + ")";
+      byId("zoomValue").textContent = Math.round(pageZoom * 100) + "%";
+    }
+
+    function setPageZoom(nextZoom) {
+      pageZoom = Math.min(3, Math.max(0.5, Number(nextZoom.toFixed(2))));
+      applyPageTransform();
+    }
+
+    function resetPageView() {
+      pageZoom = 1;
+      pagePanX = 0;
+      pagePanY = 0;
+      applyPageTransform();
+    }
+
+    function changePageZoom(delta) {
+      setPageZoom(pageZoom + delta);
+    }
+
+    function openLlmSettings() {
+      byId("llmSettingsBackdrop").classList.add("open");
+      runUiTask(loadLlmSettings, "llmSettingsStatus");
+    }
+
+    function closeLlmSettings() {
+      byId("llmSettingsBackdrop").classList.remove("open");
+    }
+
+    async function loadLlmSettings() {
+      const result = await safeFetch("/config/llm");
+      if (!result.ok) {
+        setStatus("llmSettingsStatus", result.error, "error");
+        return;
+      }
+      byId("llmBaseUrl").value = result.data.base_url || "";
+      byId("llmModelName").value = result.data.model_name || "";
+      byId("llmApiKey").value = "";
+      setStatus(
+        "llmSettingsStatus",
+        result.data.api_key_configured
+          ? "A provider key is configured in memory."
+          : "No optional provider key is configured.",
+        "success",
+      );
+    }
+
+    async function saveLlmSettings() {
+      const result = await safeFetch("/config/llm", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          base_url: byId("llmBaseUrl").value.trim() || null,
+          model_name: byId("llmModelName").value.trim() || null,
+          api_key: byId("llmApiKey").value.trim() || null,
+        }),
+      });
+      if (!result.ok) {
+        setStatus("llmSettingsStatus", result.error, "error");
+        return;
+      }
+      byId("llmApiKey").value = "";
+      setStatus("llmSettingsStatus", "Provider settings updated in memory.", "success");
+    }
+
     function updatePagePreview() {
       if (!currentCitation || !currentPageNumbers.length) return;
       const pageNumber = currentPageNumbers[currentPageIndex];
@@ -778,6 +942,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       const imageUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) +
         "/pages/" + pageNumber + "/image?highlight=" + encodeURIComponent(lastQuestion);
       byId("sourcePage").textContent = "Page " + pageNumber + " · SCAR score " + currentCitation.rerank_score;
+      resetPageView();
       byId("pageImage").src = imageUrl;
       byId("pageImage").alt = "Rendered " + currentCitation.doc_name + " PDF page " + pageNumber + " with highlighted query terms";
       byId("pdfFrame").src = pdfUrl;
@@ -1002,6 +1167,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         const precision = Number(metric.precision_at_1 || 0);
         return '<div><div class="bar-label"><span>' + mode.label + '</span><span class="mono">' +
           (precision * 100).toFixed(1) + "% · MRR " + Number(metric.mrr || 0).toFixed(3) +
+          " · nDCG@3 " + Number(metric.ndcg_at_3 || 0).toFixed(4) +
           '</span></div><div class="bar-track"><div class="bar-fill" style="width:' + (precision * 100) +
           "%;background:" + mode.color + ';"></div></div><div class="bar-note">Mean latency ' +
           Number(metric.avg_latency_ms || 0).toFixed(2) + " ms · " + Number(metric.queries_evaluated || 0) + " queries</div></div>";
@@ -1081,8 +1247,46 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     byId("modeBenchmark").addEventListener("click", () => setView("benchmark"));
     byId("refreshBenchmark").addEventListener("click", () => runUiTask(loadBenchmark, "benchmarkStatus"));
     byId("runBenchmark").addEventListener("click", () => runUiTask(runLiveBenchmark, "benchmarkStatus"));
+    byId("llmSettingsButton").addEventListener("click", openLlmSettings);
+    byId("closeLlmSettings").addEventListener("click", closeLlmSettings);
+    byId("cancelLlmSettings").addEventListener("click", closeLlmSettings);
+    byId("saveLlmSettings").addEventListener("click", () => runUiTask(saveLlmSettings, "llmSettingsStatus"));
+    byId("llmSettingsBackdrop").addEventListener("click", event => {
+      if (event.target === byId("llmSettingsBackdrop")) closeLlmSettings();
+    });
     byId("pageImageTab").addEventListener("click", () => setSourceTab("image"));
     byId("fullPdfTab").addEventListener("click", () => setSourceTab("pdf"));
+    byId("zoomOut").addEventListener("click", () => changePageZoom(-0.1));
+    byId("zoomIn").addEventListener("click", () => changePageZoom(0.1));
+    byId("fitPage").addEventListener("click", resetPageView);
+    byId("resetPage").addEventListener("click", resetPageView);
+    byId("pageImage").addEventListener("load", resetPageView);
+    byId("pageImageViewport").addEventListener("wheel", event => {
+      event.preventDefault();
+      changePageZoom(event.deltaY < 0 ? 0.1 : -0.1);
+    }, {passive: false});
+    byId("pageImageViewport").addEventListener("pointerdown", event => {
+      pageDragging = true;
+      pageDragStartX = event.clientX - pagePanX;
+      pageDragStartY = event.clientY - pagePanY;
+      byId("pageImageViewport").classList.add("dragging");
+      byId("pageImageViewport").setPointerCapture(event.pointerId);
+    });
+    byId("pageImageViewport").addEventListener("pointermove", event => {
+      if (!pageDragging) return;
+      pagePanX = event.clientX - pageDragStartX;
+      pagePanY = event.clientY - pageDragStartY;
+      applyPageTransform();
+    });
+    byId("pageImageViewport").addEventListener("pointerup", event => {
+      pageDragging = false;
+      byId("pageImageViewport").classList.remove("dragging");
+      byId("pageImageViewport").releasePointerCapture(event.pointerId);
+    });
+    byId("pageImageViewport").addEventListener("pointercancel", () => {
+      pageDragging = false;
+      byId("pageImageViewport").classList.remove("dragging");
+    });
     byId("prevPage").addEventListener("click", () => {
       if (currentPageIndex > 0) {
         currentPageIndex -= 1;

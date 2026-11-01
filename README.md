@@ -91,19 +91,19 @@ flowchart TD
 
 ## 4. Reproducible Benchmarks & Ablation Study
 
-The repository includes an automated, reproducible benchmark (`evaluation/run_ablation_benchmark.py`) evaluated across answer-blind multi-industry queries (**AMD 10-K Consolidated Operations**, **Microsoft 10-K Segment Revenue**, **JPMorgan Basel III Capital Ratios**, and **Phase-III Oncology Clinical Trial Efficacy Tables**) containing realistic narrative distractors and competing supplemental schedules.
+The repository includes an automated, reproducible benchmark (`evaluation/run_ablation_benchmark.py`) evaluated across eight answer-blind multi-industry queries (**AMD 10-K Consolidated Operations**, **Microsoft 10-K Segment Revenue**, **JPMorgan Basel III Capital Ratios**, and **Phase-III Oncology Clinical Trial Efficacy Tables**) containing realistic narrative distractors and competing supplemental schedules.
 
 All numbers below are generated on CPU using the real **`BAAI/bge-small-en-v1.5`** bi-encoder and **`BAAI/bge-reranker-base`** cross-encoder, and are checked into [`data/latest_evaluation_report.json`](data/latest_evaluation_report.json):
 
-| Retrieval & Reranking Architecture | Precision@1 | Recall@3 | MRR | Mean Query Latency (CPU) |
-| :--- | :---: | :---: | :---: | :---: |
-| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.50` (50.0%) | `1.00` (100%) | `0.750` | `23.42 ms` |
-| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.833` | `24.77 ms` |
-| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`213.53 ms`** |
+| Retrieval & Reranking Architecture | Precision@1 | Recall@3 | MRR | nDCG@3 | Mean Query Latency (CPU) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.875` (87.5%) | `1.0` (100%) | `0.9375` | `0.9539` | `25.49 ms` |
+| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `1.0` (100%) | `1.0` (100%) | `1.0` | `1.0` | `25.56 ms` |
+| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.0` (100%)** | **`1.0` (100%)** | **`1.0`** | **`1.0`** | **`200.62 ms`** |
 
-* **Why Dense-Only scores `0.50` Precision@1:** Dense retrieval finds the exact target page at rank two for AMD and Microsoft, while JPMorgan and Oncology rank first.
-* **Why Hybrid RRF scores `0.75` Precision@1:** BM25 exact headers promote the Microsoft, JPMorgan, and Oncology tables; the AMD table remains a rank-three result before structural reranking.
-* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating promotes every target table to rank one. This warmed-up CPU run measured `213.53 ms` on average.
+* **Why Dense-Only scores `0.875` Precision@1:** Dense retrieval finds the exact AMD target page at rank two while the other seven questions rank first.
+* **Why Hybrid RRF scores `1.00` Precision@1:** Unicode-aware BM25 tokens, entity anchoring, and exact table headers place every target page first.
+* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating verifies every target table at rank one. This warmed-up CPU run measured `200.62 ms` on average.
 
 ---
 

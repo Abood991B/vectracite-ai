@@ -79,13 +79,82 @@ class UnifiedLLMClient:
         api_key: str = settings.LLM_API_KEY,
         model_name: str = settings.LLM_MODEL_NAME,
     ) -> None:
-        del base_url, api_key
+        self.base_url = base_url
+        self.api_key = api_key
         self.model_name = model_name
+
+    def configure_provider(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        model_name: str | None = None,
+    ) -> Dict[str, object]:
+        """Update the optional OpenAI-compatible provider without restarting."""
+        if base_url is not None and base_url.strip():
+            self.base_url = base_url.strip()
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        if model_name is not None and model_name.strip():
+            self.model_name = model_name.strip()
+        return self.get_provider_status()
+
+    def get_provider_status(self) -> Dict[str, object]:
+        """Return safe provider metadata without exposing the configured secret."""
+        return {
+            "base_url": self.base_url,
+            "model_name": self.model_name,
+            "api_key_configured": bool(self.api_key and self.api_key != "EMPTY"),
+        }
 
     @staticmethod
     def _query_terms(question: str) -> set[str]:
-        words = re.findall(r"[a-z0-9]+", question.lower())
+        cleaned = re.sub(r"['’]s\b", "", question.lower())
+        words = re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
         return {word for word in words if len(word) > 2 and word not in QUERY_STOPWORDS}
+
+    @classmethod
+    def _is_cross_document_request(cls, question: str) -> bool:
+        if not re.search(
+            r"\b(compare|comparison|between|across|versus|vs\.?|both|each)\b",
+            question,
+            flags=re.IGNORECASE,
+        ):
+            return False
+        explicit_documents = re.findall(
+            r"\b(?:amd|msft|microsoft|jpm|jpmorgan|oncology|cardiology)\b",
+            question,
+            flags=re.IGNORECASE,
+        )
+        return len({item.casefold() for item in explicit_documents}) >= 2 or bool(
+            re.search(r"\b(documents?|files?|reports?|filings?|pdfs?)\b", question, re.I)
+        )
+
+    @classmethod
+    def _select_answer_chunks(
+        cls,
+        question: str,
+        chunks: List[RetrievedDocument],
+    ) -> List[RetrievedDocument]:
+        """Keep normal answers on the primary hit; admit only qualified comparisons."""
+        if not chunks:
+            return []
+        primary_doc = chunks[0].doc_name
+        selected = [chunk for chunk in chunks if chunk.doc_name == primary_doc]
+        if not cls._is_cross_document_request(question):
+            return selected
+
+        query_terms = cls._query_terms(question)
+        for chunk in chunks:
+            if chunk.doc_name == primary_doc or not query_terms:
+                continue
+            chunk_terms = set(
+                re.findall(r"[\w]+", chunk.text.casefold(), flags=re.UNICODE)
+            )
+            coverage = len(query_terms & chunk_terms) / len(query_terms)
+            score = float(chunk.rerank_score or 0.0)
+            if score >= 0.60 and coverage >= 0.50:
+                selected.append(chunk)
+        return selected
 
     @staticmethod
     def _out_of_scope_message(question: str) -> str:
@@ -273,15 +342,16 @@ class UnifiedLLMClient:
         if not chunks:
             return self._out_of_scope_message(question)
 
-        section_answer = self._format_sections(question, chunks)
+        answer_chunks = self._select_answer_chunks(question, chunks)
+        section_answer = self._format_sections(question, answer_chunks)
         if section_answer:
             return section_answer
 
-        table_answer = self._table_answer(question, chunks[0])
+        table_answer = self._table_answer(question, answer_chunks[0])
         if table_answer:
             return table_answer
 
-        narrative_answer = self._general_answer(question, chunks)
+        narrative_answer = self._general_answer(question, answer_chunks)
         return narrative_answer or self._out_of_scope_message(question)
 
     async def stream_answer(

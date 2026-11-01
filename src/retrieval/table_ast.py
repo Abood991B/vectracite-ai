@@ -3,6 +3,15 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Set
 
 
+KNOWN_ENTITY_ALIASES: Dict[str, set[str]] = {
+    "amd": {"amd"},
+    "msft": {"msft", "microsoft"},
+    "jpm": {"jpm", "jpmorgan"},
+    "oncology": {"oncology"},
+    "cardiology": {"cardiology"},
+}
+
+
 @dataclass
 class TableCellCoordinate:
     """Represents a single verified 2D cell intersection (Row Key x Column Header -> Value)."""
@@ -28,6 +37,15 @@ class TableASTParser:
         "what", "were", "was", "the", "in", "of", "and", "to", "for", "per",
         "according", "table", "how", "much", "did", "report", "vs", "compared", "by",
     }
+
+    @staticmethod
+    def _tokens(value: str) -> set[str]:
+        cleaned = re.sub(r"['’]s\b", "", value.lower())
+        return {
+            token
+            for token in re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
+            if len(token) >= 2
+        }
 
     @staticmethod
     def extract_cells(
@@ -83,12 +101,12 @@ class TableASTParser:
         if not cells:
             return []
 
-        q_tokens = set(re.findall(r"[a-z0-9]+", query.lower())) - cls.STOPWORDS
+        q_tokens = cls._tokens(query) - cls.STOPWORDS
         scored_cells = []
 
         for cell in cells:
-            row_tokens = set(re.findall(r"[a-z0-9]+", cell.row_key.lower())) - cls.STOPWORDS
-            col_tokens = set(re.findall(r"[a-z0-9]+", cell.col_header.lower())) - cls.STOPWORDS
+            row_tokens = cls._tokens(cell.row_key) - cls.STOPWORDS
+            col_tokens = cls._tokens(cell.col_header) - cls.STOPWORDS
             row_overlap = len(q_tokens & row_tokens)
             col_overlap = len(q_tokens & col_tokens)
             if row_overlap > 0:
@@ -108,13 +126,42 @@ class TableASTParser:
         if not cells:
             return 0.0
 
-        schema_String = " ".join(f"{c.row_key} {c.col_header}" for c in cells).lower()
-        schema_tokens = set(re.findall(r"[a-z0-9]+", schema_String)) - cls.STOPWORDS
-        query_tokens = set(re.findall(r"[a-z0-9]+", query.lower())) - cls.STOPWORDS
+        schema_string = " ".join(f"{c.row_key} {c.col_header}" for c in cells)
+        schema_tokens = cls._tokens(schema_string) - cls.STOPWORDS
+        query_tokens = cls._tokens(query) - cls.STOPWORDS
 
         if not query_tokens:
             return 0.0
-        return len(query_tokens & schema_tokens) / len(query_tokens)
+
+        lines = text.splitlines()
+        first_table_index = next(
+            (index for index, line in enumerate(lines) if line.strip().startswith("|")),
+            len(lines),
+        )
+        title_and_document_header = "\n".join(lines[:first_table_index])
+        table_text = "\n".join(line for line in lines if line.strip().startswith("|"))
+        subject_text = f"{title_and_document_header}\n{table_text}"
+        subject_tokens = cls._tokens(subject_text)
+        subject_folded = subject_text.casefold()
+
+        explicit_entities = [
+            aliases
+            for aliases in KNOWN_ENTITY_ALIASES.values()
+            if any(alias in query_tokens or alias in query.casefold() for alias in aliases)
+        ]
+        for aliases in explicit_entities:
+            if not any(alias in subject_tokens or alias in subject_folded for alias in aliases):
+                return 0.0
+
+        alignment = len(query_tokens & schema_tokens) / len(query_tokens)
+        if explicit_entities:
+            header_overlap = sum(
+                1
+                for aliases in explicit_entities
+                if any(alias in subject_tokens or alias in subject_folded for alias in aliases)
+            )
+            alignment *= header_overlap / len(explicit_entities)
+        return alignment
 
     @classmethod
     def compress_for_cross_encoder(cls, query: str, text: str) -> str:

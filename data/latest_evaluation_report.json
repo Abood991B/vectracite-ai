@@ -1,24 +1,27 @@
 {
   "dense_only": {
-    "precision_at_1": 0.5,
+    "precision_at_1": 0.875,
     "recall_at_3": 1.0,
-    "mrr": 0.75,
-    "avg_latency_ms": 23.42,
-    "queries_evaluated": 4
+    "mrr": 0.9375,
+    "ndcg_at_3": 0.9539,
+    "avg_latency_ms": 25.49,
+    "queries_evaluated": 8
   },
   "hybrid_rrf": {
-    "precision_at_1": 0.75,
+    "precision_at_1": 1.0,
     "recall_at_3": 1.0,
-    "mrr": 0.8333,
-    "avg_latency_ms": 24.77,
-    "queries_evaluated": 4
+    "mrr": 1.0,
+    "ndcg_at_3": 1.0,
+    "avg_latency_ms": 25.56,
+    "queries_evaluated": 8
   },
   "hybrid_plus_reranker": {
     "precision_at_1": 1.0,
     "recall_at_3": 1.0,
     "mrr": 1.0,
-    "avg_latency_ms": 213.53,
-    "queries_evaluated": 4
+    "ndcg_at_3": 1.0,
+    "avg_latency_ms": 200.62,
+    "queries_evaluated": 8
   },
   "per_query_breakdown": [
     {
@@ -27,7 +30,17 @@
       "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
       "ranks": {
         "dense_only": 2,
-        "hybrid_rrf": 3,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "AMD_2022_10K",
+      "expected_page": 67,
+      "question": "What were AMD's FY 2022 net revenue and operating income for the United States and China & Taiwan regions?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
         "hybrid_plus_reranker": 1
       }
     },
@@ -36,7 +49,17 @@
       "expected_page": 62,
       "question": "According to Microsoft's Note 19 Segment Revenue table, what was Intelligent Cloud and Productivity revenue in FY23 compared to FY22?",
       "ranks": {
-        "dense_only": 2,
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "MSFT_2023_10K",
+      "expected_page": 62,
+      "question": "What was More Personal Computing revenue in FY23 compared with FY22?",
+      "ranks": {
+        "dense_only": 1,
         "hybrid_rrf": 1,
         "hybrid_plus_reranker": 1
       }
@@ -52,9 +75,29 @@
       }
     },
     {
+      "doc_name": "JPM_2022_10K",
+      "expected_page": 88,
+      "question": "What were the total capital ratio values on Dec 31, 2022 and Dec 31, 2021?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
       "doc_name": "ONCOLOGY_TRIAL_2025",
       "expected_page": 14,
       "question": "In the Phase-III Clinical Trial Efficacy & Dosage table, what were the Median Progression-Free Survival (months) and Objective Response Rate (%) for the 80mg Cohort?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "ONCOLOGY_TRIAL_2025",
+      "expected_page": 14,
+      "question": "What were the Grade >=3 adverse event percentages for the 80mg Cohort and Standard Care?",
       "ranks": {
         "dense_only": 1,
         "hybrid_rrf": 1,

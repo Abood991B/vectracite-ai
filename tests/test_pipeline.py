@@ -248,6 +248,7 @@ def test_evaluation_suite_runs_and_logs_metrics() -> None:
     results = run_evaluation_suite()
     assert "hybrid_plus_reranker" in results
     assert results["hybrid_plus_reranker"]["recall_at_3"] >= 0.75
+    assert "ndcg_at_3" in results["hybrid_plus_reranker"]
 
 
 def test_deterministic_numeric_verifier_detects_grounded_and_ungrounded_numbers() -> None:
@@ -305,6 +306,12 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
     assert 'safeFetch("/ingest/pdf"' in dash.text
     assert "Run Live Benchmark Now" in dash.text
     assert "/documents/" in dash.text and "/pages/" in dash.text and "/image" in dash.text
+    assert 'id="zoomOut"' in dash.text
+    assert 'id="zoomIn"' in dash.text
+    assert 'id="fitPage"' in dash.text
+    assert 'id="resetPage"' in dash.text
+    assert 'id="llmSettingsButton"' in dash.text
+    assert 'id="llmSettingsBackdrop"' in dash.text
 
     put_resp = client.put(
         "/documents/SLA_SPEC_2026",
@@ -496,6 +503,7 @@ def test_built_in_corpus_has_five_pdf_pages_and_chunks_per_document() -> None:
     import fitz
 
     from src.ingestion.pdf_parser import MultimodalFinancialParser
+    from src.retrieval.table_ast import TableASTParser
 
     pdf_paths = sorted(settings.CORPUS_PDF_DIR.glob("*.pdf"))
     assert len(pdf_paths) == 4
@@ -510,6 +518,18 @@ def test_built_in_corpus_has_five_pdf_pages_and_chunks_per_document() -> None:
         "MSFT_2023_10K",
         "ONCOLOGY_TRIAL_2025",
     }
+    amd_table = next(
+        chunk
+        for chunk in all_chunks
+        if chunk.doc_name == "AMD_2022_10K"
+        and chunk.page_number == 51
+        and chunk.contains_table
+    )
+    amd_cells = TableASTParser.extract_cells(
+        amd_table.text, amd_table.doc_name, amd_table.page_number
+    )
+    assert len(amd_cells) == 12
+    assert {cell.value for cell in amd_cells} >= {"$ 23,601", "$ 1,264", "$ 4,347"}
 
 
 def test_section_answers_return_complete_sections_and_group_documents() -> None:
@@ -578,4 +598,194 @@ def test_section_answers_return_complete_sections_and_group_documents() -> None:
 
     overview_answer = asyncio.run(client_llm.generate_answer("Give me an overview", chunks))
     assert "CV_TEST" in overview_answer
-    assert "OTHER_CV" in overview_answer
+    assert "OTHER_CV" not in overview_answer
+
+
+def test_amd_query_not_contaminated_by_cv_or_cardiology_lab() -> None:
+    test_documents = {
+        "USER_CV_MLOPS_QA": [
+            {
+                "page_number": 2,
+                "text": (
+                    "EXPERIENCE\n"
+                    "Machine Learning Operations (MLOps) on Google Cloud. "
+                    "Built deployment pipelines and monitoring systems."
+                ),
+            }
+        ],
+        "CARDIOLOGY_LAB_QA": [
+            {
+                "page_number": 1,
+                "text": (
+                    "CLINICAL BIOMARKER REFERENCE TABLE\n"
+                    "| Biomarker Panel | Treatment Group | Placebo Group |\n"
+                    "| --- | --- | --- |\n"
+                    "| LDL Cholesterol | 68.4 mg/dL | 134.2 mg/dL |"
+                ),
+            }
+        ],
+    }
+    try:
+        client.post("/documents/restore-defaults")
+        for doc_name, pages in test_documents.items():
+            response = client.post("/ingest", json={"doc_name": doc_name, "pages": pages})
+            assert response.status_code == 200
+
+        response = client.post(
+            "/query",
+            json={
+                "question": (
+                    "In AMD's Consolidated Statements of Operations table, what were "
+                    "total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?"
+                ),
+                "top_k": 4,
+                "use_cache": False,
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["citations"][0]["doc_name"] == "AMD_2022_10K"
+        assert body["citations"][0]["page_number"] == 51
+        assert "CARDIOLOGY_LAB_2026" not in body["answer"]
+        assert "CARDIOLOGY_LAB_QA" not in body["answer"]
+        assert "CV" not in body["answer"]
+        assert "MLOps" not in body["answer"]
+        assert all(citation["doc_name"] == "AMD_2022_10K" for citation in body["citations"])
+    finally:
+        for doc_name in test_documents:
+            client.delete(f"/documents/{doc_name}")
+        client.post("/documents/restore-defaults")
+
+
+def test_edge_case_pdfs_encrypted_corrupted_and_unicode() -> None:
+    import base64
+    import fitz
+
+    def upload(doc_name: str, payload: bytes):
+        return client.post(
+            "/ingest/pdf",
+            json={
+                "doc_name": doc_name,
+                "pdf_base64": base64.b64encode(payload).decode("ascii"),
+            },
+        )
+
+    corrupted = upload("CORRUPTED_QA.pdf", b"%PDF-1.7\ntruncated")
+    assert corrupted.status_code == 400
+    assert "PDF" in str(corrupted.json()["detail"])
+
+    encrypted_doc = fitz.open()
+    encrypted_doc.new_page().insert_text((50, 72), "Password protected evidence")
+    encrypted_bytes = encrypted_doc.tobytes(
+        encryption=fitz.PDF_ENCRYPT_AES_256,
+        owner_pw="owner",
+        user_pw="secret",
+    )
+    encrypted_doc.close()
+    encrypted = upload("ENCRYPTED_QA.pdf", encrypted_bytes)
+    assert encrypted.status_code == 400
+    assert "password-protected" in str(encrypted.json()["detail"]).lower()
+
+    scanned_doc = fitz.open()
+    scanned_page = scanned_doc.new_page()
+    image = fitz.Pixmap(fitz.csRGB, (0, 0, 16, 16), 0)
+    image.clear_with(0xFFFFFF)
+    scanned_page.insert_image(fitz.Rect(0, 0, 200, 200), stream=image.tobytes("png"))
+    scanned_bytes = scanned_doc.tobytes()
+    scanned_doc.close()
+    scanned = upload("SCANNED_QA.pdf", scanned_bytes)
+    assert scanned.status_code == 400
+    assert "scanned" in str(scanned.json()["detail"]).lower()
+
+    unicode_doc = fitz.open()
+    left = unicode_doc.new_page()
+    left.insert_text((50, 72), "Résumé — São Paulo 2026", fontname="helv")
+    left.insert_text((50, 100), "Revenue 42 million", fontname="helv")
+    left.insert_text((320, 72), "Δ Change", fontname="helv")
+    left.insert_text((320, 100), "12.5%", fontname="helv")
+    unicode_bytes = unicode_doc.tobytes()
+    unicode_doc.close()
+    try:
+        uploaded = upload("UNICODE_COLUMNS_QA.pdf", unicode_bytes)
+        assert uploaded.status_code == 200
+        inspected = client.get("/documents/UNICODE_COLUMNS_QA")
+        assert inspected.status_code == 200
+        assert "São Paulo" in "\n".join(
+            chunk["text"] for chunk in inspected.json()["chunks"]
+        )
+        searchable = client.post(
+            "/query",
+            json={
+                "question": "What evidence mentions São Paulo?",
+                "doc_name": "UNICODE_COLUMNS_QA",
+                "use_cache": False,
+            },
+        )
+        assert searchable.status_code == 200
+        assert searchable.json()["citations"][0]["doc_name"] == "UNICODE_COLUMNS_QA"
+    finally:
+        client.delete("/documents/UNICODE_COLUMNS_QA")
+
+
+def test_clear_and_restore_demos_invalidates_cache_and_leaves_no_orphans() -> None:
+    from src.api.main import DEMO_DOCUMENT_NAMES, retriever, semantic_cache
+
+    question = "What were AMD total net revenue values for FY2022 and FY2021?"
+    try:
+        restored = client.post("/documents/restore-defaults")
+        assert restored.status_code == 200
+        queried = client.post(
+            "/query",
+            json={"question": question, "use_cache": True, "top_k": 2},
+        )
+        assert queried.status_code == 200
+        cache_key = f"ALL::{question}"
+        assert semantic_cache.lookup(cache_key) is not None
+
+        cleared = client.post("/documents/clear-demos")
+        assert cleared.status_code == 200
+        assert semantic_cache.lookup(cache_key) is None
+        assert not any(
+            chunk.doc_name in DEMO_DOCUMENT_NAMES for chunk in retriever.chunks_store
+        )
+        indexed_count = retriever.qdrant.count(
+            collection_name=retriever.collection_name
+        ).count
+        assert indexed_count == len(retriever.chunks_store)
+
+        restored_again = client.post("/documents/restore-defaults")
+        assert restored_again.status_code == 200
+        assert semantic_cache.lookup(cache_key) is None
+        assert DEMO_DOCUMENT_NAMES <= {
+            document["doc_name"] for document in retriever.list_documents()
+        }
+    finally:
+        client.post("/documents/restore-defaults")
+
+
+def test_runtime_llm_configuration_is_visible_without_exposing_api_key() -> None:
+    original = client.get("/config/llm").json()
+    try:
+        updated = client.post(
+            "/config/llm",
+            json={
+                "base_url": "http://localhost:9000/v1",
+                "api_key": "qa-secret-key",
+                "model_name": "qa/local-model",
+            },
+        )
+        assert updated.status_code == 200
+        status = updated.json()
+        assert status["base_url"] == "http://localhost:9000/v1"
+        assert status["model_name"] == "qa/local-model"
+        assert status["api_key_configured"] is True
+        assert "qa-secret-key" not in updated.text
+    finally:
+        client.post(
+            "/config/llm",
+            json={
+                "base_url": original["base_url"],
+                "api_key": settings.LLM_API_KEY,
+                "model_name": original["model_name"],
+            },
+        )
