@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 import base64
 import json
+import re
 import time
+from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List
+import fitz
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from src.api.ui import WORKBENCH_HTML
 from evaluation.run_ablation_benchmark import (
     build_dynamic_eval_queries,
@@ -45,11 +48,19 @@ guardrails = EnterpriseGuardrails()
 numeric_verifier = DeterministicNumericVerifier()
 llm_client = UnifiedLLMClient()
 _DEFAULTS_CLEARED = False
+DEMO_DOCUMENT_NAMES = frozenset(
+    {
+        "AMD_2022_10K",
+        "MSFT_2023_10K",
+        "JPM_2022_10K",
+        "ONCOLOGY_TRIAL_2025",
+    }
+)
 
 
 def _load_persisted_chunks() -> List[Any]:
     """Load defaults plus user PDFs, letting a user copy override a default by name."""
-    baseline_chunks = load_corpus_chunks_from_pdfs(parser)
+    baseline_chunks = [] if _DEFAULTS_CLEARED else load_corpus_chunks_from_pdfs(parser)
     upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
     uploaded_names = {path.stem for path in upload_paths}
     chunks = [chunk for chunk in baseline_chunks if chunk.doc_name not in uploaded_names]
@@ -113,10 +124,19 @@ def _remove_user_pdf(doc_name: str) -> None:
     if user_path.exists():
         user_path.unlink()
 
-    baseline_docs = {str(item["doc_name"]) for item in _benchmark_definitions()}
     legacy_path = settings.CORPUS_PDF_DIR / f"{doc_name}.pdf"
-    if doc_name not in baseline_docs and legacy_path.exists():
+    if doc_name not in DEMO_DOCUMENT_NAMES and legacy_path.exists():
         legacy_path.unlink()
+
+
+def _find_pdf_path(doc_name: str) -> Path | None:
+    """Find a stored user upload first, then a checked-in demo PDF."""
+    clean_name = _clean_doc_name(doc_name)
+    for root in (settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR):
+        pdf_path = root / f"{clean_name}.pdf"
+        if pdf_path.exists():
+            return pdf_path
+    return None
 
 
 def _ensure_indexed() -> None:
@@ -239,6 +259,15 @@ async def logo_asset() -> FileResponse:
     return FileResponse(logo_path, media_type="image/svg+xml")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_asset() -> FileResponse:
+    """Serve the same vector mark for browsers that request a favicon.ico."""
+    logo_path = settings.BASE_DIR / "assets" / "logo.svg"
+    if not logo_path.exists():
+        raise HTTPException(status_code=404, detail="Logo asset not found.")
+    return FileResponse(logo_path, media_type="image/svg+xml")
+
+
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
     """Liveness and readiness probe for Kubernetes & Cloud Run."""
@@ -258,6 +287,12 @@ async def list_indexed_documents() -> Dict[str, Any]:
     """Lists all currently indexed documents, chunk counts, and table counts."""
     _ensure_indexed()
     docs = retriever.list_documents()
+    for document in docs:
+        document["storage_tier"] = (
+            "user_upload"
+            if (settings.USER_UPLOADS_DIR / f"{document['doc_name']}.pdf").exists()
+            else "demo_corpus"
+        )
     return {"total_documents": len(docs), "documents": docs}
 
 
@@ -265,49 +300,110 @@ async def list_indexed_documents() -> Dict[str, Any]:
 async def document_pdf(doc_name: str) -> FileResponse:
     """Return the original PDF for inline browser preview or download."""
     clean_name = _clean_doc_name(doc_name)
-    for root in (settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR):
-        pdf_path = root / f"{clean_name}.pdf"
-        if pdf_path.exists():
-            return FileResponse(
-                pdf_path,
-                media_type="application/pdf",
-                filename=pdf_path.name,
-                content_disposition_type="inline",
-            )
-    raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
+    pdf_path = _find_pdf_path(clean_name)
+    if pdf_path is None:
+        raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=pdf_path.name,
+        content_disposition_type="inline",
+    )
 
 
+@app.get("/documents/{doc_name}/pages/{page_number}/image")
+async def document_page_image(
+    doc_name: str, page_number: int, highlight: str = ""
+) -> Response:
+    """Render one source page as a high-DPI PNG with query-term highlights."""
+    clean_name = _clean_doc_name(doc_name)
+    if page_number < 1:
+        raise HTTPException(status_code=400, detail="Page number must be positive.")
+    pdf_path = _find_pdf_path(clean_name)
+    if pdf_path is None:
+        raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
+
+    document = fitz.open(pdf_path)
+    try:
+        selected_page = None
+        fallback_index = min(page_number - 1, len(document) - 1)
+        for page in document:
+            source_text = page.get_text("text", sort=True)
+            source_match = re.search(r"SOURCE PAGE:\s*(\d+)", source_text, flags=re.IGNORECASE)
+            if source_match and int(source_match.group(1)) == page_number:
+                selected_page = page
+                break
+        if selected_page is None:
+            selected_page = document[fallback_index]
+
+        stopwords = {
+            "about",
+            "according",
+            "and",
+            "compared",
+            "from",
+            "into",
+            "that",
+            "the",
+            "their",
+            "what",
+            "were",
+            "with",
+        }
+        terms = []
+        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9%$.-]{2,}", highlight):
+            normalized = term.casefold()
+            if normalized not in stopwords and normalized not in terms:
+                terms.append(normalized)
+        highlight_count = 0
+        for term in terms:
+            for rect in selected_page.search_for(term):
+                selected_page.add_highlight_annot(rect).update()
+                highlight_count += 1
+                if highlight_count >= 8:
+                    break
+            if highlight_count >= 8:
+                break
+
+        png_bytes = selected_page.get_pixmap(dpi=150, alpha=False).tobytes("png")
+        return Response(
+            content=png_bytes,
+            media_type="image/png",
+            headers={"Cache-Control": "no-store"},
+        )
+    finally:
+        document.close()
+
+
+@app.post("/documents/clear-demos")
 @app.post("/documents/clear-all")
-async def clear_all_documents() -> Dict[str, Any]:
-    """Clear the active index and remove user-uploaded PDFs without touching defaults."""
+async def clear_demo_documents() -> Dict[str, Any]:
+    """Remove only demo documents from the active index and preserve user uploads."""
     global _DEFAULTS_CLEARED
     _DEFAULTS_CLEARED = True
-    removed_chunks = len(retriever.chunks_store)
-    retriever.clear()
+    user_document_names = {path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")}
+    removed_chunks = 0
+    for doc_name in DEMO_DOCUMENT_NAMES - user_document_names:
+        removed_chunks += retriever.delete_document(doc_name)
     semantic_cache.clear()
-    removed_uploads = 0
-    for pdf_path in settings.USER_UPLOADS_DIR.glob("*.pdf"):
-        pdf_path.unlink()
-        removed_uploads += 1
     return {
-        "status": "cleared",
-        "documents": 0,
+        "status": "cleared_demos",
+        "documents": len(retriever.list_documents()),
         "chunks_removed": removed_chunks,
-        "uploads_removed": removed_uploads,
+        "uploads_removed": 0,
+        "uploads_preserved": len(user_document_names),
     }
 
 
 @app.post("/documents/restore-defaults")
 async def restore_default_documents() -> Dict[str, Any]:
-    """Restore the checked-in demo corpus and remove any user-uploaded PDFs."""
+    """Restore demos while preserving and re-indexing every user upload."""
     global _DEFAULTS_CLEARED
     _DEFAULTS_CLEARED = False
     retriever.clear()
     semantic_cache.clear()
-    for pdf_path in settings.USER_UPLOADS_DIR.glob("*.pdf"):
-        pdf_path.unlink()
-    default_chunks = load_corpus_chunks_from_pdfs(parser)
-    indexed_count = retriever.index_chunks(default_chunks) if default_chunks else 0
+    persisted_chunks = _load_persisted_chunks()
+    indexed_count = retriever.index_chunks(persisted_chunks) if persisted_chunks else 0
     return {
         "status": "restored_defaults",
         "documents": len(retriever.list_documents()),
@@ -399,7 +495,13 @@ async def delete_document(doc_name: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Document '{clean_name}' not found.")
 
     _remove_user_pdf(clean_name)
-    return {"status": "deleted", "doc_name": clean_name, "chunks_removed": removed}
+    semantic_cache.clear()
+    return {
+        "status": "deleted",
+        "doc_name": clean_name,
+        "chunks_removed": removed,
+        "documents_remaining": len(retriever.list_documents()),
+    }
 
 
 @app.get("/scenarios")
