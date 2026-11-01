@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables & secrets
+.env
+.env.local
+
+# Data, cached PDFs & MLflow artifacts
+data/pdfs/*.pdf
+mlruns/
+mlartifacts/
+qdrant_storage/
+.pytest_cache/
+.ruff_cache/
+
+# Model weights & checkpoints
+*.bin
+*.safetensors
+*.gguf
+qlora_checkpoints/
+outputs/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# AI Agent & Editor Scratchpads
+docs/superpowers/
+.claude/
+.cursor/
+.windsurf/
+CLAUDE.md
+AGENTS.md
