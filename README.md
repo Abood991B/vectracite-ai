@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="88" alt="VectraCite-AI Logo" /></p>
+
 # VectraCite-AI
 
 **Neuro-Symbolic Document Intelligence, 2D Table-AST Hybrid RAG & Deterministic Numeric Verification Engine**
@@ -95,14 +97,13 @@ All numbers below are generated on CPU using the real **`BAAI/bge-small-en-v1.5`
 
 | Retrieval & Reranking Architecture | Precision@1 | Recall@3 | MRR | Mean Query Latency (CPU) |
 | :--- | :---: | :---: | :---: | :---: |
-| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `26.47 ms` |
-| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `24.89 ms` |
-| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`172.66 ms`** |
-| **4. VectraCite + Semantic Cache Hit** (`Redis / Memory >= 0.92 Cosine`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`0.38 ms`** |
+| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.50` (50.0%) | `1.00` (100%) | `0.750` | `27.88 ms` |
+| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.833` | `26.73 ms` |
+| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`173.26 ms`** |
 
-* **Why Dense-Only scores `0.75` Precision@1:** The revised cases use natural spelled-out narrative distractors while retaining shorthand table identifiers, allowing dense retrieval to recover three of four exact table pages.
-* **Why Hybrid RRF scores `0.75` Precision@1:** Lexical BM25 recovers exact column headers and table terminology on three cases, while the AMD cross-reference footnote repeats the exact target wording and remains the one first-stage miss.
-* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating sends only the locked table candidate to `BAAI/bge-reranker-base` when the AST margin is decisive. This run measured `172.66 ms` on CPU.
+* **Why Dense-Only scores `0.50` Precision@1:** Dense retrieval finds the exact target page at rank two for AMD and Microsoft, while JPMorgan and Oncology rank first.
+* **Why Hybrid RRF scores `0.75` Precision@1:** BM25 exact headers promote the Microsoft, JPMorgan, and Oncology tables; the AMD table remains a rank-three result before structural reranking.
+* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating promotes every target table to rank one. This warmed-up CPU run measured `173.26 ms` on average.
 
 ---
 
@@ -141,7 +142,7 @@ docker compose up -d --build
 ### Run the Automated Test Suite & Reproducible Benchmark
 ```bash
 ruff check src/ tests/ evaluation/ scripts/
-pytest -v  # uses the real BAAI BGE models; only Qdrant is in-memory
+pytest -v  # tests opt into deterministic lightweight models via tests/conftest.py
 python scripts/build_real_pdf_corpus.py
 python evaluation/run_ablation_benchmark.py
 python scripts/run_live_showcase.py
@@ -152,9 +153,10 @@ python scripts/run_live_showcase.py
 ## 6. Using the Built-In Web Workbench (No Coding Required)
 
 When you navigate to **`http://localhost:8080/`**, VectraCite-AI serves a clean technical workbench designed for both analysts and engineers:
-1. **Ask & Verify:** Choose scenario cards generated from `/scenarios`, or ask a free-form question; inspect 2D table coordinates, symbolic YoY deltas, citations, rendered Markdown tables, and the deterministic numeric audit.
-2. **Knowledge Base & PDF Upload:** Inspect any indexed document page-by-page, upload a real `.pdf` file for PyMuPDF text/table extraction, or save/replace/delete custom Markdown-table documents without restarting the server. New documents immediately receive live scenario cards.
-3. **Benchmarks & System Health:** Load the latest evaluation or run the live Dense → Hybrid RRF → Adaptive SCAR ablation, including mean latency, MRR, and per-query ranks, alongside `/health` and `/metrics` telemetry.
+1. **Workspace:** Choose All Indexed PDFs or a single PDF in the left scope shelf, then ask a free-form question or select an example chip.
+2. **Answer & source verification:** Inspect the verified answer, extracted 2D coordinates, symbolic deltas, highlighted excerpt, and the original PDF page side by side.
+3. **PDF management:** Upload any PDF, preview its indexed pages, open the original PDF at a cited page, save a manual table sample, or clear and restore the demo shelf without restarting the server.
+4. **System accuracy:** Switch to the benchmark view for plain-English metric definitions, active model names, mean latency, and per-query Found at Rank #1 versus Missed badges.
 
 ---
 
@@ -163,9 +165,13 @@ When you navigate to **`http://localhost:8080/`**, VectraCite-AI serves a clean 
 | Method & Endpoint | Description |
 | :--- | :--- |
 | `GET /` | Interactive HTML/JS Engineering Workbench UI |
+| `GET /assets/logo.svg` | Official VectraCite-AI SVG emblem |
 | `GET /health` | Kubernetes / Cloud Run liveness & readiness probe |
 | `GET /documents` | Lists all indexed documents, chunk counts, table counts, and page numbers |
+| `GET /documents/{doc_name}/pdf` | Serves an indexed PDF for browser preview or download |
 | `GET /documents/{doc_name}` | Inspects every indexed chunk, page, and extracted-table flag for one document |
+| `POST /documents/clear-all` | Clears the active index and user-uploaded PDFs so a team can start with its own files |
+| `POST /documents/restore-defaults` | Restores the checked-in four-document demo corpus |
 | `POST /ingest` | Persists structured pages as a PDF and indexes them into Qdrant + BM25 |
 | `POST /ingest/pdf` | Accepts a base64-encoded PDF, extracts text/tables via PyMuPDF, and indexes it |
 | `PUT /documents/{doc_name}` | Atomically replaces an indexed document and its persisted PDF |
@@ -173,7 +179,7 @@ When you navigate to **`http://localhost:8080/`**, VectraCite-AI serves a clean 
 | `GET /scenarios` | Generates benchmark and Table-AST scenarios for the current index |
 | `GET /evaluate/latest` | Returns the latest aggregate and per-query evaluation report |
 | `POST /evaluate` | Runs a live three-mode ablation across all currently indexed documents |
-| `POST /query` | Executes Guardrails $\rightarrow$ Cache $\rightarrow$ Hybrid RRF $\rightarrow$ SCAR Reranking $\rightarrow$ Numeric Audit |
+| `POST /query` | Executes Guardrails $\rightarrow$ Cache $\rightarrow$ Hybrid RRF $\rightarrow$ SCAR Reranking $\rightarrow$ Numeric Audit; accepts optional doc_name scope |
 | `POST /query/stream` | Streams citation-grounded tokens via Server-Sent Events (`text/event-stream`) |
 | `GET /metrics` | Returns operational telemetry, model configuration, and cache hit rate |
 

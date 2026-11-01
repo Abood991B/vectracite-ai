@@ -209,12 +209,13 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
     dash = client.get("/")
     assert dash.status_code == 200
     assert "VectraCite-AI" in dash.text
-    assert "Retrieval &amp; Table Coordinate Inspector" in dash.text
-    assert "Ask &amp; Verify" in dash.text
-    assert "Knowledge Base &amp; PDF Upload" in dash.text
-    assert "Benchmarks &amp; System Health" in dash.text
-    assert 'id="pdfFileInput"' in dash.text
-    assert 'fetch("/ingest/pdf"' in dash.text
+    assert "PDF verification studio" in dash.text
+    assert "Ask, inspect, verify" in dash.text
+    assert "Search scope" in dash.text
+    assert "System accuracy" in dash.text
+    assert 'href="/assets/logo.svg"' in dash.text
+    assert 'id="pdfUploadInput"' in dash.text
+    assert 'safeFetch("/ingest/pdf"' in dash.text
 
     put_resp = client.put(
         "/documents/SLA_SPEC_2026",
@@ -314,3 +315,85 @@ def test_adaptive_scar_ranks_structurally_aligned_table_first() -> None:
 
     assert reranked[0].chunk_id == "table"
     assert reranked[0].rerank_score is not None
+
+
+def test_universal_answer_paths_are_grounded_or_explicitly_out_of_scope() -> None:
+    import asyncio
+
+    from src.inference.llm_client import UnifiedLLMClient
+
+    client_llm = UnifiedLLMClient()
+    meta_answer = asyncio.run(
+        client_llm.generate_answer("What model are you?", [], indexed_docs=["AMD_2022_10K"])
+    )
+    assert "BAAI/bge-small-en-v1.5" in meta_answer
+    assert "BAAI/bge-reranker-base" in meta_answer
+
+    out_of_scope_answer = asyncio.run(
+        client_llm.generate_answer(
+            "What is the history of quantum gardening?",
+            [],
+            indexed_docs=["AMD_2022_10K"],
+        )
+    )
+    assert "No matching information" in out_of_scope_answer
+    assert "upload a relevant PDF" in out_of_scope_answer
+
+
+def test_pdf_studio_assets_scope_and_reset_contract() -> None:
+    logo_resp = client.get("/assets/logo.svg")
+    assert logo_resp.status_code == 200
+    assert logo_resp.headers["content-type"].startswith("image/svg+xml")
+    assert "<svg" in logo_resp.text
+
+    restore_resp = client.post("/documents/restore-defaults")
+    assert restore_resp.status_code == 200
+    assert restore_resp.json()["documents"] == 4
+    assert restore_resp.json()["chunks_indexed"] == 20
+
+    pdf_resp = client.get("/documents/AMD_2022_10K/pdf")
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"].startswith("application/pdf")
+
+    scoped_resp = client.post(
+        "/query",
+        json={
+            "question": "According to Microsoft's Note 19 Segment Revenue table, what was Intelligent Cloud revenue in FY23 compared to FY22?",
+            "doc_name": "MSFT_2023_10K",
+            "top_k": 2,
+            "use_cache": False,
+        },
+    )
+    assert scoped_resp.status_code == 200
+    scoped_body = scoped_resp.json()
+    assert scoped_body["metadata"]["document_scope"] == "MSFT_2023_10K"
+    assert scoped_body["citations"]
+    assert all(citation["doc_name"] == "MSFT_2023_10K" for citation in scoped_body["citations"])
+
+    clear_resp = client.post("/documents/clear-all")
+    assert clear_resp.status_code == 200
+    assert client.get("/documents").json()["total_documents"] == 0
+
+    final_restore = client.post("/documents/restore-defaults")
+    assert final_restore.status_code == 200
+    assert client.get("/documents").json()["total_documents"] == 4
+
+
+def test_built_in_corpus_has_five_pdf_pages_and_chunks_per_document() -> None:
+    import fitz
+
+    from src.ingestion.pdf_parser import MultimodalFinancialParser
+
+    pdf_paths = sorted(settings.CORPUS_PDF_DIR.glob("*.pdf"))
+    assert len(pdf_paths) == 4
+    assert all(fitz.open(path).page_count == 5 for path in pdf_paths)
+
+    parser = MultimodalFinancialParser(chunk_size=1200, chunk_overlap=200)
+    all_chunks = [chunk for path in pdf_paths for chunk in parser.parse_pdf(path)]
+    assert len(all_chunks) == 20
+    assert {chunk.doc_name for chunk in all_chunks} == {
+        "AMD_2022_10K",
+        "JPM_2022_10K",
+        "MSFT_2023_10K",
+        "ONCOLOGY_TRIAL_2025",
+    }
