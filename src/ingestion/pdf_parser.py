@@ -9,6 +9,27 @@ import fitz  # PyMuPDF
 logger = logging.getLogger(__name__)
 
 
+def render_pages_to_pdf_bytes(doc_name: str, pages: List[Dict[str, Any]]) -> bytes:
+    """Render structured page payloads into a real multi-page PDF byte stream."""
+    document = fitz.open()
+    try:
+        for item in pages:
+            page_number = int(item.get("page_number", 1))
+            text = str(item.get("text", "")).strip()
+            page = document.new_page(width=612, height=792)
+            page.insert_textbox(
+                fitz.Rect(36, 36, 576, 756),
+                f"[DOCUMENT: {doc_name} | SOURCE PAGE: {page_number}]\n"
+                f"SOURCE PAGE: {page_number}\n\n{text}",
+                fontsize=9,
+                fontname="cour",
+                color=(0.05, 0.05, 0.05),
+            )
+        return document.tobytes()
+    finally:
+        document.close()
+
+
 @dataclass
 class DocumentChunk:
     """Represents a layout-aware document chunk with exact page citation and table metadata."""
@@ -46,7 +67,7 @@ class MultimodalFinancialParser:
 
         for page_idx in range(total_pages):
             page = doc[page_idx]
-            page_num = page_idx + 1
+            physical_page_num = page_idx + 1
 
             table_markdown_blocks: List[str] = []
             try:
@@ -59,7 +80,9 @@ class MultimodalFinancialParser:
                 pass
 
             raw_text = page.get_text("text").strip()
-            has_table = len(table_markdown_blocks) > 0
+            source_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
+            page_num = int(source_match.group(1)) if source_match else physical_page_num
+            has_table = len(table_markdown_blocks) > 0 or ("|" in raw_text and "---" in raw_text)
 
             if has_table:
                 combined_content = (
@@ -96,7 +119,7 @@ class MultimodalFinancialParser:
 
             for page_idx in range(total_pages):
                 page = doc[page_idx]
-                page_num = page_idx + 1
+                physical_page_num = page_idx + 1
 
                 table_markdown_blocks: List[str] = []
                 try:
@@ -109,7 +132,9 @@ class MultimodalFinancialParser:
                     pass
 
                 raw_text = page.get_text("text").strip()
-                has_table = len(table_markdown_blocks) > 0
+                source_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
+                page_num = int(source_match.group(1)) if source_match else physical_page_num
+                has_table = len(table_markdown_blocks) > 0 or ("|" in raw_text and "---" in raw_text)
 
                 if has_table:
                     combined_content = (

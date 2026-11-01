@@ -3,18 +3,63 @@
     "precision_at_1": 0.75,
     "recall_at_3": 1.0,
     "mrr": 0.875,
-    "avg_latency_ms": 26.09
+    "avg_latency_ms": 24.64,
+    "queries_evaluated": 4
   },
   "hybrid_rrf": {
     "precision_at_1": 0.75,
     "recall_at_3": 1.0,
     "mrr": 0.875,
-    "avg_latency_ms": 26.32
+    "avg_latency_ms": 24.8,
+    "queries_evaluated": 4
   },
   "hybrid_plus_reranker": {
     "precision_at_1": 1.0,
     "recall_at_3": 1.0,
     "mrr": 1.0,
-    "avg_latency_ms": 89.93
-  }
+    "avg_latency_ms": 172.4,
+    "queries_evaluated": 4
+  },
+  "per_query_breakdown": [
+    {
+      "doc_name": "AMD_2022_10K",
+      "expected_page": 51,
+      "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
+      "ranks": {
+        "dense_only": 2,
+        "hybrid_rrf": 2,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "MSFT_2023_10K",
+      "expected_page": 62,
+      "question": "According to Microsoft's Note 19 Segment Revenue table, what was Intelligent Cloud and Productivity revenue in FY23 compared to FY22?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "JPM_2022_10K",
+      "expected_page": 88,
+      "question": "In JPMorgan Chase's Basel III Regulatory Capital table, what were the Standardized CET1 capital ratio and Tier 1 capital ratio on Dec 31, 2022?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    },
+    {
+      "doc_name": "ONCOLOGY_TRIAL_2025",
+      "expected_page": 14,
+      "question": "In the Phase-III Clinical Trial Efficacy & Dosage table, what were the Median Progression-Free Survival (months) and Objective Response Rate (%) for the 80mg Cohort?",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      }
+    }
+  ]
 }
