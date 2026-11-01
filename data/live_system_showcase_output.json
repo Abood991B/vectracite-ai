@@ -14,81 +14,81 @@
   },
   "cold_hybrid_rag_query": {
     "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
-    "answer": "Verified from [AMD_2022_10K, Page 51]: Total net revenue (FY 2022): $ 23,601; Total net revenue (FY 2021): $ 16,434; Total net revenue (FY 2020): $ 9,763; Gross profit (FY 2022): $ 10,603; Gross profit (FY 2021): $ 7,929; Operating income (FY 2022): $ 1,264; Total net revenue FY 2022 vs FY 2021: +7,167.00 (+43.61%); Gross profit FY 2022 vs FY 2021: +2,674.00 (+33.72%).",
+    "answer": "Verified from [AMD_2022_10K, Page 51]:\n- Total net revenue (FY2022): $ 23,601\n- Total net revenue (FY2021): $ 16,434\n- Total net revenue (FY2020): $ 9,763\n- Gross profit (FY2022): $ 10,603\n- Gross profit (FY2021): $ 7,929\n- Gross profit (FY2020): $ 4,347\n\nCalculated comparisons:\n- Period change - Total net revenue (FY2022 vs FY2021): +7,167.00 (+43.61%)\n- Period change - Gross profit (FY2022 vs FY2021): +2,674.00 (+33.72%)",
     "matched_cells": [
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "row_key": "Total net revenue",
-        "col_header": "FY 2022",
+        "col_header": "FY2022",
         "value": "$ 23,601"
       },
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "row_key": "Total net revenue",
-        "col_header": "FY 2021",
+        "col_header": "FY2021",
         "value": "$ 16,434"
       },
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "row_key": "Total net revenue",
-        "col_header": "FY 2020",
+        "col_header": "FY2020",
         "value": "$ 9,763"
       },
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "row_key": "Gross profit",
-        "col_header": "FY 2022",
+        "col_header": "FY2022",
         "value": "$ 10,603"
       },
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "row_key": "Gross profit",
-        "col_header": "FY 2021",
+        "col_header": "FY2021",
         "value": "$ 7,929"
       },
       {
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
-        "row_key": "Operating income",
-        "col_header": "FY 2022",
-        "value": "$ 1,264"
+        "row_key": "Gross profit",
+        "col_header": "FY2020",
+        "value": "$ 4,347"
       }
     ],
     "computed_deltas": [
       {
         "row_key": "Total net revenue",
-        "comparison": "FY 2022 vs FY 2021",
+        "comparison": "FY2022 vs FY2021",
         "absolute_change": "+7,167.00",
         "pct_change": "+43.61%"
       },
       {
         "row_key": "Gross profit",
-        "comparison": "FY 2022 vs FY 2021",
+        "comparison": "FY2022 vs FY2021",
         "absolute_change": "+2,674.00",
         "pct_change": "+33.72%"
       }
     ],
     "citations": [
       {
-        "chunk_id": "6dac5c8e7fd9",
+        "chunk_id": "c2370b80fee4",
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "contains_table": true,
-        "rerank_score": 0.7578,
-        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 51]\n[DOCUMENT: AMD_2022_10K | SOURCE PAGE: 51]\nSOURCE PAGE: 51\nITEM 8. AMD CONSOLIDATED STATEMENTS OF OPERATIONS TABLE (in millions)\n| Consolidated Line Item | FY 2022 | FY 2021 | FY 2020 |\n| --- | --- | --- | --- |\n| Total net revenue | $ 23,601 |"
+        "rerank_score": 0.6778,
+        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 51]\nAMD_2022_10K - Document Page 51 (SOURCE PAGE: 51)\n\nITEM 8. AMD CONSOLIDATED STATEMENTS OF OPERATIONS TABLE (in millions)\n\nConsolidated Line Item       FY 2022                   FY 2021                   FY 2020\n\nTotal net revenue               "
       },
       {
-        "chunk_id": "c7d2ec860f82",
-        "doc_name": "AMD_2022_10K",
-        "page_number": 67,
+        "chunk_id": "0b106c7e3a62",
+        "doc_name": "JPM_2022_10K",
+        "page_number": 88,
         "contains_table": true,
-        "rerank_score": 0.597,
-        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 67]\n[DOCUMENT: AMD_2022_10K | SOURCE PAGE: 67]\nSOURCE PAGE: 67\nNOTE 18 ? SEGMENT AND GEOGRAPHIC NET REVENUE AND OPERATING INCOME TABLE (FY 2022)\nWhat was AMD's exact net revenue ($M), gross profit, and operating income in FY 2022 versus FY 2021\nper"
+        "rerank_score": 0.4688,
+        "excerpt": "[DOCUMENT: JPM_2022_10K | PAGE: 88]\nJPM_2022_10K - Document Page 88 (SOURCE PAGE: 88)\n\nJPMORGAN CHASE BASEL III REGULATORY CAPITAL TABLE (DEC 31, 2022)\n\nJPMorgan Chase Regulatory Ratio       Dec 31, 2022                        Dec 31, 2021\n\nStandardized CET1 capital ratio        "
       }
     ],
     "verification": {
@@ -100,7 +100,7 @@
         "$ 9,763",
         "$ 10,603",
         "$ 7,929",
-        "$ 1,264",
+        "$ 4,347",
         "7,167.00",
         "43.61%",
         "2,674.00",
@@ -110,7 +110,7 @@
     },
     "cache_hit": false,
     "cache_similarity": null,
-    "latency_ms": 222.52,
+    "latency_ms": 257.99,
     "guardrail_flags": [],
     "metadata": {
       "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
@@ -122,7 +122,7 @@
     "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
     "cache_hit": true,
     "cache_similarity": 1.0,
-    "latency_ms": 0.5
+    "latency_ms": 0.57
   },
   "guardrail_interception": {
     "http_status": 400,

@@ -12,12 +12,19 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from fastapi.testclient import TestClient
+from evaluation.run_ablation_benchmark import load_corpus_chunks_from_pdfs
+from src.api import main as api_main
 from src.api.main import app
 from src.config import settings
 
 
 def run_showcase() -> None:
     with TestClient(app) as client:
+        # Keep the checked-in showcase deterministic without touching user uploads.
+        api_main.retriever.clear()
+        api_main.semantic_cache.clear()
+        demo_chunks = load_corpus_chunks_from_pdfs(api_main.parser)
+        api_main.retriever.index_chunks(demo_chunks)
         health = client.get("/health").json()
 
         q = "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?"

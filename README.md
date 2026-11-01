@@ -97,13 +97,13 @@ All numbers below are generated on CPU using the real **`BAAI/bge-small-en-v1.5`
 
 | Retrieval & Reranking Architecture | Precision@1 | Recall@3 | MRR | Mean Query Latency (CPU) |
 | :--- | :---: | :---: | :---: | :---: |
-| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.50` (50.0%) | `1.00` (100%) | `0.750` | `29.02 ms` |
-| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.833` | `30.38 ms` |
-| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`176.69 ms`** |
+| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.50` (50.0%) | `1.00` (100%) | `0.750` | `23.42 ms` |
+| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.833` | `24.77 ms` |
+| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`213.53 ms`** |
 
 * **Why Dense-Only scores `0.50` Precision@1:** Dense retrieval finds the exact target page at rank two for AMD and Microsoft, while JPMorgan and Oncology rank first.
 * **Why Hybrid RRF scores `0.75` Precision@1:** BM25 exact headers promote the Microsoft, JPMorgan, and Oncology tables; the AMD table remains a rank-three result before structural reranking.
-* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating promotes every target table to rank one. This warmed-up CPU run measured `176.69 ms` on average.
+* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating promotes every target table to rank one. This warmed-up CPU run measured `213.53 ms` on average.
 
 ---
 
