@@ -6,7 +6,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0d1b2a" />
   <title>VectraCite-AI - PDF Verification Studio</title>
-  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
   <style>
     :root {
       --ink: #122033;
@@ -33,6 +33,12 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       --ease: cubic-bezier(0.22, 1, 0.36, 1);
     }
     * { box-sizing: border-box; }
+    *[hidden] { display: none !important; }
+    * { scrollbar-width: thin; scrollbar-color: #94a3b8 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .sidebar *::-webkit-scrollbar-thumb, pre.telemetry::-webkit-scrollbar-thumb { background: #526b84; }
     html { background: var(--paper); }
     body {
       margin: 0;
@@ -56,7 +62,8 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       position: sticky;
       top: 0;
       height: 100vh;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
     .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 22px; }
     .brand img { width: 42px; height: 42px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); }
@@ -85,7 +92,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
     .upload-btn:hover { background: var(--blue-dark); }
     .upload-btn:active, .action-btn:active, .mode-btn:active, .example-chip:active { transform: scale(0.98); }
-    .sidebar-scroll { min-height: 0; overflow-y: auto; padding: 20px 0 12px; }
+    .sidebar-scroll { width: 100%; min-width: 0; overflow: clip; padding: 16px 0 12px; }
     .scope-item, .doc-card {
       width: 100%;
       border: 1px solid transparent;
@@ -99,15 +106,16 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .scope-symbol { width: 20px; color: #81a8ff; font-family: var(--mono); text-align: center; }
     .scope-label { font-weight: 600; }
     .scope-note { display: block; color: var(--sidebar-muted); font-size: 11px; margin-top: 1px; }
-    .doc-list { display: grid; gap: 8px; margin-top: 8px; }
+    .doc-list { display: grid; gap: 6px; margin-top: 8px; min-width: 0; }
     .doc-card {
-      padding: 11px 12px;
+      padding: 9px 10px;
+      min-width: 0;
       border-color: #243b52;
       background: rgba(20, 40, 61, 0.42);
     }
     .doc-card.active { border-color: #5b8cff; background: #173452; }
     .doc-card:hover { border-color: #53708f; }
-    .doc-card-head { display: flex; align-items: flex-start; gap: 8px; }
+    .doc-card-head { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
     .doc-filter {
       flex: 1;
       min-width: 0;
@@ -119,6 +127,8 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
     .doc-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; font-weight: 600; }
     .doc-meta { display: block; color: var(--sidebar-muted); font-size: 11px; margin-top: 3px; }
+    .storage-badge { display: inline-flex; margin-top: 7px; padding: 2px 6px; border: 1px solid #38516b; border-radius: 4px; color: #c5d8ea; font-family: var(--mono); font-size: 10px; }
+    .storage-badge.user { color: #bcebd7; border-color: #286b56; }
     .doc-delete {
       width: 24px;
       height: 24px;
@@ -131,7 +141,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       line-height: 20px;
     }
     .doc-delete:hover { color: #fff; background: rgba(182, 66, 66, 0.7); }
-    .doc-actions { display: flex; gap: 6px; margin-top: 9px; }
+    .doc-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; margin-top: 6px; }
     .doc-actions a, .doc-actions button {
       border: 0;
       color: #b9d2ff;
@@ -141,7 +151,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       text-decoration: none;
     }
     .doc-actions a:hover, .doc-actions button:hover { color: #fff; text-decoration: underline; }
-    .sidebar-footer { margin-top: auto; border-top: 1px solid #263d54; padding-top: 14px; }
+    .sidebar-footer { margin-top: 12px; border-top: 1px solid #263d54; padding-top: 14px; }
     .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sidebar-actions button {
       min-height: 34px;
@@ -260,7 +270,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .panel-title { margin: 0; font-size: 16px; line-height: 22px; letter-spacing: -0.02em; }
     .panel-sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
     .verified-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--green); background: var(--green-pale); font-size: 18px; }
-    .answer-box { min-height: 108px; border-left: 4px solid var(--green); border-radius: 8px; padding: 16px 17px; color: var(--ink); background: var(--green-pale); font-size: 16px; line-height: 25px; }
+    .answer-box { min-height: 108px; border-left: 4px solid var(--green); border-radius: 8px; padding: 16px 17px; color: var(--ink); background: var(--green-pale); font-size: 16px; line-height: 25px; white-space: pre-line; }
     .answer-box.empty { color: var(--muted); background: var(--paper); border-left-color: var(--line-dark); font-size: 14px; }
     .metric-row { display: flex; flex-wrap: wrap; gap: 0; margin: 17px 0 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .metric { min-width: 120px; padding: 11px 14px 11px 0; margin-right: 14px; border-right: 1px solid var(--line); }
@@ -281,14 +291,27 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .source-headline { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
     .source-title { margin: 0; font-family: var(--mono); font-size: 12px; }
     .source-meta { color: var(--muted); font-size: 11px; margin-top: 3px; }
-    .pdf-frame { width: 100%; height: 330px; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: #e9edf1; }
-    .source-empty { height: 330px; display: grid; place-items: center; margin-top: 14px; border: 1px dashed var(--line-dark); border-radius: 8px; color: var(--muted); text-align: center; padding: 30px; }
+    .source-tabs { display: flex; gap: 4px; margin-top: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+    .source-tab { min-height: 30px; flex: 1; border: 0; border-radius: 5px; color: var(--ink-soft); background: transparent; font-size: 11px; font-weight: 600; }
+    .source-tab.active { color: var(--blue-dark); background: var(--surface); box-shadow: 0 1px 3px rgba(18, 32, 51, 0.1); }
+    .source-pane { margin-top: 12px; }
+    .page-image { display: block; width: 100%; height: 410px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #e9edf1; }
+    .pdf-frame { width: 100%; height: 410px; border: 1px solid var(--line); border-radius: 8px; background: #e9edf1; }
+    .page-switcher { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+    .page-switcher button { min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-soft); background: var(--surface); font-size: 11px; }
+    .page-switcher button:hover:not(:disabled) { border-color: #9cb7f5; color: var(--blue-dark); }
+    .page-switcher button:disabled { cursor: not-allowed; opacity: 0.45; }
+    .page-count { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+    .source-empty { min-height: 160px; display: grid; place-items: center; margin-top: 16px; color: var(--muted); text-align: center; padding: 30px 16px; background: var(--paper); border-radius: 8px; }
     .source-excerpt { margin-top: 14px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-soft); background: var(--surface); font-size: 12px; line-height: 19px; }
     mark { padding: 0 2px; border-radius: 2px; color: var(--ink); background: #ffe58a; }
     .open-pdf { display: inline-flex; align-items: center; min-height: 34px; padding: 0 11px; border: 1px solid #aac3f9; border-radius: 7px; color: var(--blue-dark); background: var(--blue-pale); font-size: 11px; font-weight: 650; text-decoration: none; white-space: nowrap; }
     .open-pdf:hover { border-color: var(--blue); background: #dce8ff; }
     .benchmark-view { max-width: 1440px; margin: 0 auto; padding: 34px; }
     .benchmark-hero { padding: 25px; border: 1px solid var(--line); border-radius: 14px; background: var(--ink); color: #fff; box-shadow: var(--shadow); }
+    .benchmark-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+    .benchmark-run { flex: 0 0 auto; min-height: 40px; border: 1px solid #8db1ff; border-radius: 7px; padding: 0 13px; color: #10233c; background: #f5f8ff; font-size: 12px; font-weight: 650; }
+    .benchmark-run:hover { background: #dce8ff; }
     .benchmark-hero .eyebrow { color: #86aaff; }
     .benchmark-hero h1 { margin: 5px 0 5px; font-size: 25px; line-height: 32px; letter-spacing: -0.04em; }
     .benchmark-hero p { max-width: 700px; margin: 0; color: #bed0df; }
@@ -299,6 +322,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .metric-definition { padding: 11px 12px; border-left: 3px solid var(--blue); background: var(--paper); }
     .metric-definition strong { display: block; font-size: 12px; }
     .metric-definition span { display: block; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+    .metric-scale { margin-top: 12px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
     .bar-stack { display: grid; gap: 18px; margin-top: 18px; }
     .bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 650; }
     .bar-track { height: 9px; margin-top: 7px; border-radius: 5px; overflow: hidden; background: #e6ebf0; }
@@ -349,7 +373,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       .question-row { flex-direction: column; }
       .ask-btn { width: 100%; }
       .answer-box { font-size: 14px; line-height: 22px; }
-      .pdf-frame, .source-empty { height: 280px; }
+      .page-image, .pdf-frame { height: 280px; }
+      .benchmark-hero-head { flex-direction: column; }
+      .benchmark-run { width: 100%; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
@@ -465,11 +491,24 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                 <div id="sourceContent" hidden>
                   <div class="source-headline">
                     <div><h3 id="sourceTitle" class="source-title"></h3><div id="sourcePage" class="source-meta"></div></div>
-                    <a id="openPdfLink" class="open-pdf" target="_blank" rel="noopener">Open original PDF at page ↗</a>
+                    <a id="openPdfLink" class="open-pdf" target="_blank" rel="noopener">Open full original PDF ↗</a>
                   </div>
-                  <iframe id="pdfFrame" class="pdf-frame" title="Cited PDF page preview"></iframe>
+                  <div class="source-tabs" role="tablist" aria-label="Source views">
+                    <button id="pageImageTab" class="source-tab active" type="button" role="tab" aria-selected="true">Page image</button>
+                    <button id="fullPdfTab" class="source-tab" type="button" role="tab" aria-selected="false">Full PDF</button>
+                  </div>
+                  <div id="pageImagePane" class="source-pane">
+                    <img id="pageImage" class="page-image" alt="Rendered cited PDF page with highlighted query terms" />
+                    <div class="page-switcher">
+                      <button id="prevPage" type="button">‹ Prev page</button>
+                      <span id="pageCount" class="page-count">Page -</span>
+                      <button id="nextPage" type="button">Next page ›</button>
+                    </div>
+                  </div>
+                  <div id="fullPdfPane" class="source-pane" hidden>
+                    <iframe id="pdfFrame" class="pdf-frame" title="Full cited PDF preview"></iframe>
+                  </div>
                   <div id="sourceExcerpt" class="source-excerpt"></div>
-                  <div id="sourceTableWrap" class="table-wrap" style="margin-top:12px;" hidden><table><thead><tr><th>Matched row</th><th>Column</th><th>Value</th></tr></thead><tbody id="sourceTable"></tbody></table></div>
                 </div>
               </article>
             </section>
@@ -479,9 +518,14 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         <section id="benchmarkView" class="view" aria-label="System accuracy benchmark">
           <div class="benchmark-view">
             <section class="benchmark-hero">
-              <div class="eyebrow">System accuracy</div>
-              <h1>How well does the studio find the right evidence?</h1>
-              <p>Three retrieval stages are measured on the active corpus. The rank table explains each query in plain English, not just as a score.</p>
+              <div class="benchmark-hero-head">
+                <div>
+                  <div class="eyebrow">System accuracy</div>
+                  <h1>How well does the studio find the right evidence?</h1>
+                  <p>Three retrieval stages are measured on the active corpus. The rank table explains each query in plain English, not just as a score.</p>
+                </div>
+                <button id="runBenchmark" class="benchmark-run" type="button">▶ Run Live Benchmark Now</button>
+              </div>
             </section>
             <div class="benchmark-layout">
               <article class="benchmark-card">
@@ -489,9 +533,10 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                 <div class="metric-definitions">
                   <div class="metric-definition"><strong>Precision@1</strong><span>How often the first result is the exact page we expected.</span></div>
                   <div class="metric-definition"><strong>Recall@3</strong><span>How often the expected page appears somewhere in the first three results.</span></div>
-                  <div class="metric-definition"><strong>MRR</strong><span>Rewards finding the right page near the top of the list.</span></div>
+                  <div class="metric-definition"><strong>MRR</strong><span>Mean reciprocal rank: 1.00 means rank one, 0.50 means rank two, and 0.00 means it was not found.</span></div>
                   <div class="metric-definition"><strong>Mean latency</strong><span>Average CPU time for one query after model warmup.</span></div>
                 </div>
+                <div class="metric-scale">Score scale: 0.00 = no correct result · 1.00 = correct result at rank one</div>
                 <div id="benchmarkStatus" class="inline-status" role="status">Loading benchmark</div>
                 <div id="benchmarkBars" class="bar-stack"></div>
               </article>
@@ -539,6 +584,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     let scenarios = [];
     let selectedDoc = null;
     let lastQuestion = "";
+    let currentCitation = null;
+    let currentPageNumbers = [];
+    let currentPageIndex = 0;
 
     const byId = id => document.getElementById(id);
     const escapeHtml = value => String(value ?? "")
@@ -606,6 +654,8 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           '<button class="doc-filter" type="button" data-filter="' + escapeHtml(doc.doc_name) + '">' +
           '<span class="doc-name">' + escapeHtml(doc.doc_name) + '</span>' +
           '<span class="doc-meta">' + doc.pages.length + ' pages · ' + doc.total_chunks + ' chunks · ' + doc.table_chunks + ' tables</span>' +
+          '<span class="storage-badge ' + (doc.storage_tier === "user_upload" ? "user" : "") + '">' +
+          (doc.storage_tier === "user_upload" ? "User upload" : "Demo PDF") + '</span>' +
           '</button>' +
           '<button class="doc-delete" type="button" data-delete="' + escapeHtml(doc.doc_name) + '" aria-label="Delete ' + escapeHtml(doc.doc_name) + '">×</button>' +
           '</div>' +
@@ -630,6 +680,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
             return;
           }
           if (selectedDoc === name) selectedDoc = null;
+          if (currentCitation && currentCitation.doc_name === name) clearEvidence();
           await loadDocuments();
           await loadScenarios();
           setStatus("sidebarStatus", "Removed " + name + " from the active shelf", "success");
@@ -710,27 +761,67 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       ).join("");
     }
 
+    function setSourceTab(tab) {
+      const imageActive = tab === "image";
+      byId("pageImagePane").hidden = !imageActive;
+      byId("fullPdfPane").hidden = imageActive;
+      byId("pageImageTab").classList.toggle("active", imageActive);
+      byId("fullPdfTab").classList.toggle("active", !imageActive);
+      byId("pageImageTab").setAttribute("aria-selected", String(imageActive));
+      byId("fullPdfTab").setAttribute("aria-selected", String(!imageActive));
+    }
+
+    function updatePagePreview() {
+      if (!currentCitation || !currentPageNumbers.length) return;
+      const pageNumber = currentPageNumbers[currentPageIndex];
+      const pdfUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) + "/pdf";
+      const imageUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) +
+        "/pages/" + pageNumber + "/image?highlight=" + encodeURIComponent(lastQuestion);
+      byId("sourcePage").textContent = "Page " + pageNumber + " · SCAR score " + currentCitation.rerank_score;
+      byId("pageImage").src = imageUrl;
+      byId("pageImage").alt = "Rendered " + currentCitation.doc_name + " PDF page " + pageNumber + " with highlighted query terms";
+      byId("pdfFrame").src = pdfUrl;
+      byId("openPdfLink").href = pdfUrl;
+      byId("openPdfLink").textContent = "Open full original PDF ↗";
+      byId("pageCount").textContent = "Source page " + pageNumber +
+        " · document view " + (currentPageIndex + 1) + " of " + currentPageNumbers.length;
+      byId("prevPage").disabled = currentPageIndex === 0;
+      byId("nextPage").disabled = currentPageIndex === currentPageNumbers.length - 1;
+    }
+
     function renderSource(citation, cells) {
       if (!citation) {
+        currentCitation = null;
+        currentPageNumbers = [];
+        currentPageIndex = 0;
         byId("sourceEmpty").hidden = false;
         byId("sourceContent").hidden = true;
         return;
       }
-      const pdfUrl = "/documents/" + encodeURIComponent(citation.doc_name) + "/pdf";
+      currentCitation = citation;
+      const document = documents.find(item => item.doc_name === citation.doc_name);
+      currentPageNumbers = document && document.pages.length ? [...document.pages].sort((a, b) => a - b) : [citation.page_number];
+      currentPageIndex = Math.max(0, currentPageNumbers.indexOf(citation.page_number));
       byId("sourceEmpty").hidden = true;
       byId("sourceContent").hidden = false;
       byId("sourceTitle").textContent = citation.doc_name;
-      byId("sourcePage").textContent = "Page " + citation.page_number + " · SCAR score " + citation.rerank_score;
-      byId("pdfFrame").src = pdfUrl + "#page=" + citation.page_number;
-      byId("openPdfLink").href = pdfUrl + "#page=" + citation.page_number;
-      byId("openPdfLink").textContent = "Open original PDF at page " + citation.page_number + " ↗";
       byId("sourceExcerpt").innerHTML = highlightExcerpt(citation.excerpt, lastQuestion);
-      const matched = cells.filter(cell => cell.doc_name === citation.doc_name && cell.page_number === citation.page_number);
-      byId("sourceTableWrap").hidden = !matched.length;
-      byId("sourceTable").innerHTML = matched.map(cell =>
-        "<tr><td>" + escapeHtml(cell.row_key) + "</td><td class='mono'>" +
-        escapeHtml(cell.col_header) + "</td><td class='mono'>" + escapeHtml(cell.value) + "</td></tr>"
-      ).join("");
+      setSourceTab("image");
+      updatePagePreview();
+    }
+
+    function clearEvidence() {
+      byId("answerBox").className = "answer-box empty";
+      byId("answerBox").textContent = "Ask a question to bring the verified answer here.";
+      byId("metricRow").hidden = true;
+      byId("metricGrounding").textContent = "-";
+      byId("metricLatency").textContent = "-";
+      byId("metricCache").textContent = "-";
+      byId("deltaSection").hidden = true;
+      byId("deltaGrid").innerHTML = "";
+      byId("cellSection").hidden = true;
+      byId("cellTable").innerHTML = "";
+      renderSource(null, []);
     }
 
     function renderAnswer(data) {
@@ -848,17 +939,21 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
 
     async function clearDefaults() {
-      const result = await safeFetch("/documents/clear-all", {method: "POST"});
+      const demoNames = new Set(["AMD_2022_10K", "MSFT_2023_10K", "JPM_2022_10K", "ONCOLOGY_TRIAL_2025"]);
+      const selectedDemo = selectedDoc && demoNames.has(selectedDoc);
+      const citationDemo = currentCitation && demoNames.has(currentCitation.doc_name);
+      const result = await safeFetch("/documents/clear-demos", {method: "POST"});
       if (!result.ok) {
         setStatus("sidebarFooterStatus", result.error, "error");
         return;
       }
-      selectedDoc = null;
+      if (selectedDemo) selectedDoc = null;
+      if (citationDemo) clearEvidence();
       await loadDocuments();
       scenarios = [];
-      renderExamples();
+      await loadScenarios();
       updateScope();
-      setStatus("sidebarFooterStatus", "Demo shelf cleared. Upload your own PDFs to begin.", "success");
+      setStatus("sidebarFooterStatus", "Demo PDFs cleared. User uploads remain indexed.", "success");
     }
 
     async function restoreDefaults() {
@@ -886,7 +981,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("previewPages").innerHTML = (result.data.chunks || []).map(chunk =>
         '<div class="preview-page"><div class="preview-page-head"><span>Page ' + chunk.page_number +
         " · Chunk " + escapeHtml(chunk.chunk_id) + '</span><a class="open-pdf" target="_blank" rel="noopener" href="/documents/' +
-        encodeURIComponent(docName) + '/pdf#page=' + chunk.page_number + '">Open page ↗</a></div><p>' +
+        encodeURIComponent(docName) + '/pdf">Open PDF ↗</a></div><p>' +
         escapeHtml(chunk.text.slice(0, 900)) + "</p></div>"
       ).join("");
       byId("previewBackdrop").classList.add("open");
@@ -943,6 +1038,21 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         escapeHtml(item[1]) + "</div></div>").join("");
     }
 
+    async function runLiveBenchmark() {
+      const button = byId("runBenchmark");
+      button.disabled = true;
+      setStatus("benchmarkStatus", "Running the live benchmark across the active corpus");
+      const result = await safeFetch("/evaluate", {method: "POST"});
+      button.disabled = false;
+      if (!result.ok) {
+        setStatus("benchmarkStatus", result.error, "error");
+        return;
+      }
+      renderBenchmark(result.data);
+      await loadBenchmark();
+      setStatus("benchmarkStatus", "Live benchmark completed at " + new Date().toLocaleTimeString(), "success");
+    }
+
     function setView(view) {
       const workspace = view === "workspace";
       byId("workspaceView").classList.toggle("active", workspace);
@@ -970,6 +1080,21 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     byId("modeWorkspace").addEventListener("click", () => setView("workspace"));
     byId("modeBenchmark").addEventListener("click", () => setView("benchmark"));
     byId("refreshBenchmark").addEventListener("click", () => runUiTask(loadBenchmark, "benchmarkStatus"));
+    byId("runBenchmark").addEventListener("click", () => runUiTask(runLiveBenchmark, "benchmarkStatus"));
+    byId("pageImageTab").addEventListener("click", () => setSourceTab("image"));
+    byId("fullPdfTab").addEventListener("click", () => setSourceTab("pdf"));
+    byId("prevPage").addEventListener("click", () => {
+      if (currentPageIndex > 0) {
+        currentPageIndex -= 1;
+        updatePagePreview();
+      }
+    });
+    byId("nextPage").addEventListener("click", () => {
+      if (currentPageIndex < currentPageNumbers.length - 1) {
+        currentPageIndex += 1;
+        updatePagePreview();
+      }
+    });
     byId("closePreview").addEventListener("click", closePreview);
     byId("previewBackdrop").addEventListener("click", event => {
       if (event.target === byId("previewBackdrop")) closePreview();
