@@ -5,31 +5,33 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0d1b2a" />
-  <title>VectraCite-AI - PDF Verification Studio</title>
+  <title>VectraCite-AI - PDF Evidence Workspace</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
   <style>
     :root {
-      --ink: #122033;
-      --ink-soft: #42546a;
-      --muted: #748296;
-      --paper: #f4f5f7;
-      --paper-warm: #fbfaf7;
+      --ink: #142033;
+      --ink-soft: #4c5d73;
+      --muted: #738096;
+      --canvas: #f3f5f7;
+      --paper: #fafbfc;
+      --paper-warm: #f7f8fa;
       --surface: #ffffff;
-      --line: #d9e0e8;
-      --line-dark: #9eacbc;
-      --sidebar: #0d1b2a;
-      --sidebar-2: #14283d;
-      --sidebar-text: #e9f1f7;
-      --sidebar-muted: #9aafc1;
-      --blue: #2563eb;
-      --blue-dark: #1d4ed8;
-      --blue-pale: #eaf1ff;
-      --green: #0f9f6e;
-      --green-pale: #e9f8f1;
-      --red: #b64242;
+      --raised: #edf1f5;
+      --line: #d8dee7;
+      --line-dark: #aeb8c6;
+      --sidebar: #101b29;
+      --sidebar-2: #18283a;
+      --sidebar-text: #edf2f7;
+      --sidebar-muted: #9cabbc;
+      --blue: #2459d3;
+      --blue-dark: #1e48ad;
+      --blue-pale: #e9eefc;
+      --green: #16805b;
+      --green-pale: #e7f4ee;
+      --red: #b33f46;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-      --shadow: 0 8px 24px rgba(18, 32, 51, 0.07);
+      --sans: "IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif;
+      --shadow: 0 8px 24px rgba(20, 32, 51, 0.06);
       --ease: cubic-bezier(0.22, 1, 0.36, 1);
     }
     * { box-sizing: border-box; }
@@ -39,11 +41,11 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     *::-webkit-scrollbar-track { background: transparent; }
     *::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
     .sidebar *::-webkit-scrollbar-thumb, pre.telemetry::-webkit-scrollbar-thumb { background: #526b84; }
-    html { background: var(--paper); }
+    html { background: var(--canvas); }
     body {
       margin: 0;
       color: var(--ink);
-      background: var(--paper);
+      background: var(--canvas);
       font-family: var(--sans);
       font-size: 14px;
       line-height: 1.5;
@@ -67,14 +69,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
     .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 22px; }
     .brand img { width: 42px; height: 42px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22); }
-    .brand-name { font-weight: 650; letter-spacing: -0.02em; line-height: 20px; }
+    .brand-name { font-weight: 600; letter-spacing: 0; line-height: 20px; }
     .brand-sub { color: var(--sidebar-muted); font-size: 11px; line-height: 16px; }
     .sidebar-kicker {
       color: var(--sidebar-muted);
       font-family: var(--mono);
       font-size: 10px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      letter-spacing: 0;
       padding: 0 8px 8px;
     }
     .upload-btn {
@@ -187,10 +188,10 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       color: var(--ink-soft);
       background: var(--surface);
       font-size: 11px;
-      font-weight: 650;
+      font-weight: 600;
     }
     .llm-settings-button:hover { border-color: #9cb7f5; color: var(--blue-dark); }
-    .header-title { font-size: 18px; line-height: 24px; font-weight: 650; letter-spacing: -0.025em; }
+    .header-title { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: 0; }
     .header-note { color: var(--muted); font-size: 12px; margin-top: 2px; }
     .mode-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
     .mode-btn {
@@ -215,7 +216,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       box-shadow: var(--shadow);
     }
     .question-card { padding: 22px; }
-    .eyebrow { color: var(--blue-dark); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .eyebrow { color: var(--blue-dark); font-family: var(--mono); font-size: 10px; letter-spacing: 0; }
     .question-heading { margin: 4px 0 0; font-size: 24px; line-height: 32px; letter-spacing: -0.04em; }
     .question-sub { color: var(--ink-soft); margin-top: 4px; }
     .question-row { display: flex; gap: 10px; margin-top: 18px; }
@@ -238,7 +239,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       padding: 0 17px;
       color: #fff;
       background: var(--blue);
-      font-weight: 650;
+      font-weight: 600;
       transition: background-color 160ms var(--ease), transform 160ms var(--ease);
     }
     .ask-btn { min-height: 50px; }
@@ -287,17 +288,17 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .metric-row { display: flex; flex-wrap: wrap; gap: 0; margin: 17px 0 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .metric { min-width: 120px; padding: 11px 14px 11px 0; margin-right: 14px; border-right: 1px solid var(--line); }
     .metric:last-child { border-right: 0; }
-    .metric-label { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .metric-label { color: var(--muted); font-size: 10px; letter-spacing: 0; }
     .metric-value { margin-top: 2px; font-family: var(--mono); font-size: 12px; font-weight: 600; }
-    .section-heading { margin: 20px 0 9px; font-size: 12px; letter-spacing: 0.02em; text-transform: uppercase; }
+    .section-heading { margin: 20px 0 9px; font-size: 12px; letter-spacing: 0; }
     .delta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
     .delta-card { padding: 11px 12px; border: 1px solid #bfe1d0; border-radius: 8px; background: var(--green-pale); }
     .delta-name { color: var(--ink-soft); font-size: 11px; }
-    .delta-value { margin-top: 3px; font-family: var(--mono); font-size: 13px; font-weight: 650; }
+    .delta-value { margin-top: 3px; font-family: var(--mono); font-size: 13px; font-weight: 600; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     th, td { padding: 9px 7px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-    th { color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
+    th { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0; }
     td.mono, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
     .source-panel { background: var(--paper-warm); }
     .source-headline { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
@@ -347,12 +348,12 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .source-empty { min-height: 160px; display: grid; place-items: center; margin-top: 16px; color: var(--muted); text-align: center; padding: 30px 16px; background: var(--paper); border-radius: 8px; }
     .source-excerpt { margin-top: 14px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-soft); background: var(--surface); font-size: 12px; line-height: 19px; }
     mark { padding: 0 2px; border-radius: 2px; color: var(--ink); background: #ffe58a; }
-    .open-pdf { display: inline-flex; align-items: center; min-height: 34px; padding: 0 11px; border: 1px solid #aac3f9; border-radius: 7px; color: var(--blue-dark); background: var(--blue-pale); font-size: 11px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+    .open-pdf { display: inline-flex; align-items: center; min-height: 34px; padding: 0 11px; border: 1px solid #aac3f9; border-radius: 7px; color: var(--blue-dark); background: var(--blue-pale); font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; }
     .open-pdf:hover { border-color: var(--blue); background: #dce8ff; }
     .benchmark-view { max-width: 1440px; margin: 0 auto; padding: 34px; }
     .benchmark-hero { padding: 25px; border: 1px solid var(--line); border-radius: 14px; background: var(--ink); color: #fff; box-shadow: var(--shadow); }
     .benchmark-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-    .benchmark-run { flex: 0 0 auto; min-height: 40px; border: 1px solid #8db1ff; border-radius: 7px; padding: 0 13px; color: #10233c; background: #f5f8ff; font-size: 12px; font-weight: 650; }
+    .benchmark-run { flex: 0 0 auto; min-height: 40px; border: 1px solid #8db1ff; border-radius: 7px; padding: 0 13px; color: #10233c; background: #f5f8ff; font-size: 12px; font-weight: 600; }
     .benchmark-run:hover { background: #dce8ff; }
     .benchmark-hero .eyebrow { color: #86aaff; }
     .benchmark-hero h1 { margin: 5px 0 5px; font-size: 25px; line-height: 32px; letter-spacing: -0.04em; }
@@ -366,17 +367,17 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .metric-definition span { display: block; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
     .metric-scale { margin-top: 12px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
     .bar-stack { display: grid; gap: 18px; margin-top: 18px; }
-    .bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 650; }
+    .bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 600; }
     .bar-track { height: 9px; margin-top: 7px; border-radius: 5px; overflow: hidden; background: #e6ebf0; }
     .bar-fill { height: 100%; border-radius: 5px; transition: width 220ms var(--ease); }
     .bar-note { color: var(--muted); font-size: 11px; margin-top: 5px; }
     .rank-table { overflow-x: auto; margin-top: 14px; }
-    .rank-badge { display: inline-flex; padding: 4px 7px; border-radius: 5px; font-size: 10px; font-weight: 650; white-space: nowrap; }
+    .rank-badge { display: inline-flex; padding: 4px 7px; border-radius: 5px; font-size: 10px; font-weight: 600; white-space: nowrap; }
     .rank-badge.found { color: #08704b; background: var(--green-pale); }
     .rank-badge.missed { color: #936019; background: #fff5d9; }
     .model-list { display: grid; gap: 8px; margin-top: 15px; }
     .model-row { padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-    .model-role { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .model-role { color: var(--muted); font-size: 10px; letter-spacing: 0; }
     .model-name { margin-top: 2px; font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
     pre.telemetry { min-height: 250px; margin: 15px 0 0; padding: 14px; overflow: auto; border-radius: 8px; color: #d9e8f2; background: #102437; font-family: var(--mono); font-size: 11px; line-height: 18px; }
     .modal-backdrop { position: fixed; inset: 0; z-index: 30; display: none; place-items: center; padding: 20px; background: rgba(7, 18, 30, 0.66); }
@@ -392,7 +393,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .settings-copy { color: var(--ink-soft); font-size: 12px; line-height: 19px; }
     .settings-copy strong { color: var(--ink); }
     .settings-form { display: grid; gap: 10px; margin-top: 16px; }
-    .settings-form label { display: grid; gap: 5px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
+    .settings-form label { display: grid; gap: 5px; color: var(--ink-soft); font-size: 11px; font-weight: 600; }
     .settings-form input { min-height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--paper-warm); }
     .settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
     .settings-status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 11px; }
@@ -403,28 +404,185 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .sidebar-action-link:hover { color: #fff; text-decoration: underline; }
     .sidebar-save { width: 100%; min-height: 31px; margin-top: 8px; border: 1px solid #547ca4; border-radius: 6px; color: #fff; background: #193a5a; font-size: 11px; }
     .sidebar-save:hover { background: #245078; }
-    :focus-visible { outline: 3px solid rgba(37, 99, 235, 0.45); outline-offset: 2px; }
-    @media (max-width: 1050px) {
-      .app-shell { grid-template-columns: 270px minmax(0, 1fr); }
-      .studio-header, .workspace, .benchmark-view { padding-left: 22px; padding-right: 22px; }
-      .verification-grid, .benchmark-layout { grid-template-columns: 1fr; }
+    /* Evidence desk refinement: quiet chrome, ruled content, one cobalt evidence path. */
+    .app-shell { grid-template-columns: 272px minmax(0, 1fr); }
+    .sidebar { padding: 24px 16px 16px; }
+    .brand { gap: 12px; padding: 0 8px 24px; }
+    .brand img { width: 40px; height: 40px; border-radius: 10px; box-shadow: none; }
+    .brand-name { font-weight: 600; letter-spacing: 0; }
+    .brand-sub { font-size: 12px; }
+    .icon { width: 16px; height: 16px; flex: 0 0 16px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .upload-btn {
+      justify-content: flex-start;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 12px;
+      border-color: #416ed8;
+      border-radius: 8px;
+      font-weight: 500;
     }
-    @media (max-width: 760px) {
+    .sidebar-scroll { padding: 20px 0 12px; }
+    .sidebar-kicker, .eyebrow, .metric-label, .section-heading, th, .model-role {
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .sidebar-kicker { padding: 0 8px 8px; font-family: var(--sans); font-size: 12px; font-weight: 500; }
+    .section-spaced { margin-top: 20px; }
+    .scope-item { min-height: 52px; padding: 8px; gap: 8px; border-radius: 8px; }
+    .scope-item:hover { border-color: transparent; background: var(--sidebar-2); }
+    .scope-item.active { border-color: #3b5269; background: var(--sidebar-2); box-shadow: inset 2px 0 0 #6f96f1; }
+    .scope-symbol { width: 16px; color: var(--sidebar-muted); font-family: var(--sans); }
+    .scope-label { font-weight: 500; }
+    .scope-note { margin-top: 0; font-size: 11px; }
+    .doc-list { gap: 0; margin-top: 4px; border-top: 1px solid #26394c; }
+    .document-empty { padding: 12px 8px; color: var(--sidebar-muted); font-size: 12px; }
+    .doc-card { padding: 12px 8px; border: 0; border-bottom: 1px solid #26394c; border-radius: 0; background: transparent; }
+    .doc-card:hover { border-color: #26394c; background: #142235; }
+    .doc-card.active { border-color: #26394c; background: var(--sidebar-2); box-shadow: inset 2px 0 0 #6f96f1; }
+    .doc-name { font-size: 12px; font-weight: 500; }
+    .storage-badge { margin-top: 4px; padding: 0; border: 0; border-radius: 0; color: var(--sidebar-muted); font-size: 10px; }
+    .storage-badge.user { color: #84c8af; }
+    .doc-delete { width: 28px; height: 28px; border-radius: 6px; font-size: 0; }
+    .doc-delete .icon { width: 14px; height: 14px; }
+    .doc-actions { gap: 12px; margin-top: 8px; }
+    .doc-actions a, .doc-actions button { color: #aec3dd; font-size: 11px; }
+    .sidebar-footer { margin-top: 16px; padding-top: 16px; }
+    .sidebar-actions { gap: 8px; }
+    .sidebar-actions button { min-height: 36px; border-radius: 8px; font-weight: 400; }
+    .manual-drawer { margin-top: 20px; }
+    .manual-drawer summary { cursor: pointer; }
+    .manual-fields { padding: 8px 8px 0; }
+    .manual-input { min-height: 36px; margin-top: 8px; padding: 8px; border-color: #40556b; border-radius: 8px; background: #132337; }
+    .sidebar-save { min-height: 36px; margin-top: 8px; border-radius: 8px; font-weight: 500; }
+    .main-shell { background: var(--canvas); }
+    .studio-header {
+      min-height: 64px;
+      padding: 12px 32px;
+      border-color: var(--line);
+      background: rgba(250, 251, 252, 0.96);
+      backdrop-filter: blur(8px);
+    }
+    .header-title { font-size: 16px; line-height: 20px; font-weight: 600; letter-spacing: 0; }
+    .header-note { margin-top: 0; font-size: 12px; }
+    .header-actions { gap: 8px; }
+    .button-with-icon { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .llm-settings-button { min-height: 36px; padding: 0 12px; border-radius: 8px; font-weight: 500; }
+    .mode-switch { gap: 2px; padding: 3px; border-radius: 8px; background: var(--raised); }
+    .mode-btn { min-height: 32px; padding: 0 12px; border-radius: 6px; font-weight: 500; }
+    .mode-btn.active { color: var(--ink); box-shadow: 0 1px 2px rgba(20, 32, 51, 0.08); }
+    .workspace, .benchmark-view { max-width: 1480px; padding: 32px; }
+    .question-card, .panel, .benchmark-card { border-radius: 12px; box-shadow: none; }
+    .question-card { padding: 24px; }
+    .eyebrow { color: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 500; }
+    .question-heading { margin-top: 4px; font-size: 28px; line-height: 36px; font-weight: 500; letter-spacing: -0.02em; }
+    .question-sub { margin-top: 4px; }
+    .question-row { gap: 8px; margin-top: 20px; }
+    .question-input { min-height: 48px; padding: 12px 14px; border-radius: 8px; background: var(--paper); }
+    .question-input:focus, .manual-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 89, 211, 0.12); }
+    .ask-btn, .action-btn { min-height: 40px; border-radius: 8px; padding: 0 16px; font-weight: 500; }
+    .ask-btn { min-height: 48px; }
+    .scope-bar { gap: 8px; margin-top: 12px; }
+    .scope-badge { padding: 0; border: 0; border-radius: 0; color: var(--blue-dark); background: transparent; font-size: 11px; }
+    .examples { gap: 8px; margin-top: 16px; }
+    .example-chip { padding: 6px 8px; border-radius: 6px; background: var(--paper); }
+    .verification-grid { position: relative; grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr); gap: 20px; margin-top: 20px; }
+    .verification-grid::before {
+      content: "";
+      position: absolute;
+      top: 24px;
+      left: calc(40% - 2px);
+      width: 24px;
+      height: 2px;
+      background: var(--blue);
+      transform: translateX(-2px);
+      pointer-events: none;
+    }
+    .panel { padding: 24px; }
+    .panel-header { gap: 16px; margin-bottom: 16px; }
+    .panel-title { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+    .verified-mark { width: 32px; height: 32px; border-radius: 8px; font-size: 0; }
+    .verified-mark .icon { width: 18px; height: 18px; }
+    .answer-box { min-height: 112px; padding: 16px; border-left-width: 2px; border-radius: 8px; font-size: 15px; line-height: 24px; }
+    .metric-row { margin: 16px 0 20px; }
+    .metric { padding: 12px 16px 12px 0; margin-right: 16px; }
+    .metric-label { font-size: 11px; }
+    .metric-value { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .section-heading { margin: 20px 0 8px; font-size: 12px; font-weight: 500; }
+    .delta-grid { gap: 8px; }
+    .delta-card { padding: 12px; border-radius: 8px; }
+    th { font-size: 11px; font-weight: 500; }
+    td { font-variant-numeric: tabular-nums; }
+    .source-panel { position: relative; background: var(--surface); }
+    .source-panel::before { content: ""; position: absolute; top: 20px; left: -1px; width: 2px; height: 32px; background: var(--blue); }
+    .source-tabs { border-radius: 8px; background: var(--raised); }
+    .source-tab { font-weight: 500; }
+    .source-empty { min-height: 160px; margin-top: 16px; padding: 32px 16px; background: var(--paper); }
+    .open-pdf { min-height: 36px; padding: 0 12px; border-color: var(--line); border-radius: 8px; color: var(--ink-soft); background: var(--surface); font-weight: 500; }
+    .open-pdf:hover { border-color: var(--line-dark); color: var(--ink); background: var(--paper); }
+    .benchmark-hero { padding: 24px; border-radius: 12px; background: var(--sidebar); box-shadow: none; }
+    .benchmark-hero-head { gap: 24px; }
+    .benchmark-run { min-height: 40px; padding: 0 14px; border-color: #b4c7ef; border-radius: 8px; font-weight: 500; }
+    .benchmark-hero h1 { margin: 4px 0; font-size: 28px; line-height: 36px; font-weight: 500; letter-spacing: -0.02em; }
+    .benchmark-layout { grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 20px; margin-top: 20px; }
+    .benchmark-card { padding: 24px; }
+    .rank-card { margin-top: 20px; }
+    .benchmark-card h2 { font-size: 16px; font-weight: 600; }
+    .metric-definitions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 16px; border-top: 1px solid var(--line); }
+    .metric-definition { padding: 12px 12px 12px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+    .metric-definition:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--line); }
+    .metric-definition strong { font-weight: 500; }
+    .bar-stack { gap: 20px; margin-top: 20px; }
+    .bar-label { font-weight: 500; }
+    .bar-track { height: 6px; margin-top: 8px; border-radius: 3px; background: var(--raised); }
+    .bar-fill { border-radius: 3px; transition: transform 220ms var(--ease); transform-origin: left; }
+    .rank-badge { gap: 6px; padding: 0; border-radius: 0; background: transparent !important; font-size: 11px; font-weight: 500; }
+    .rank-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .rank-badge.found { color: var(--green); }
+    .rank-badge.missed { color: #936019; }
+    .model-list { gap: 0; margin-top: 16px; border-top: 1px solid var(--line); }
+    .model-row { padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+    .model-role { font-size: 11px; }
+    pre.telemetry { min-height: 248px; margin-top: 16px; padding: 16px; border-radius: 8px; background: #132337; font-variant-numeric: tabular-nums; }
+    .modal { padding: 24px; border-radius: 12px; }
+    .modal-header { gap: 16px; }
+    .modal-header h2 { font-size: 20px; font-weight: 600; }
+    .close-btn { border-radius: 8px; font-size: 0; }
+    .settings-form { gap: 12px; margin-top: 16px; }
+    .settings-form label { font-weight: 500; }
+    .settings-form input { min-height: 40px; border-radius: 8px; background: var(--paper); }
+    .settings-actions { margin-top: 16px; }
+    .refresh-results { margin-top: 12px; }
+    :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    @media (max-width: 1100px) {
+      .studio-header, .workspace, .benchmark-view { padding-left: 24px; padding-right: 24px; }
+      .verification-grid, .benchmark-layout { grid-template-columns: 1fr; }
+      .verification-grid::before { display: none; }
+      .source-panel::before { top: -1px; left: 24px; width: 32px; height: 2px; }
+    }
+    @media (max-width: 980px) {
       .app-shell { display: block; }
       .sidebar { min-height: auto; height: auto; position: relative; padding: 16px; }
-      .sidebar-scroll { max-height: 350px; }
-      .sidebar-footer { margin-top: 12px; }
+      .sidebar-scroll { max-height: 360px; }
+      .sidebar-footer { margin-top: 16px; }
+      .studio-header { padding: 16px 24px; }
+    }
+    @media (max-width: 680px) {
       .studio-header { align-items: flex-start; flex-direction: column; padding: 16px; }
+      .header-actions { width: 100%; }
+      .llm-settings-button { min-height: 40px; }
       .mode-switch { width: 100%; }
       .mode-btn { flex: 1; }
       .workspace, .benchmark-view { padding: 16px; }
-      .question-card, .panel, .benchmark-card, .benchmark-hero { padding: 18px; }
+      .question-card, .panel, .benchmark-card, .benchmark-hero { padding: 20px; }
+      .question-heading, .benchmark-hero h1 { font-size: 24px; line-height: 32px; }
       .question-row { flex-direction: column; }
       .ask-btn { width: 100%; }
       .answer-box { font-size: 14px; line-height: 22px; }
       .page-image-viewport, .pdf-frame { height: 280px; }
       .benchmark-hero-head { flex-direction: column; }
       .benchmark-run { width: 100%; }
+      .metric-definitions { grid-template-columns: 1fr; }
+      .metric-definition:nth-child(even) { padding-left: 0; border-left: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
@@ -438,23 +596,26 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         <img src="/assets/logo.svg" alt="VectraCite-AI logo" />
         <div>
           <div class="brand-name">VectraCite-AI</div>
-          <div class="brand-sub">PDF verification studio</div>
+          <div class="brand-sub">PDF evidence workspace</div>
         </div>
       </div>
-      <label class="upload-btn" for="pdfUploadInput">+ Upload Any PDF (.pdf)</label>
+      <label class="upload-btn" for="pdfUploadInput">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+        Upload PDF
+      </label>
       <input id="pdfUploadInput" class="sr-only" type="file" accept=".pdf,application/pdf" />
       <div id="sidebarStatus" class="sidebar-status" role="status"></div>
       <div class="sidebar-scroll">
-        <div class="sidebar-kicker">Search scope</div>
+        <div class="sidebar-kicker">Scope</div>
         <button id="scopeAll" class="scope-item active" type="button">
-          <span class="scope-symbol">∑</span>
-          <span><span class="scope-label">All Indexed PDFs</span><span class="scope-note">Search Everything</span></span>
+          <span class="scope-symbol"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h6M14 3v4h4"/></svg></span>
+          <span><span class="scope-label">All documents</span><span class="scope-note">Search the full index</span></span>
         </button>
-        <div class="sidebar-kicker" style="margin-top:18px;">Documents</div>
+        <div class="sidebar-kicker section-spaced">Documents</div>
         <div id="documentList" class="doc-list"></div>
-        <details class="manual-drawer" style="margin-top:18px;">
-          <summary class="sidebar-kicker" style="cursor:pointer;">Or paste text/table manually</summary>
-          <div style="padding:10px 8px 0;">
+        <details class="manual-drawer">
+          <summary class="sidebar-kicker">Or paste text/table manually</summary>
+          <div class="manual-fields">
             <button id="templateSla" class="sidebar-action-link" type="button">Load cloud SLA sample</button>
             <button id="templateLab" class="sidebar-action-link" type="button">Load clinical lab sample</button>
             <input id="manualName" class="manual-input" type="text" placeholder="Document name" />
@@ -475,14 +636,14 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     <div class="main-shell">
       <header class="studio-header">
         <div>
-          <div class="header-title">Ask, inspect, verify</div>
-          <div class="header-note">Every answer stays connected to a page, a table, and a document scope</div>
+          <div class="header-title">Trace every answer to its evidence</div>
+          <div class="header-note">Verified figures remain linked to the page and table they came from</div>
         </div>
         <div class="header-actions">
-          <button id="llmSettingsButton" class="llm-settings-button" type="button">AI setup</button>
+          <button id="llmSettingsButton" class="llm-settings-button button-with-icon" type="button"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08V21h-4v-.92A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04H3v-4h.92A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08V3h4v.92A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.38.34.73.6 1l.08.04H21v4h-.92a1.7 1.7 0 0 0-.68 1z"/></svg>Model setup</button>
           <nav class="mode-switch" aria-label="Studio views">
             <button id="modeWorkspace" class="mode-btn active" type="button">Workspace</button>
-            <button id="modeBenchmark" class="mode-btn" type="button">System accuracy</button>
+            <button id="modeBenchmark" class="mode-btn" type="button">Retrieval accuracy</button>
           </nav>
         </div>
       </header>
@@ -491,16 +652,16 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         <section id="workspaceView" class="view active" aria-label="Workspace">
           <div class="workspace">
             <section class="question-card">
-              <div class="eyebrow">Question bar</div>
-              <h1 class="question-heading">What do you need to verify?</h1>
+              <div class="eyebrow">Evidence query</div>
+              <h1 class="question-heading">Ask the document set</h1>
               <div class="question-sub">Ask about a figure, a paragraph, or a technical detail in the active PDF scope</div>
               <div class="question-row">
                 <label class="sr-only" for="questionInput">Question</label>
                 <input id="questionInput" class="question-input" type="text" placeholder="Ask a question about your PDFs" />
-                <button id="askButton" class="ask-btn" type="button">Ask question</button>
+                <button id="askButton" class="ask-btn" type="button">Verify answer</button>
               </div>
               <div class="scope-bar">
-                <span id="scopeBadge" class="scope-badge">Searching: All PDFs</span>
+                <span id="scopeBadge" class="scope-badge">Searching all documents</span>
                 <span class="scope-description">Choose a PDF in the left shelf to narrow the answer</span>
               </div>
               <div id="exampleChips" class="examples"></div>
@@ -514,7 +675,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                     <h2 class="panel-title">Answer &amp; extracted data</h2>
                     <div class="panel-sub">Deterministic figures, deltas, and coordinates from the response</div>
                   </div>
-                  <div class="verified-mark" aria-label="Verification shield">✓</div>
+                  <div class="verified-mark" aria-label="Verified"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
                 </div>
                 <div id="answerBox" class="answer-box empty">Ask a question to bring the verified answer here.</div>
                 <div id="metricRow" class="metric-row" hidden>
@@ -535,7 +696,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
               <article class="panel source-panel">
                 <div class="panel-header">
                   <div>
-                    <h2 class="panel-title">Highlighted Source PDF Page &amp; Table Preview</h2>
+                    <h2 class="panel-title">Cited page and table</h2>
                     <div id="sourceMeta" class="panel-sub">The cited page preview appears here after a query</div>
                   </div>
                 </div>
@@ -543,7 +704,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                 <div id="sourceContent" hidden>
                   <div class="source-headline">
                     <div><h3 id="sourceTitle" class="source-title"></h3><div id="sourcePage" class="source-meta"></div></div>
-                    <a id="openPdfLink" class="open-pdf" target="_blank" rel="noopener">Open full original PDF ↗</a>
+                    <a id="openPdfLink" class="open-pdf" target="_blank" rel="noopener">Open original PDF</a>
                   </div>
                   <div class="source-tabs" role="tablist" aria-label="Source views">
                     <button id="pageImageTab" class="source-tab active" type="button" role="tab" aria-selected="true">Page image</button>
@@ -561,9 +722,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                       <button id="resetPage" type="button">Reset</button>
                     </div>
                     <div class="page-switcher">
-                      <button id="prevPage" type="button">‹ Prev page</button>
+                      <button id="prevPage" type="button">Previous page</button>
                       <span id="pageCount" class="page-count">Page -</span>
-                      <button id="nextPage" type="button">Next page ›</button>
+                      <button id="nextPage" type="button">Next page</button>
                     </div>
                   </div>
                   <div id="fullPdfPane" class="source-pane" hidden>
@@ -576,16 +737,16 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           </div>
         </section>
 
-        <section id="benchmarkView" class="view" aria-label="System accuracy benchmark">
+        <section id="benchmarkView" class="view" aria-label="Retrieval accuracy benchmark">
           <div class="benchmark-view">
             <section class="benchmark-hero">
               <div class="benchmark-hero-head">
                 <div>
-                  <div class="eyebrow">System accuracy</div>
+                  <div class="eyebrow">Retrieval accuracy</div>
                   <h1>How well does the studio find the right evidence?</h1>
                   <p>Three retrieval stages are measured on the active corpus. The rank table explains each query in plain English, not just as a score.</p>
                 </div>
-                <button id="runBenchmark" class="benchmark-run" type="button">▶ Run Live Benchmark Now</button>
+                <button id="runBenchmark" class="benchmark-run button-with-icon" type="button"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></svg>Run benchmark</button>
               </div>
             </section>
             <div class="benchmark-layout">
@@ -603,13 +764,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                 <div id="benchmarkBars" class="bar-stack"></div>
               </article>
               <article class="benchmark-card">
-                <h2>Active AI models</h2>
+                <h2>Retrieval stack</h2>
                 <div id="modelList" class="model-list"></div>
                 <pre id="telemetryBox" class="telemetry">Loading system telemetry</pre>
-                <button id="refreshBenchmark" class="action-btn" type="button" style="margin-top:12px;">Refresh benchmark</button>
+                <button id="refreshBenchmark" class="action-btn refresh-results" type="button">Refresh results</button>
               </article>
             </div>
-            <article class="benchmark-card" style="margin-top:18px;">
+            <article class="benchmark-card rank-card">
               <h2>Rank comparison by question</h2>
               <div id="rankTable" class="rank-table"></div>
             </article>
@@ -626,7 +787,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           <h2 id="llmSettingsTitle">LLM &amp; API setup</h2>
           <div class="panel-sub">Optional provider settings for Stage 5 phrasing</div>
         </div>
-        <button id="closeLlmSettings" class="close-btn" type="button" aria-label="Close AI setup">×</button>
+        <button id="closeLlmSettings" class="close-btn" type="button" aria-label="Close model setup"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <p class="settings-copy">
         <strong>Runs locally for free:</strong> PyMuPDF parsing, BAAI/bge-small-en-v1.5 embeddings,
@@ -651,7 +812,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
       <div class="modal-header">
         <div><h2 id="previewTitle">PDF pages</h2><div id="previewSubtitle" class="panel-sub"></div></div>
-        <button id="closePreview" class="close-btn" type="button" aria-label="Close preview">×</button>
+        <button id="closePreview" class="close-btn" type="button" aria-label="Close preview"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div id="previewPages" class="preview-pages"></div>
     </section>
@@ -728,7 +889,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
 
     function updateScope() {
-      const label = selectedDoc ? "Searching only: " + selectedDoc + ".pdf" : "Searching: All PDFs";
+      const label = selectedDoc ? "Searching only " + selectedDoc + ".pdf" : "Searching all documents";
       byId("scopeBadge").textContent = label;
       byId("scopeAll").classList.toggle("active", !selectedDoc);
       document.querySelectorAll(".doc-card").forEach(card => {
@@ -739,7 +900,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     function renderDocuments() {
       const list = byId("documentList");
       if (!documents.length) {
-        list.innerHTML = '<div style="padding:10px 8px;color:var(--sidebar-muted);font-size:12px;">No PDFs are indexed. Restore the demo shelf or upload a PDF.</div>';
+        list.innerHTML = '<div class="document-empty">No PDFs are indexed. Restore the demo shelf or upload a PDF.</div>';
         updateScope();
         return;
       }
@@ -753,11 +914,12 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           '<span class="storage-badge ' + (doc.storage_tier === "user_upload" ? "user" : "") + '">' +
           (doc.storage_tier === "user_upload" ? "User upload" : "Demo PDF") + '</span>' +
           '</button>' +
-          '<button class="doc-delete" type="button" data-delete="' + escapeHtml(doc.doc_name) + '" aria-label="Delete ' + escapeHtml(doc.doc_name) + '">×</button>' +
+          '<button class="doc-delete" type="button" data-delete="' + escapeHtml(doc.doc_name) + '" aria-label="Delete ' + escapeHtml(doc.doc_name) + '">' +
+          '<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
           '</div>' +
           '<div class="doc-actions">' +
-          '<a href="/documents/' + encoded + '/pdf" target="_blank" rel="noopener">Open PDF ↗</a>' +
-          '<button type="button" data-preview="' + escapeHtml(doc.doc_name) + '">Preview Pages</button>' +
+          '<a href="/documents/' + encoded + '/pdf" target="_blank" rel="noopener">Open PDF</a>' +
+          '<button type="button" data-preview="' + escapeHtml(doc.doc_name) + '">Preview pages</button>' +
           '</div></div>';
       }).join("");
       list.querySelectorAll("[data-filter]").forEach(button => {
@@ -1025,7 +1187,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         body: JSON.stringify({question, top_k: 4, use_cache: true, doc_name: selectedDoc})
       });
       button.disabled = false;
-      button.textContent = "Ask question";
+      button.textContent = "Verify answer";
       if (!result.ok) {
         setStatus("queryStatus", result.error, "error");
         byId("answerBox").className = "answer-box empty";
@@ -1146,7 +1308,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("previewPages").innerHTML = (result.data.chunks || []).map(chunk =>
         '<div class="preview-page"><div class="preview-page-head"><span>Page ' + chunk.page_number +
         " · Chunk " + escapeHtml(chunk.chunk_id) + '</span><a class="open-pdf" target="_blank" rel="noopener" href="/documents/' +
-        encodeURIComponent(docName) + '/pdf">Open PDF ↗</a></div><p>' +
+        encodeURIComponent(docName) + '/pdf">Open PDF</a></div><p>' +
         escapeHtml(chunk.text.slice(0, 900)) + "</p></div>"
       ).join("");
       byId("previewBackdrop").classList.add("open");
@@ -1158,9 +1320,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
 
     function renderBenchmark(report) {
       const modes = [
-        {key: "dense_only", label: "Dense-only RAG", color: "#8796a8"},
-        {key: "hybrid_rrf", label: "Hybrid RRF", color: "#2563eb"},
-        {key: "hybrid_plus_reranker", label: "Adaptive SCAR", color: "#0f9f6e"}
+        {key: "dense_only", label: "Dense-only RAG", color: "#aab4c2"},
+        {key: "hybrid_rrf", label: "Hybrid RRF", color: "#6f7e91"},
+        {key: "hybrid_plus_reranker", label: "Adaptive SCAR", color: "#2459d3"}
       ];
       byId("benchmarkBars").innerHTML = modes.map(mode => {
         const metric = report[mode.key] || {};
@@ -1179,7 +1341,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           "</td><td>" + escapeHtml(row.question) + "</td>" + modes.map(mode => {
             const rank = row.ranks && row.ranks[mode.key];
             return '<td><span class="rank-badge ' + (rank === 1 ? "found" : "missed") + '">' +
-              (rank === 1 ? "✅ Found at Rank #1" : "⚠️ Missed") + "</span></td>";
+              (rank === 1 ? "Found at rank 1" : "Missed") + "</span></td>";
           }).join("") + "</tr>").join("") + "</tbody></table>" :
         '<div class="inline-status">No benchmark rows are available yet</div>';
       setStatus("benchmarkStatus", "Live evaluation loaded at " + new Date().toLocaleTimeString(), "success");
@@ -1231,7 +1393,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     byId("scopeAll").addEventListener("click", () => runUiTask(async () => {
       selectedDoc = null;
       updateScope();
-      setStatus("sidebarStatus", "Scope set to all indexed PDFs", "success");
+      setStatus("sidebarStatus", "Scope set to all documents", "success");
     }, "sidebarStatus"));
     byId("pdfUploadInput").addEventListener("change", () => runUiTask(uploadPdf, "sidebarStatus"));
     byId("templateSla").addEventListener("click", () => loadTemplate("sla"));
