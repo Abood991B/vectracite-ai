@@ -3,7 +3,7 @@
     "status": "healthy",
     "service": "VectraCite-AI",
     "version": "1.0.0",
-    "indexed_chunks": 9,
+    "indexed_chunks": 20,
     "indexed_documents": 4,
     "cache": {
       "backend": "in_memory_fallback",
@@ -14,7 +14,7 @@
   },
   "cold_hybrid_rag_query": {
     "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
-    "answer": "Verified from [AMD_2022_10K, Page 51]: Total net revenue (FY 2022): $ 23,601; Total net revenue (FY 2021): $ 16,434; Total net revenue (FY 2020): $ 9,763; Gross profit (FY 2022): $ 10,603.",
+    "answer": "Verified from [AMD_2022_10K, Page 51]: Total net revenue (FY 2022): $ 23,601; Total net revenue (FY 2021): $ 16,434; Total net revenue (FY 2020): $ 9,763; Gross profit (FY 2022): $ 10,603; Gross profit (FY 2021): $ 7,929; Operating income (FY 2022): $ 1,264; Total net revenue FY 2022 vs FY 2021: +7,167.00 (+43.61%); Gross profit FY 2022 vs FY 2021: +2,674.00 (+33.72%).",
     "matched_cells": [
       {
         "doc_name": "AMD_2022_10K",
@@ -79,7 +79,7 @@
         "doc_name": "AMD_2022_10K",
         "page_number": 51,
         "contains_table": true,
-        "rerank_score": 0.7558,
+        "rerank_score": 0.7578,
         "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 51]\n[DOCUMENT: AMD_2022_10K | SOURCE PAGE: 51]\nSOURCE PAGE: 51\nITEM 8. AMD CONSOLIDATED STATEMENTS OF OPERATIONS TABLE (in millions)\n| Consolidated Line Item | FY 2022 | FY 2021 | FY 2020 |\n| --- | --- | --- | --- |\n| Total net revenue | $ 23,601 |"
       },
       {
@@ -87,8 +87,8 @@
         "doc_name": "AMD_2022_10K",
         "page_number": 67,
         "contains_table": true,
-        "rerank_score": 0.5888,
-        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 67]\n[DOCUMENT: AMD_2022_10K | SOURCE PAGE: 67]\nSOURCE PAGE: 67\nNOTE 18 ? SEGMENT AND GEOGRAPHIC NET REVENUE AND OPERATING INCOME TABLE (FY 2022)\nWhat was AMD's exact net revenue ($M) and operating income ($M) in FY 2022 per the table?\n| Geographic "
+        "rerank_score": 0.597,
+        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 67]\n[DOCUMENT: AMD_2022_10K | SOURCE PAGE: 67]\nSOURCE PAGE: 67\nNOTE 18 ? SEGMENT AND GEOGRAPHIC NET REVENUE AND OPERATING INCOME TABLE (FY 2022)\nWhat was AMD's exact net revenue ($M), gross profit, and operating income in FY 2022 versus FY 2021\nper"
       }
     ],
     "verification": {
@@ -98,24 +98,31 @@
         "$ 23,601",
         "$ 16,434",
         "$ 9,763",
-        "$ 10,603"
+        "$ 10,603",
+        "$ 7,929",
+        "$ 1,264",
+        "7,167.00",
+        "43.61%",
+        "2,674.00",
+        "33.72%"
       ],
       "unverified_figures": []
     },
     "cache_hit": false,
     "cache_similarity": null,
-    "latency_ms": 542.85,
+    "latency_ms": 222.52,
     "guardrail_flags": [],
     "metadata": {
       "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
-      "candidates_evaluated": 6
+      "candidates_evaluated": 6,
+      "document_scope": "ALL"
     }
   },
   "warm_semantic_cache_hit": {
     "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
     "cache_hit": true,
     "cache_similarity": 1.0,
-    "latency_ms": 0.38
+    "latency_ms": 0.5
   },
   "guardrail_interception": {
     "http_status": 400,

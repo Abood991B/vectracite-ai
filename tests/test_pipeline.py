@@ -184,7 +184,12 @@ def test_deterministic_numeric_verifier_detects_grounded_and_ungrounded_numbers(
             chunk_id="c1",
             doc_name="AMD_2022_10K",
             page_number=51,
-            text="| Total net revenue | $ 23,601 | $ 16,434 |\n| Operating income | $ 1,264 |",
+            text=(
+                "| Line Item | FY 2022 | FY 2021 |\n"
+                "| --- | --- | --- |\n"
+                "| Total net revenue | $ 23,601 | $ 16,434 |\n"
+                "| Operating income | $ 1,264 |"
+            ),
             contains_table=True,
             dense_score=0.8,
             bm25_score=10.0,
@@ -203,6 +208,12 @@ def test_deterministic_numeric_verifier_detects_grounded_and_ungrounded_numbers(
     )
     assert hallucinated_res.is_fully_grounded is False
     assert "$99,999" in hallucinated_res.unverified_figures
+
+    derived_delta_res = verifier.verify(
+        "Revenue increased by +7,167.00 (+43.61%) versus the prior year.", chunks
+    )
+    assert derived_delta_res.is_fully_grounded is True
+    assert derived_delta_res.numeric_grounding_score == 1.0
 
 
 def test_dynamic_document_crud_and_dashboard_ui() -> None:

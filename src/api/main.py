@@ -268,7 +268,12 @@ async def document_pdf(doc_name: str) -> FileResponse:
     for root in (settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR):
         pdf_path = root / f"{clean_name}.pdf"
         if pdf_path.exists():
-            return FileResponse(pdf_path, media_type="application/pdf", filename=pdf_path.name)
+            return FileResponse(
+                pdf_path,
+                media_type="application/pdf",
+                filename=pdf_path.name,
+                content_disposition_type="inline",
+            )
     raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
 
 

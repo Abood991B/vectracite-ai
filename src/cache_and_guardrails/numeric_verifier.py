@@ -30,7 +30,7 @@ class DeterministicNumericVerifier:
 
     @staticmethod
     def _normalize_number(token: str) -> str:
-        return re.sub(r"[\s$,]", "", token.strip()).lower()
+        return re.sub(r"[\s$,+]", "", token.strip()).lower()
 
     def verify(
         self, answer: str, retrieved_chunks: List[RetrievedDocument], doc_names: List[str] | None = None
@@ -47,6 +47,20 @@ class DeterministicNumericVerifier:
 
         corpus_text = " ".join(c.text for c in retrieved_chunks)
         normalized_corpus = self._normalize_number(corpus_text)
+        derived_numbers: set[str] = set()
+        from src.retrieval.table_ast import TableASTParser
+
+        for chunk in retrieved_chunks:
+            if not chunk.contains_table:
+                continue
+            cells = TableASTParser.extract_cells(
+                chunk.text,
+                doc_name=chunk.doc_name,
+                page_number=chunk.page_number,
+            )
+            for delta in TableASTParser.compute_row_deltas(cells):
+                derived_numbers.add(self._normalize_number(delta["absolute_change"]))
+                derived_numbers.add(self._normalize_number(delta["pct_change"]))
 
         verified: List[str] = []
         unverified: List[str] = []
@@ -59,7 +73,7 @@ class DeterministicNumericVerifier:
                 continue
             seen.add(norm_tok)
 
-            if norm_tok in normalized_corpus:
+            if norm_tok in normalized_corpus or norm_tok in derived_numbers:
                 verified.append(clean_tok)
             else:
                 unverified.append(clean_tok)
