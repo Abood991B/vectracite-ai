@@ -7,29 +7,33 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
   <link rel="icon" href="data:," />
   <style>
     :root {
-      --bg: #f8fafc;
+      --page: #f5f7fa;
       --surface: #ffffff;
-      --surface-alt: #f1f5f9;
-      --border: #e2e8f0;
-      --border-strong: #cbd5e1;
-      --text: #0f172a;
-      --text-secondary: #475569;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-soft: #eff6ff;
-      --success-bg: #ecfdf5;
-      --success-text: #065f46;
-      --success-border: #a7f3d0;
-      --danger-bg: #fef2f2;
-      --danger-text: #991b1b;
-      --danger-border: #fecaca;
+      --surface-raised: #edf1f5;
+      --surface-ink: #102033;
+      --border: #d7dee8;
+      --border-strong: #aebccc;
+      --text: #102033;
+      --text-secondary: #4e6073;
+      --text-muted: #748396;
+      --accent: #0f5c8d;
+      --accent-hover: #0b4a72;
+      --accent-soft: #eaf2f7;
+      --success-bg: #edf7f1;
+      --success-text: #167349;
+      --success-border: #a9d6bb;
+      --danger-bg: #fbefef;
+      --danger-text: #a43838;
+      --danger-border: #e4b8b8;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
     }
     * { box-sizing: border-box; }
+    button, input, textarea { font: inherit; }
     body {
       margin: 0;
-      background: var(--bg);
+      background: var(--page);
       color: var(--text);
       font-family: var(--sans);
       font-size: 14px;
@@ -38,198 +42,199 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
     .header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 0 28px;
+      padding: 0 32px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      height: 62px;
+      min-height: 64px;
       position: sticky;
       top: 0;
       z-index: 20;
     }
-    .brand-group { display: flex; align-items: center; gap: 12px; }
+    .brand-group { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .brand-logo {
       width: 32px;
       height: 32px;
-      border-radius: 6px;
-      background: var(--text);
-      color: #fff;
+      border-radius: 8px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      color: var(--accent);
       font-family: var(--mono);
-      font-weight: 700;
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
-    }
-    .brand-title { font-weight: 700; font-size: 16px; color: var(--text); }
-    .brand-sub { font-size: 12px; color: var(--text-secondary); }
-    .tabs { display: flex; gap: 4px; height: 100%; align-items: center; }
-    .tab-btn {
-      background: transparent;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 6px;
       font-size: 13px;
-      font-weight: 600;
+      letter-spacing: -0.04em;
+    }
+    .brand-title { font-weight: 600; font-size: 16px; color: var(--text); line-height: 20px; }
+    .brand-sub { font-size: 12px; color: var(--text-muted); line-height: 16px; }
+    .tabs { display: flex; gap: 4px; height: 64px; align-items: center; margin-left: auto; margin-right: 24px; }
+    .tab-btn {
+      height: 40px;
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      padding: 0 12px;
+      border-radius: 8px 8px 0 0;
+      font-size: 13px;
+      font-weight: 500;
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: color 160ms var(--ease), background-color 160ms var(--ease), border-color 160ms var(--ease);
     }
-    .tab-btn:hover { background: var(--surface-alt); color: var(--text); }
-    .tab-btn.active { background: var(--primary-soft); color: var(--primary); }
+    .tab-btn:hover { background: var(--surface-raised); color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
     .status-pill {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 12px;
       font-family: var(--mono);
-      background: var(--success-bg);
-      color: var(--success-text);
-      border: 1px solid var(--success-border);
-      padding: 5px 12px;
-      border-radius: 999px;
+      color: var(--text-secondary);
+      white-space: nowrap;
     }
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: #10b981;
+      background: var(--success-text);
     }
-    .main { max-width: 1280px; margin: 24px auto; padding: 0 28px 48px; }
+    .main { max-width: 1440px; margin: 0 auto; padding: 32px 32px 64px; }
     .tab-view { display: none; }
     .tab-view.active { display: block; }
     .step-banner {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      margin-bottom: 32px;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      gap: 24px;
     }
     .step-item { display: flex; gap: 12px; align-items: flex-start; }
     .step-num {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--primary-soft);
-      color: var(--primary);
-      font-weight: 700;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
       font-size: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      margin-top: 2px;
     }
-    .step-title { font-weight: 600; font-size: 13px; }
-    .step-desc { font-size: 12px; color: var(--text-secondary); }
+    .step-title { font-weight: 500; font-size: 14px; line-height: 20px; }
+    .step-desc { font-size: 12px; line-height: 20px; color: var(--text-secondary); }
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 2px rgba(16, 32, 51, 0.04);
     }
     .card-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-    .card-title { font-size: 14px; font-weight: 700; margin: 0; }
-    .card-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-    .scenario-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px;
+      align-items: flex-start;
+      gap: 16px;
       margin-bottom: 16px;
     }
+    .card-title { font-size: 16px; font-weight: 600; line-height: 24px; margin: 0; letter-spacing: -0.01em; }
+    .card-subtitle { font-size: 13px; line-height: 20px; color: var(--text-secondary); margin-top: 4px; }
+    .section-label { font-size: 13px; line-height: 20px; font-weight: 500; margin: 0 0 8px; color: var(--text); }
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
     .scenario-card {
+      min-height: 120px;
       text-align: left;
-      background: var(--bg);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
+      border-radius: 8px;
+      padding: 16px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: background-color 160ms var(--ease), border-color 160ms var(--ease), transform 160ms var(--ease);
     }
-    .scenario-card:hover {
-      border-color: var(--primary);
-      background: var(--primary-soft);
-    }
+    .scenario-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .scenario-card:active { transform: scale(0.98); }
     .scenario-tag {
       font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--primary);
-      margin-bottom: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 8px;
       display: block;
     }
     .scenario-tag.danger { color: var(--danger-text); }
-    .scenario-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; color: var(--text); }
-    .scenario-q { font-size: 11px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .search-box { display: flex; gap: 10px; }
+    .scenario-name { font-weight: 500; font-size: 14px; line-height: 20px; margin-bottom: 4px; color: var(--text); }
+    .scenario-q { font-size: 12px; line-height: 18px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .search-box { display: flex; gap: 12px; }
     .search-input {
       flex: 1;
-      padding: 11px 14px;
+      min-height: 48px;
+      padding: 12px 16px;
       font-size: 14px;
       border: 1px solid var(--border-strong);
-      border-radius: 6px;
+      border-radius: 8px;
       outline: none;
+      color: var(--text);
+      background: var(--surface);
     }
-    .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 92, 141, 0.14); }
     .btn {
-      padding: 10px 18px;
-      border-radius: 6px;
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 8px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
       border: 1px solid transparent;
-      transition: all 0.15s;
+      transition: color 160ms var(--ease), background-color 160ms var(--ease), border-color 160ms var(--ease), transform 160ms var(--ease);
     }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border-strong); }
-    .btn-secondary:hover { background: var(--surface-alt); }
+    .btn:active { transform: scale(0.98); }
+    .btn:focus-visible, .tab-btn:focus-visible, .scenario-card:focus-visible, .doc-row:focus-visible { outline: 3px solid rgba(15, 92, 141, 0.26); outline-offset: 2px; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--surface-raised); color: var(--text); border-color: var(--border-strong); }
+    .btn-secondary:hover { background: var(--surface); border-color: var(--accent); }
     .btn-danger { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
     .metrics-strip {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 16px;
+      gap: 16px;
+      margin-bottom: 20px;
     }
     .metric-pill {
       font-family: var(--mono);
       font-size: 12px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      background: var(--bg);
-      border: 1px solid var(--border);
+      line-height: 20px;
+      padding: 0 16px 0 0;
+      color: var(--text-secondary);
+      border: 0;
+      border-right: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
     }
-    .metric-pill.verified {
-      background: var(--success-bg);
-      color: var(--success-text);
-      border-color: var(--success-border);
-      font-weight: 600;
-    }
-    .metric-pill.blocked {
-      background: var(--danger-bg);
-      color: var(--danger-text);
-      border-color: var(--danger-border);
-      font-weight: 600;
-    }
+    .metric-pill:last-child { border-right: 0; padding-right: 0; }
+    .metric-pill.verified { color: var(--success-text); font-weight: 500; }
+    .metric-pill.blocked { color: var(--danger-text); font-weight: 500; }
     .answer-banner {
-      background: var(--primary-soft);
-      border: 1px solid #bfdbfe;
-      border-left: 4px solid var(--primary);
-      padding: 16px;
-      border-radius: 6px;
-      font-size: 15px;
+      background: var(--accent-soft);
+      border: 1px solid #b9d2df;
+      border-left: 4px solid var(--accent);
+      padding: 20px 24px;
+      border-radius: 12px;
+      font-size: 16px;
+      line-height: 24px;
       font-weight: 500;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .answer-banner.blocked {
       background: var(--danger-bg);
@@ -237,89 +242,61 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       border-left-color: var(--danger-text);
       color: var(--danger-text);
     }
-    .grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
-    table.data-table th, table.data-table td {
-      border: 1px solid var(--border);
-      padding: 8px 12px;
-      text-align: left;
-    }
-    table.data-table th {
-      background: var(--surface-alt);
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-    .mono { font-family: var(--mono); }
-    .delta-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .delta-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-    }
-    .delta-title { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
-    .delta-val { font-family: var(--mono); font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--text); }
-    .source-card {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px;
-      margin-bottom: 12px;
-      background: var(--bg);
-    }
-    .source-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      font-family: var(--mono);
-      font-size: 12px;
-    }
-    .kb-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
-    .doc-row {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 10px;
-      background: var(--bg);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .doc-row.active { border-color: var(--primary); background: var(--primary-soft); }
-    .form-group { margin-bottom: 12px; }
-    .form-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-    .input-field {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: var(--sans);
-    }
-    .bar-row { margin-bottom: 14px; }
-    .bar-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-    .bar-track { height: 10px; background: var(--surface-alt); border-radius: 999px; overflow: hidden; }
-    .bar-fill { height: 100%; background: var(--primary); border-radius: 999px; }
-    pre.code-block {
-      background: #0f172a;
-      color: #e2e8f0;
-      padding: 14px;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-family: var(--mono);
-      font-size: 12px;
-    }
+    .grid-2 { display: grid; grid-template-columns: 1.25fr 0.95fr; gap: 32px; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.data-table th, table.data-table td { border-bottom: 1px solid var(--border); padding: 12px 8px; text-align: left; vertical-align: top; }
+    table.data-table th { border-bottom: 2px solid var(--border-strong); font-weight: 500; color: var(--text-secondary); }
+    table.data-table tr:last-child td { border-bottom: 0; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .delta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+    .delta-card { background: var(--surface-raised); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 16px; }
+    .delta-title { font-size: 12px; line-height: 18px; color: var(--text-secondary); font-weight: 500; }
+    .delta-val { font-family: var(--mono); font-size: 14px; line-height: 20px; font-weight: 500; margin-top: 4px; color: var(--text); }
+    .source-card { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 12px; background: var(--surface-raised); }
+    .source-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; font-family: var(--mono); font-size: 12px; color: var(--text-secondary); }
+    .kb-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 32px; }
+    .doc-row { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; background: var(--surface); display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; transition: background-color 160ms var(--ease), border-color 160ms var(--ease); }
+    .doc-row:hover { background: var(--surface-raised); border-color: var(--border-strong); }
+    .doc-row.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72); }
+    .doc-name { font-weight: 600; }
+    .doc-meta { font-size: 11px; color: var(--text-secondary); }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; font-weight: 500; line-height: 16px; margin-bottom: 8px; }
+    .input-field { width: 100%; min-height: 40px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; font-size: 13px; line-height: 20px; font-family: var(--sans); color: var(--text); background: var(--surface); }
+    .input-field:focus { outline: 3px solid rgba(15, 92, 141, 0.14); border-color: var(--accent); }
+    .full-width { width: 100%; }
+    .status-text { margin-top: 8px; color: var(--text-muted); font-size: 12px; line-height: 20px; font-family: var(--mono); }
+    .template-actions, .action-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .template-btn, .btn-compact, .api-link { min-height: 36px; padding: 0 12px; font-size: 12px; }
+    .flex-button { flex: 1; }
+    .raw-response { margin-top: 16px; }
+    .raw-response summary { cursor: pointer; color: var(--text-secondary); font-family: var(--mono); font-size: 12px; }
+    .benchmark-bars { margin-top: 20px; }
+    .benchmark-summary { margin-top: 24px; }
+    .benchmark-table-wrap { margin-top: 24px; overflow-x: auto; }
+    .bar-row { margin-bottom: 20px; }
+    .bar-label { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; line-height: 20px; font-weight: 500; margin-bottom: 8px; }
+    .bar-track { height: 8px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 180ms var(--ease); }
+    pre.code-block { background: var(--surface-ink); color: #eef3f7; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: var(--mono); font-size: 12px; line-height: 20px; }
+    .workbench-footer { max-width: 1440px; margin: 0 auto; padding: 0 32px 24px; color: var(--text-muted); font-size: 11px; line-height: 16px; text-align: right; }
     @media (max-width: 900px) {
+      .header { padding: 16px 20px; flex-wrap: wrap; gap: 16px; }
+      .tabs { order: 3; width: 100%; height: 40px; overflow-x: auto; margin: 0; }
       .step-banner, .grid-2, .kb-layout { grid-template-columns: 1fr; }
+      .main { padding: 24px 20px 48px; }
+      .workbench-footer { padding: 0 20px 24px; }
+    }
+    @media (max-width: 600px) {
+      .brand-sub { display: none; }
+      .status-pill { margin-left: auto; }
+      .search-box, .card-header { flex-direction: column; align-items: stretch; }
+      .search-box .btn { width: 100%; }
+      .bar-label { flex-direction: column; gap: 0; }
+      .card { padding: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
     }
   </style>
 </head>
@@ -333,13 +310,13 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="tab-query">1. Ask &amp; Verify</button>
-      <button class="tab-btn" data-tab="tab-kb">2. Knowledge Base &amp; PDF Upload</button>
-      <button class="tab-btn" data-tab="tab-bench">3. Benchmarks &amp; System Health</button>
+      <button class="tab-btn active" data-tab="tab-query">Ask &amp; Verify</button>
+      <button class="tab-btn" data-tab="tab-kb">Knowledge Base &amp; PDF Upload</button>
+      <button class="tab-btn" data-tab="tab-bench">Benchmarks &amp; System Health</button>
     </nav>
     <div class="status-pill" id="headerStatus">
       <span class="status-dot"></span>
-      <span id="headerStatusText">Engine Online</span>
+      <span id="headerStatusText">Engine online</span>
     </div>
   </header>
 
@@ -348,24 +325,24 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
     <section id="tab-query" class="tab-view active">
       <div class="step-banner">
         <div class="step-item">
-          <div class="step-num">1</div>
+          <div class="step-num">01</div>
           <div>
-            <div class="step-title">Select a Scenario or Ask a Question</div>
-            <div class="step-desc">Click any industry preset card below or type your own question across indexed filings.</div>
+            <div class="step-title">Choose a question</div>
+            <div class="step-desc">Start with a benchmark question or ask about an indexed filing</div>
           </div>
         </div>
         <div class="step-item">
-          <div class="step-num">2</div>
+          <div class="step-num">02</div>
           <div>
-            <div class="step-title">SCAR 2D Table-AST Retrieval</div>
-            <div class="step-desc">Hybrid Qdrant + BM25 search fused with our 2D Table-Coordinate Cross-Encoder.</div>
+            <div class="step-title">Retrieve evidence</div>
+            <div class="step-desc">Dense, lexical, and SCAR ranking find the relevant page</div>
           </div>
         </div>
         <div class="step-item">
-          <div class="step-num">3</div>
+          <div class="step-num">03</div>
           <div>
-            <div class="step-title">Deterministic Numeric Audit</div>
-            <div class="step-desc">Every figure and YoY calculation is verified against exact source table cells.</div>
+            <div class="step-title">Verify the figures</div>
+            <div class="step-desc">Cells, citations, and cross-column changes stay tied to the source</div>
           </div>
         </div>
       </div>
@@ -373,35 +350,35 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       <div class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Step 1: Choose an Industry Scenario or Enter Custom Query</h2>
-            <div class="card-subtitle">Click a preset card to run an instant verification across Finance, Cloud, Banking, Healthcare, or Security Guardrails:</div>
+            <h2 class="card-title">Ask a question</h2>
+            <div class="card-subtitle">Choose a document question or write your own</div>
           </div>
         </div>
 
         <div class="scenario-grid" id="scenarioGrid"></div>
 
         <div class="search-box">
-          <input id="qInput" class="search-input" type="text" placeholder="Ask any question across your indexed documents and tables..." />
-          <button id="runQueryBtn" class="btn btn-primary">Execute Query</button>
+          <input id="qInput" class="search-input" type="text" placeholder="Ask about a document or table" />
+          <button id="runQueryBtn" class="btn btn-primary">Run query</button>
         </div>
       </div>
 
       <div id="resultsContainer" style="display:none;">
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Step 2: Verified Answer &amp; Deterministic Numeric Audit</h2>
+            <h2 class="card-title">Verified answer</h2>
           </div>
           <div id="telemetryStrip" class="metrics-strip"></div>
           <div id="answerBanner" class="answer-banner"></div>
 
           <div id="deltasWrapper" style="display:none; margin-bottom: 20px;">
-            <div class="card-title" style="font-size:13px; margin-bottom:6px;">Automatic Symbolic Cross-Column Calculations (YoY Deltas)</div>
+            <div class="section-label">Cross-column changes</div>
             <div id="deltasGrid" class="delta-grid"></div>
           </div>
 
           <div class="grid-2">
             <div>
-              <h3 class="card-title" style="font-size:13px; margin-bottom:8px;">Pinpointed 2D Table Coordinates (Row &times; Column &rarr; Value)</h3>
+              <h3 class="section-label">Matched table coordinates</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -416,13 +393,13 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
             </div>
 
             <div>
-              <h3 class="card-title" style="font-size:13px; margin-bottom:8px;">Retrieved Source Evidence &amp; Formatted Tables</h3>
+              <h3 class="section-label">Source evidence</h3>
               <div id="citationsContainer"></div>
             </div>
           </div>
 
-          <details style="margin-top: 16px;">
-            <summary style="cursor:pointer; font-family:var(--mono); font-size:12px; color:var(--text-secondary);">View Raw JSON API Response</summary>
+          <details class="raw-response">
+            <summary>View raw response</summary>
             <pre id="rawJsonBox" class="code-block"></pre>
           </details>
         </div>
@@ -437,7 +414,7 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
             <div class="card-header">
               <div>
                 <h2 class="card-title">Indexed Knowledge Base</h2>
-                <div class="card-subtitle">Click any document to inspect its extracted pages and tables:</div>
+                <div class="card-subtitle">Inspect extracted pages and tables from the indexed corpus</div>
               </div>
             </div>
             <div id="kbDocList"></div>
@@ -446,40 +423,40 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
           <div class="card">
             <div class="card-header">
               <div>
-                <h2 class="card-title">Upload a Real PDF File (.pdf)</h2>
-                <div class="card-subtitle">Automatically extracts narrative text &amp; Markdown tables via PyMuPDF:</div>
+                <h2 class="card-title">Upload a PDF</h2>
+                <div class="card-subtitle">Extract narrative text and tables with PyMuPDF</div>
               </div>
             </div>
             <div class="form-group">
               <input type="file" id="pdfFileInput" accept=".pdf" class="input-field" />
             </div>
-            <button id="uploadPdfBtn" class="btn btn-primary" style="width:100%;">Upload &amp; Index PDF File</button>
-            <div id="pdfUploadStatus" style="margin-top:8px; font-size:12px; font-family:var(--mono);"></div>
+            <button id="uploadPdfBtn" class="btn btn-primary full-width">Upload and index PDF</button>
+            <div id="pdfUploadStatus" class="status-text"></div>
           </div>
 
           <div class="card">
             <div class="card-header">
               <div>
-                <h2 class="card-title">Quick Add / Update Document</h2>
-                <div class="card-subtitle">Load a 1-click template or enter custom text/table data:</div>
+                <h2 class="card-title">Save a document</h2>
+                <div class="card-subtitle">Load a sample or enter text and table data</div>
               </div>
             </div>
-            <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
-              <button class="btn btn-secondary" style="padding:5px 10px; font-size:11px;" data-template="sla">Load Cloud SLA Template</button>
-              <button class="btn btn-secondary" style="padding:5px 10px; font-size:11px;" data-template="lab">Load Clinical Lab Template</button>
+            <div class="template-actions">
+              <button class="btn btn-secondary template-btn" data-template="sla">Load cloud SLA sample</button>
+              <button class="btn btn-secondary template-btn" data-template="lab">Load clinical lab sample</button>
             </div>
             <div class="form-group">
               <label class="form-label">Document Identifier</label>
               <input id="docNameInput" class="input-field" type="text" placeholder="e.g. CLOUD_SLA_2026" />
             </div>
             <div class="form-group">
-              <label class="form-label">Page Content &amp; Table Rows</label>
-              <textarea id="docTextInput" class="input-field mono" rows="5" placeholder="Paste text or table rows..."></textarea>
+              <label class="form-label">Page content and table rows</label>
+              <textarea id="docTextInput" class="input-field mono" rows="5" placeholder="Paste text or table rows"></textarea>
             </div>
-            <div style="display:flex; gap:8px;">
-              <button id="saveDocBtn" class="btn btn-primary" style="flex:1;">Save / Replace Document</button>
+            <div class="action-row">
+              <button id="saveDocBtn" class="btn btn-primary flex-button">Save document</button>
             </div>
-            <div id="crudStatus" style="margin-top:8px; font-size:12px; font-family:var(--mono);"></div>
+            <div id="crudStatus" class="status-text"></div>
           </div>
         </div>
 
@@ -488,7 +465,7 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
             <div class="card-header">
               <div>
                 <h2 class="card-title" id="inspectorTitle">Document Inspector</h2>
-                <div class="card-subtitle" id="inspectorSubtitle">Select a document on the left to view its indexed pages and rendered tables.</div>
+                <div class="card-subtitle" id="inspectorSubtitle">Select a document to view its indexed pages and rendered tables</div>
               </div>
               <div id="inspectorActions"></div>
             </div>
@@ -507,13 +484,13 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
               <h2 class="card-title">Live Retrieval Ablation Study</h2>
               <div class="card-subtitle">Scores are loaded from the current indexed corpus and real BGE model run:</div>
             </div>
-            <button id="runBenchmarkBtn" class="btn btn-primary" style="padding:6px 12px; font-size:12px;">Run Live Ablation Benchmark Now</button>
+              <button id="runBenchmarkBtn" class="btn btn-primary btn-compact">Run live benchmark</button>
           </div>
-          <div id="benchmarkStatus" class="metric-pill">Loading latest evaluation...</div>
-          <div id="benchmarkBars" style="margin-top:16px;"></div>
-          <div id="benchmarkSummary" class="metrics-strip" style="margin-top:16px;"></div>
-          <div style="margin-top:18px;">
-            <h3 class="card-title" style="font-size:13px; margin-bottom:8px;">Per-Query Rank Comparison</h3>
+          <div id="benchmarkStatus" class="metric-pill">Loading latest evaluation</div>
+          <div id="benchmarkBars" class="benchmark-bars"></div>
+          <div id="benchmarkSummary" class="metrics-strip benchmark-summary"></div>
+          <div class="benchmark-table-wrap">
+            <h3 class="section-label">Per-query rank comparison</h3>
             <div id="perQueryTable"></div>
           </div>
         </div>
@@ -524,13 +501,14 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
               <h2 class="card-title">Live Engine Telemetry &amp; Configuration</h2>
               <div class="card-subtitle">Real-time state from <code>GET /health</code> and <code>GET /metrics</code>:</div>
             </div>
-            <a href="/docs" target="_blank" class="btn btn-secondary" style="text-decoration:none; padding:6px 12px; font-size:12px;">Open Swagger API (/docs) &nearr;</a>
+              <a href="/docs" target="_blank" class="btn btn-secondary api-link">Open API docs &nearr;</a>
           </div>
-          <pre id="metricsJsonBox" class="code-block">Loading telemetry...</pre>
+      <pre id="metricsJsonBox" class="code-block">Loading telemetry</pre>
         </div>
       </div>
     </section>
   </main>
+  <footer class="workbench-footer">Table coordinates, citations, and verification · UI refinement guided by unslop by Damir Sokolovsky</footer>
 
   <script>
     let scenarios = [];
@@ -617,14 +595,19 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       const scenarioGrid = document.getElementById("scenarioGrid");
       scenarioGrid.innerHTML = scenarios.length
         ? ""
-        : '<div class="card-subtitle">No indexed scenarios are available yet.</div>';
+        : '<div class="card-subtitle">No indexed scenarios are available yet</div>';
 
       scenarios.forEach(sc => {
         const btn = document.createElement("button");
         btn.className = "scenario-card";
+        const sourceLabel = {
+          benchmark: "Benchmark question",
+          live_table_schema: "Live table schema",
+          indexed_document: "Indexed document"
+        }[sc.source] || "Indexed question";
         btn.innerHTML =
           '<span class="scenario-tag">' + escapeHtml(sc.doc_name) + " · p." + sc.page_number + "</span>" +
-          '<div class="scenario-name">' + escapeHtml(sc.source || "Indexed Scenario") + "</div>" +
+          '<div class="scenario-name">' + escapeHtml(sourceLabel) + "</div>" +
           '<div class="scenario-q">' + escapeHtml(sc.question) + "</div>";
         btn.addEventListener("click", () => {
           document.getElementById("qInput").value = sc.question;
@@ -648,7 +631,7 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       if (!q) return;
 
       const btn = document.getElementById("runQueryBtn");
-      btn.textContent = "Running...";
+      btn.textContent = "Running";
       try {
         const res = await fetch("/query", {
           method: "POST",
@@ -663,24 +646,25 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
         const banner = document.getElementById("answerBanner");
 
         if (!res.ok) {
-          strip.innerHTML = '<span class="metric-pill blocked">HTTP ' + res.status + " · Blocked by Enterprise Input Guardrails</span>";
+          strip.innerHTML = '<span class="metric-pill blocked">HTTP ' + res.status + " · Input guardrail</span>";
           banner.className = "answer-banner blocked";
-          const rules = (data.detail && data.detail.triggered_rules) ? data.detail.triggered_rules.join(", ") : "Security Policy Triggered";
-          banner.textContent = "Security Firewall Blocked Query — Triggered Rule: " + rules;
+          const rules = (data.detail && data.detail.triggered_rules) ? data.detail.triggered_rules.join(", ") : "policy rule";
+          banner.textContent = "Query blocked · Triggered rule: " + rules;
           document.getElementById("deltasWrapper").style.display = "none";
-          document.getElementById("coordTableBody").innerHTML = '<tr><td colspan="4">Blocked before retrieval.</td></tr>';
+          document.getElementById("coordTableBody").innerHTML = '<tr><td colspan="4">Blocked before retrieval</td></tr>';
           document.getElementById("citationsContainer").innerHTML = "";
           return;
         }
 
         const v = data.verification || {};
         const pct = ((v.numeric_grounding_score || 1) * 100).toFixed(0);
-        const figs = (v.verified_figures || []).join(", ") || "All Tokens Verified";
+        const figs = (v.verified_figures || []).join(", ") || "none listed";
 
         strip.innerHTML =
-          '<span class="metric-pill verified">Numeric Grounding: ' + pct + "% Verified (" + escapeHtml(figs) + ")</span>" +
+          '<span class="metric-pill verified">Numeric grounding: ' + pct + "%</span>" +
+          '<span class="metric-pill">Verified figures: ' + escapeHtml(figs) + "</span>" +
           '<span class="metric-pill">Latency: <b>' + data.latency_ms + " ms</b></span>" +
-          '<span class="metric-pill">Semantic Cache: <b>' + (data.cache_hit ? "HIT (" + data.cache_similarity + ")" : "MISS") + "</b></span>";
+          '<span class="metric-pill">Semantic cache: <b>' + (data.cache_hit ? "hit (" + data.cache_similarity + ")" : "miss") + "</b></span>";
 
         banner.className = "answer-banner";
         banner.textContent = data.answer;
@@ -710,27 +694,27 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
                 '<td class="mono">' + escapeHtml(c.doc_name) + " · p." + c.page_number + "</td>" +
               "</tr>"
             ).join("")
-          : '<tr><td colspan="4">No table coordinates in top chunk.</td></tr>';
+          : '<tr><td colspan="4">No table coordinates in the retrieved evidence</td></tr>';
 
         const citations = data.citations || [];
         document.getElementById("citationsContainer").innerHTML = citations.map(c =>
           '<div class="source-card">' +
             '<div class="source-header">' +
               "<b>[" + escapeHtml(c.doc_name) + " · Page " + c.page_number + "]</b>" +
-              "<span>SCAR Score: " + c.rerank_score + "</span>" +
+              "<span>SCAR score: " + c.rerank_score + "</span>" +
             "</div>" +
             "<div>" + formatChunkContent(c.excerpt) + "</div>" +
           "</div>"
         ).join("");
       } finally {
-        btn.textContent = "Execute Query";
+        btn.textContent = "Run query";
       }
     }
 
     const benchmarkModes = [
-      {key: "dense_only", label: "Dense-Only RAG", color: "#94a3b8"},
-      {key: "hybrid_rrf", label: "Hybrid RRF", color: "#3b82f6"},
-      {key: "hybrid_plus_reranker", label: "Adaptive SCAR", color: "#10b981"}
+      {key: "dense_only", label: "Dense-only RAG", color: "var(--text-muted)"},
+      {key: "hybrid_rrf", label: "Hybrid RRF", color: "var(--accent)"},
+      {key: "hybrid_plus_reranker", label: "Adaptive SCAR", color: "var(--success-text)"}
     ];
 
     function rankLabel(rank) {
@@ -773,13 +757,13 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
             benchmarkModes.map(mode => "<td class=\"mono\">" + rankLabel(item.ranks && item.ranks[mode.key]) + "</td>").join("") +
             "</tr>"
           ).join("") + "</tbody></table>"
-        : '<div class="card-subtitle">No per-query evaluation rows are available.</div>';
+        : '<div class="card-subtitle">No per-query evaluation rows are available</div>';
     }
 
     async function loadBenchmark() {
       const res = await fetch("/evaluate/latest");
       if (!res.ok) {
-        document.getElementById("benchmarkStatus").textContent = "Latest evaluation unavailable.";
+        document.getElementById("benchmarkStatus").textContent = "Latest evaluation unavailable";
         return;
       }
       renderBenchmark(await res.json());
@@ -788,15 +772,15 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
     document.getElementById("runBenchmarkBtn").addEventListener("click", async () => {
       const btn = document.getElementById("runBenchmarkBtn");
       btn.disabled = true;
-      btn.textContent = "Running live benchmark...";
-      document.getElementById("benchmarkStatus").textContent = "Evaluating the current indexed corpus...";
+      btn.textContent = "Running benchmark";
+      document.getElementById("benchmarkStatus").textContent = "Evaluating the current indexed corpus";
       try {
         const res = await fetch("/evaluate", {method: "POST"});
         if (res.ok) renderBenchmark(await res.json());
-        else document.getElementById("benchmarkStatus").textContent = "Live evaluation failed.";
+        else document.getElementById("benchmarkStatus").textContent = "Live evaluation failed";
       } finally {
         btn.disabled = false;
-        btn.textContent = "Run Live Ablation Benchmark Now";
+        btn.textContent = "Run live benchmark";
       }
     });
 
@@ -806,7 +790,7 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       const data = await res.json();
       const docs = data.documents || [];
       document.getElementById("headerStatusText").textContent =
-        "Engine Online · " + docs.length + " Docs Indexed";
+        "Engine online · " + docs.length + " documents indexed";
 
       const listEl = document.getElementById("kbDocList");
       listEl.innerHTML = "";
@@ -816,12 +800,12 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
         row.className = "doc-row" + (isTarget ? " active" : "");
         row.innerHTML =
           "<div>" +
-            '<div class="mono" style="font-weight:700;">' + escapeHtml(d.doc_name) + "</div>" +
-            '<div style="font-size:11px; color:var(--text-secondary);">' +
+            '<div class="mono doc-name">' + escapeHtml(d.doc_name) + "</div>" +
+            '<div class="doc-meta">' +
               d.total_chunks + " chunks · " + d.table_chunks + " tables · Pages: " + d.pages.join(", ") +
             "</div>" +
           "</div>" +
-          '<button class="btn btn-secondary" style="padding:5px 10px; font-size:11px;">Inspect &rarr;</button>';
+          '<button class="btn btn-secondary template-btn">Inspect &rarr;</button>';
         row.addEventListener("click", () => inspectDocument(d.doc_name));
         listEl.appendChild(row);
         if (isTarget) inspectDocument(d.doc_name);
@@ -839,10 +823,8 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       const actionsEl = document.getElementById("inspectorActions");
       actionsEl.innerHTML = "";
       const delBtn = document.createElement("button");
-      delBtn.className = "btn btn-danger";
-      delBtn.style.padding = "6px 12px";
-      delBtn.style.fontSize = "12px";
-      delBtn.textContent = "Delete Document";
+      delBtn.className = "btn btn-danger btn-compact";
+      delBtn.textContent = "Delete document";
       delBtn.addEventListener("click", async () => {
         await fetch("/documents/" + encodeURIComponent(docName), {method: "DELETE"});
         await loadScenarios();
@@ -884,7 +866,7 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
         body: JSON.stringify({doc_name: name, pages: [{page_number: 1, text: text}]})
       });
       if (res.ok) {
-        document.getElementById("crudStatus").textContent = "Saved & indexed " + name + " successfully.";
+        document.getElementById("crudStatus").textContent = "Saved and indexed " + name;
         await loadScenarios();
         loadDocumentsList(name);
       }
@@ -895,11 +877,11 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
       const fileInput = document.getElementById("pdfFileInput");
       const statusEl = document.getElementById("pdfUploadStatus");
       if (!fileInput.files || !fileInput.files[0]) {
-        statusEl.textContent = "Please select a .pdf file first.";
+        statusEl.textContent = "Select a PDF file first";
         return;
       }
       const file = fileInput.files[0];
-      statusEl.textContent = "Parsing PDF tables & indexing...";
+      statusEl.textContent = "Parsing PDF tables and indexing";
       const reader = new FileReader();
       reader.onload = async () => {
         const base64Str = String(reader.result).split(",")[1] || "";
@@ -910,11 +892,11 @@ WORKBENCH_HTML = r"""<!DOCTYPE html>
         });
         const out = await res.json();
         if (res.ok) {
-          statusEl.textContent = "Indexed " + out.doc_name + " (" + out.chunks_created + " chunks, " + out.table_chunks + " tables).";
+          statusEl.textContent = "Indexed " + out.doc_name + " · " + out.chunks_created + " chunks · " + out.table_chunks + " tables";
           await loadScenarios();
           loadDocumentsList(out.doc_name);
         } else {
-          statusEl.textContent = "Error: " + (out.detail || "Upload failed");
+          statusEl.textContent = "Error · " + (out.detail || "Upload failed");
         }
       };
       reader.readAsDataURL(file);
