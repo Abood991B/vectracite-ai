@@ -1,13 +1,20 @@
-import logging
 import math
-import re
 from typing import List
+from sentence_transformers import CrossEncoder
 
 from src.config import settings
 from src.retrieval.hybrid_retriever import RetrievedDocument
 from src.retrieval.table_ast import TableASTParser
 
-logger = logging.getLogger(__name__)
+_SHARED_CROSS_ENCODER: CrossEncoder | None = None
+
+
+def get_shared_cross_encoder(model_name: str = settings.RERANKER_MODEL) -> CrossEncoder:
+    """Load the production BGE reranker once per process."""
+    global _SHARED_CROSS_ENCODER
+    if _SHARED_CROSS_ENCODER is None:
+        _SHARED_CROSS_ENCODER = CrossEncoder(model_name)
+    return _SHARED_CROSS_ENCODER
 
 
 class CrossEncoderReranker:
@@ -24,15 +31,12 @@ class CrossEncoderReranker:
     def __init__(
         self,
         model_name: str = settings.RERANKER_MODEL,
-        use_lightweight_scorer: bool = False,
         speculative_top_m: int = 2,
         margin_threshold: float = 0.35,
     ) -> None:
         self.model_name = model_name
-        self.use_lightweight_scorer = use_lightweight_scorer
         self.speculative_top_m = speculative_top_m
         self.margin_threshold = margin_threshold
-        self._cross_encoder = None
 
     @staticmethod
     def _sigmoid(x: float) -> float:
@@ -56,64 +60,39 @@ class CrossEncoderReranker:
 
         preliminary.sort(key=lambda item: item[0], reverse=True)
 
-        if not self.use_lightweight_scorer:
-            try:
-                if self._cross_encoder is None:
-                    from sentence_transformers import CrossEncoder
+        cross_encoder = get_shared_cross_encoder(self.model_name)
 
-                    self._cross_encoder = CrossEncoder(self.model_name, max_length=32)
+        # Adaptive Margin Gate: if candidate #1 has a strong 2D Table-AST lock,
+        # evaluate only 1 neural pass instead of speculative_top_m passes.
+        top_ast = preliminary[0][1]
+        second_ast = preliminary[1][1] if len(preliminary) > 1 else 0.0
+        ast_margin = top_ast - second_ast
+        active_m = (
+            1
+            if top_ast >= 0.50 and ast_margin >= self.margin_threshold
+            else min(self.speculative_top_m, len(preliminary))
+        )
 
-                # Adaptive Margin Gate: if candidate #1 has a strong 2D Table-AST lock,
-                # evaluate only 1 neural pass instead of speculative_top_m passes.
-                top_ast = preliminary[0][1]
-                second_ast = preliminary[1][1] if len(preliminary) > 1 else 0.0
-                ast_margin = top_ast - second_ast
-                active_m = (
-                    1
-                    if top_ast >= 0.50 and ast_margin >= self.margin_threshold
-                    else min(self.speculative_top_m, len(preliminary))
+        top_slice = preliminary[:active_m]
+        compressed_pairs = [
+            (query, TableASTParser.compress_for_cross_encoder(query, item[3].text))
+            for item in top_slice
+        ]
+        raw_logits = cross_encoder.predict(compressed_pairs, show_progress_bar=False)
+
+        for idx, (fast_prior, ast_align, rrf_norm, doc) in enumerate(preliminary):
+            if idx < active_m:
+                logit_val = (
+                    float(raw_logits[idx])
+                    if hasattr(raw_logits, "__len__")
+                    else float(raw_logits)
                 )
-
-                top_slice = preliminary[:active_m]
-                compressed_pairs = [
-                    (query, TableASTParser.compress_for_cross_encoder(query, item[3].text))
-                    for item in top_slice
-                ]
-                raw_logits = self._cross_encoder.predict(compressed_pairs)
-
-                for idx, (fast_prior, ast_align, rrf_norm, doc) in enumerate(preliminary):
-                    if idx < active_m:
-                        logit_val = (
-                            float(raw_logits[idx])
-                            if hasattr(raw_logits, "__len__")
-                            else float(raw_logits)
-                        )
-                        ce_prob = self._sigmoid(logit_val)
-                        doc.rerank_score = round(
-                            (0.40 * ce_prob) + (0.40 * ast_align) + (0.20 * rrf_norm), 6
-                        )
-                    else:
-                        doc.rerank_score = round(fast_prior * 0.70, 6)
-
-                ranked = sorted(
-                    [item[3] for item in preliminary],
-                    key=lambda d: d.rerank_score or -999.0,
-                    reverse=True,
+                ce_prob = self._sigmoid(logit_val)
+                doc.rerank_score = round(
+                    (0.40 * ce_prob) + (0.40 * ast_align) + (0.20 * rrf_norm), 6
                 )
-                return ranked[:top_n]
-            except Exception as exc:
-                logger.warning("Falling back to deterministic AST+lexical scorer: %s", exc)
-                self.use_lightweight_scorer = True
-
-        q_tokens = set(re.findall(r"[a-zA-Z0-9_$\.%]+", query.lower())) - TableASTParser.STOPWORDS
-        for _fast_prior, ast_align, rrf_norm, doc in preliminary:
-            d_tokens = (
-                set(re.findall(r"[a-zA-Z0-9_$\.%]+", doc.text.lower())) - TableASTParser.STOPWORDS
-            )
-            overlap = len(q_tokens & d_tokens) / max(len(q_tokens), 1)
-            doc.rerank_score = round(
-                (0.35 * overlap) + (0.45 * ast_align) + (0.20 * rrf_norm), 6
-            )
+            else:
+                doc.rerank_score = round(fast_prior * 0.70, 6)
 
         ranked = sorted(
             [item[3] for item in preliminary],

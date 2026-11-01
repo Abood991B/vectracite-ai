@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import re
 import uuid
@@ -8,10 +7,21 @@ import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk
 
 logger = logging.getLogger(__name__)
+
+_SHARED_EMBEDDER: SentenceTransformer | None = None
+
+
+def get_shared_embedder() -> SentenceTransformer:
+    """Load the production BGE embedder once per process."""
+    global _SHARED_EMBEDDER
+    if _SHARED_EMBEDDER is None:
+        _SHARED_EMBEDDER = SentenceTransformer(settings.EMBEDDING_MODEL)
+    return _SHARED_EMBEDDER
 
 
 @dataclass
@@ -41,13 +51,10 @@ class HybridRetriever:
         self,
         collection_name: str = settings.QDRANT_COLLECTION,
         in_memory: bool = settings.QDRANT_IN_MEMORY,
-        use_lightweight_embedder: bool = False,
         rrf_k: int = 60,
     ) -> None:
         self.collection_name = collection_name
         self.rrf_k = rrf_k
-        self.use_lightweight_embedder = use_lightweight_embedder
-        self._embedder = None
 
         if in_memory:
             self.qdrant = QdrantClient(":memory:")
@@ -93,33 +100,14 @@ class HybridRetriever:
         return response.points
 
     def _encode_texts(self, texts: List[str]) -> np.ndarray:
-        """Encodes texts using BAAI/bge-small-en-v1.5 or deterministic hashing in lightweight CI mode."""
-        if not self.use_lightweight_embedder:
-            try:
-                if self._embedder is None:
-                    from sentence_transformers import SentenceTransformer
-
-                    self._embedder = SentenceTransformer(settings.EMBEDDING_MODEL)
-                embeddings = self._embedder.encode(texts, normalize_embeddings=True)
-                return np.asarray(embeddings, dtype=np.float32)
-            except Exception as exc:
-                logger.warning("Falling back to deterministic n-gram embeddings: %s", exc)
-                self.use_lightweight_embedder = True
-
-        # Deterministic token-projection embedding fallback for offline/air-gapped CI
-        dim = settings.EMBEDDING_DIM
-        matrix = np.zeros((len(texts), dim), dtype=np.float32)
-        for row_idx, text in enumerate(texts):
-            tokens = self._tokenize(text)
-            for token in tokens:
-                h = int(hashlib.md5(token.encode("utf-8")).hexdigest(), 16)
-                idx = h % dim
-                sign = 1.0 if (h // dim) % 2 == 0 else -1.0
-                matrix[row_idx, idx] += sign
-            norm = np.linalg.norm(matrix[row_idx])
-            if norm > 0:
-                matrix[row_idx] /= norm
-        return matrix
+        """Encode text with the shared production BGE-small model."""
+        embedder = get_shared_embedder()
+        embeddings = embedder.encode(
+            texts,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        return np.asarray(embeddings, dtype=np.float32)
 
     @staticmethod
     def _tokenize(text: str) -> List[str]:
