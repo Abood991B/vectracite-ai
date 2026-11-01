@@ -3,21 +3,21 @@
     "precision_at_1": 0.75,
     "recall_at_3": 1.0,
     "mrr": 0.875,
-    "avg_latency_ms": 24.64,
+    "avg_latency_ms": 26.47,
     "queries_evaluated": 4
   },
   "hybrid_rrf": {
     "precision_at_1": 0.75,
     "recall_at_3": 1.0,
     "mrr": 0.875,
-    "avg_latency_ms": 24.8,
+    "avg_latency_ms": 24.89,
     "queries_evaluated": 4
   },
   "hybrid_plus_reranker": {
     "precision_at_1": 1.0,
     "recall_at_3": 1.0,
     "mrr": 1.0,
-    "avg_latency_ms": 172.4,
+    "avg_latency_ms": 172.66,
     "queries_evaluated": 4
   },
   "per_query_breakdown": [

@@ -95,14 +95,14 @@ All numbers below are generated on CPU using the real **`BAAI/bge-small-en-v1.5`
 
 | Retrieval & Reranking Architecture | Precision@1 | Recall@3 | MRR | Mean Query Latency (CPU) |
 | :--- | :---: | :---: | :---: | :---: |
-| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `26.09 ms` |
-| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `26.32 ms` |
-| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`89.93 ms`** |
-| **4. VectraCite + Semantic Cache Hit** (`Redis / Memory >= 0.92 Cosine`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`0.41 ms`** |
+| **1. Baseline Dense-Only RAG** (`BAAI/bge-small-en-v1.5` Cosine) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `26.47 ms` |
+| **2. Hybrid RRF** (`Qdrant Dense + Sparse BM25Okapi`) | `0.75` (75.0%) | `1.00` (100%) | `0.875` | `24.89 ms` |
+| **3. VectraCite SCAR™** (`2D Table-AST Compression + BGE Cross-Encoder`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`172.66 ms`** |
+| **4. VectraCite + Semantic Cache Hit** (`Redis / Memory >= 0.92 Cosine`) | **`1.00` (100.0%)** | **`1.00` (100%)** | **`1.000`** | **`0.38 ms`** |
 
 * **Why Dense-Only scores `0.75` Precision@1:** The revised cases use natural spelled-out narrative distractors while retaining shorthand table identifiers, allowing dense retrieval to recover three of four exact table pages.
 * **Why Hybrid RRF scores `0.75` Precision@1:** Lexical BM25 recovers exact column headers and table terminology on three cases, while the AMD cross-reference footnote repeats the exact target wording and remains the one first-stage miss.
-* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating sends only the locked table candidate to `BAAI/bge-reranker-base` when the AST margin is decisive. This run measured `89.93 ms` on CPU.
+* **Why SCAR™ achieves `1.00` Precision@1:** By parsing the 2D `(RowKey, ColHeader)` table schema (`TableASTParser`) and compressing candidate chunks to `<45 tokens`, Adaptive Margin Gating sends only the locked table candidate to `BAAI/bge-reranker-base` when the AST margin is decisive. This run measured `172.66 ms` on CPU.
 
 ---
 
@@ -124,7 +124,10 @@ python -m venv .venv
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Start the server (automatically seeds the multi-industry corpus on startup)
+# 4. Build the real multi-page PDF corpus and benchmark definitions
+python scripts/build_real_pdf_corpus.py
+
+# 5. Start the server (parses data/corpus_pdfs/*.pdf on startup)
 uvicorn src.api.main:app --host 0.0.0.0 --port 8080
 ```
 Now open **`http://localhost:8080/`** in your browser to use the interactive **Web Workbench**, or open **`http://localhost:8080/docs`** for the interactive OpenAPI/Swagger documentation.
@@ -138,7 +141,8 @@ docker compose up -d --build
 ### Run the Automated Test Suite & Reproducible Benchmark
 ```bash
 ruff check src/ tests/ evaluation/ scripts/
-pytest -v
+pytest -v  # uses the real BAAI BGE models; only Qdrant is in-memory
+python scripts/build_real_pdf_corpus.py
 python evaluation/run_ablation_benchmark.py
 python scripts/run_live_showcase.py
 ```
@@ -148,9 +152,9 @@ python scripts/run_live_showcase.py
 ## 6. Using the Built-In Web Workbench (No Coding Required)
 
 When you navigate to **`http://localhost:8080/`**, VectraCite-AI serves a clean technical workbench designed for both analysts and engineers:
-1. **Ask & Verify:** Use one-click Finance, Cloud, Banking, Healthcare, or security-guardrail scenarios; inspect 2D table coordinates, symbolic YoY deltas, citations, rendered Markdown tables, and the deterministic numeric audit.
-2. **Knowledge Base & PDF Upload:** Inspect any indexed document page-by-page, upload a real `.pdf` file for PyMuPDF text/table extraction, or save/replace/delete custom Markdown-table documents without restarting the server.
-3. **Benchmarks & System Health:** View the reproducible Dense → Hybrid RRF → Adaptive SCAR ablation bars alongside live `/health` and `/metrics` telemetry.
+1. **Ask & Verify:** Choose scenario cards generated from `/scenarios`, or ask a free-form question; inspect 2D table coordinates, symbolic YoY deltas, citations, rendered Markdown tables, and the deterministic numeric audit.
+2. **Knowledge Base & PDF Upload:** Inspect any indexed document page-by-page, upload a real `.pdf` file for PyMuPDF text/table extraction, or save/replace/delete custom Markdown-table documents without restarting the server. New documents immediately receive live scenario cards.
+3. **Benchmarks & System Health:** Load the latest evaluation or run the live Dense → Hybrid RRF → Adaptive SCAR ablation, including mean latency, MRR, and per-query ranks, alongside `/health` and `/metrics` telemetry.
 
 ---
 
@@ -162,10 +166,13 @@ When you navigate to **`http://localhost:8080/`**, VectraCite-AI serves a clean 
 | `GET /health` | Kubernetes / Cloud Run liveness & readiness probe |
 | `GET /documents` | Lists all indexed documents, chunk counts, table counts, and page numbers |
 | `GET /documents/{doc_name}` | Inspects every indexed chunk, page, and extracted-table flag for one document |
-| `POST /ingest` | Appends new document pages and Markdown tables into Qdrant + BM25 |
+| `POST /ingest` | Persists structured pages as a PDF and indexes them into Qdrant + BM25 |
 | `POST /ingest/pdf` | Accepts a base64-encoded PDF, extracts text/tables via PyMuPDF, and indexes it |
-| `PUT /documents/{doc_name}` | Atomically replaces/updates an existing document in Qdrant + BM25 |
-| `DELETE /documents/{doc_name}` | Removes a document and rebuilds the hybrid index |
+| `PUT /documents/{doc_name}` | Atomically replaces an indexed document and its persisted PDF |
+| `DELETE /documents/{doc_name}` | Removes a document and its custom persisted PDF |
+| `GET /scenarios` | Generates benchmark and Table-AST scenarios for the current index |
+| `GET /evaluate/latest` | Returns the latest aggregate and per-query evaluation report |
+| `POST /evaluate` | Runs a live three-mode ablation across all currently indexed documents |
 | `POST /query` | Executes Guardrails $\rightarrow$ Cache $\rightarrow$ Hybrid RRF $\rightarrow$ SCAR Reranking $\rightarrow$ Numeric Audit |
 | `POST /query/stream` | Streams citation-grounded tokens via Server-Sent Events (`text/event-stream`) |
 | `GET /metrics` | Returns operational telemetry, model configuration, and cache hit rate |
@@ -291,14 +298,18 @@ For GPU deployments, VectraCite-AI includes production training, quantized servi
 vectracite-ai/
 ├── .github/workflows/ci.yml              # GitHub Actions CI (Ruff + Pytest + Benchmark)
 ├── data/
-│   ├── latest_evaluation_report.json     # Checked-in real BGE + SCAR ablation metrics
-│   └── live_system_showcase_output.json  # Checked-in end-to-end API & guardrail trace
+│   ├── corpus_pdfs/                      # Checked-in multi-page PDF benchmark corpus
+│   ├── benchmark_queries.json            # Data-driven retrieval questions and targets
+│   ├── financebench_ground_truth.json    # 15 verified FinanceBench examples
+│   ├── latest_evaluation_report.json     # Real BGE + SCAR aggregate and per-query metrics
+│   └── live_system_showcase_output.json  # End-to-end API & guardrail trace
 ├── evaluation/
 │   └── run_ablation_benchmark.py         # Multi-domain retrieval & SCAR ablation suite
 ├── k8s/
 │   ├── deployment.yaml                   # Kubernetes Deployment, Service & HPA manifest
 │   └── vertex_ai_pipeline.py             # Google Cloud Vertex AI / Kubeflow DAG spec
 ├── scripts/
+│   ├── build_real_pdf_corpus.py          # Builds PDFs and benchmark metadata
 │   └── run_live_showcase.py              # End-to-end system execution & artifact generator
 ├── src/
 │   ├── config.py                         # Type-safe Pydantic v2 Settings
@@ -317,11 +328,11 @@ vectracite-ai/
 │   │   ├── llm_client.py                 # Async vLLM / OpenAI client + coordinate fallback
 │   │   └── schemas.py                    # Pydantic v2 API request/response contracts
 │   └── api/
-│       ├── main.py                       # FastAPI service (/ingest, /documents, /query, /metrics)
-│       └── ui.py                         # Built-in HTML/JS Technical Workbench UI
+│       ├── main.py                       # FastAPI service and dynamic evaluation endpoints
+│       └── ui.py                         # API-driven HTML/JS Technical Workbench UI
 ├── tests/
-│   ├── conftest.py                       # Isolated fast test fixture configuration
-│   └── test_pipeline.py                  # 9 comprehensive unit & integration tests
+│   ├── conftest.py                       # In-memory Qdrant test environment
+│   └── test_pipeline.py                  # 11 real-model unit & integration tests
 ├── training_and_vllm/
 │   ├── qlora_finetune.py                 # 4-bit NF4 QLoRA fine-tuning script
 │   ├── serve_vllm.sh                     # vLLM AWQ 4-bit inference server launcher
