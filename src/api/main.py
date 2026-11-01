@@ -5,7 +5,7 @@ import time
 from typing import Any, AsyncIterator, Dict, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from src.api.ui import WORKBENCH_HTML
 from evaluation.run_ablation_benchmark import (
     build_dynamic_eval_queries,
@@ -35,19 +35,34 @@ from src.retrieval.table_ast import TableASTParser
 parser = MultimodalFinancialParser(chunk_size=1200, chunk_overlap=200)
 retriever = HybridRetriever(
     in_memory=settings.QDRANT_IN_MEMORY,
+    use_lightweight_embedder=settings.USE_LIGHTWEIGHT_MODELS,
 )
-reranker = CrossEncoderReranker()
+reranker = CrossEncoderReranker(
+    use_lightweight_scorer=settings.USE_LIGHTWEIGHT_MODELS,
+)
 semantic_cache = SemanticCache()
 guardrails = EnterpriseGuardrails()
 numeric_verifier = DeterministicNumericVerifier()
 llm_client = UnifiedLLMClient()
+_DEFAULTS_CLEARED = False
+
+
+def _load_persisted_chunks() -> List[Any]:
+    """Load defaults plus user PDFs, letting a user copy override a default by name."""
+    baseline_chunks = load_corpus_chunks_from_pdfs(parser)
+    upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
+    uploaded_names = {path.stem for path in upload_paths}
+    chunks = [chunk for chunk in baseline_chunks if chunk.doc_name not in uploaded_names]
+    for pdf_path in upload_paths:
+        chunks.extend(parser.parse_pdf(pdf_path))
+    return chunks
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Index the on-disk PDF corpus and warm up both production BGE models."""
-    if not retriever.chunks_store:
-        corpus_chunks = load_corpus_chunks_from_pdfs(parser)
+    if not retriever.chunks_store and not _DEFAULTS_CLEARED:
+        corpus_chunks = _load_persisted_chunks()
         if corpus_chunks:
             retriever.index_chunks(corpus_chunks)
     warmup = retriever.retrieve_hybrid("warmup", top_k=1)
@@ -65,16 +80,49 @@ def _clean_doc_name(doc_name: str) -> str:
     return clean_name
 
 
+def _normalize_scope(doc_name: str | None) -> str | None:
+    """Normalize the optional query scope while treating ALL as global search."""
+    if not doc_name or not doc_name.strip() or doc_name.strip().upper() == "ALL":
+        return None
+    return _clean_doc_name(doc_name)
+
+
+def _infer_scope_from_question(question: str) -> str | None:
+    """Honor an explicit indexed document name in a question as a convenience scope."""
+    question_folded = question.casefold()
+    indexed_names = sorted(
+        {chunk.doc_name for chunk in retriever.chunks_store},
+        key=len,
+        reverse=True,
+    )
+    return next(
+        (doc_name for doc_name in indexed_names if doc_name.casefold() in question_folded),
+        None,
+    )
+
+
 def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> None:
-    """Persist a valid PDF in the same directory used by startup and evaluation."""
-    settings.CORPUS_PDF_DIR.mkdir(parents=True, exist_ok=True)
-    (settings.CORPUS_PDF_DIR / f"{doc_name}.pdf").write_bytes(pdf_bytes)
+    """Persist a user PDF separately from the checked-in default corpus."""
+    settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    (settings.USER_UPLOADS_DIR / f"{doc_name}.pdf").write_bytes(pdf_bytes)
+
+
+def _remove_user_pdf(doc_name: str) -> None:
+    """Remove a user PDF and any legacy custom copy from the corpus directory."""
+    user_path = settings.USER_UPLOADS_DIR / f"{doc_name}.pdf"
+    if user_path.exists():
+        user_path.unlink()
+
+    baseline_docs = {str(item["doc_name"]) for item in _benchmark_definitions()}
+    legacy_path = settings.CORPUS_PDF_DIR / f"{doc_name}.pdf"
+    if doc_name not in baseline_docs and legacy_path.exists():
+        legacy_path.unlink()
 
 
 def _ensure_indexed() -> None:
     """Load the real corpus lazily for clients that do not trigger lifespan hooks."""
-    if not retriever.chunks_store:
-        corpus_chunks = load_corpus_chunks_from_pdfs(parser)
+    if not retriever.chunks_store and not _DEFAULTS_CLEARED:
+        corpus_chunks = _load_persisted_chunks()
         if corpus_chunks:
             retriever.index_chunks(corpus_chunks)
 
@@ -182,6 +230,15 @@ async def interactive_dashboard() -> HTMLResponse:
     return HTMLResponse(content=WORKBENCH_HTML)
 
 
+@app.get("/assets/logo.svg")
+async def logo_asset() -> FileResponse:
+    """Serve the official VectraCite-AI vector mark."""
+    logo_path = settings.BASE_DIR / "assets" / "logo.svg"
+    if not logo_path.exists():
+        raise HTTPException(status_code=404, detail="Logo asset not found.")
+    return FileResponse(logo_path, media_type="image/svg+xml")
+
+
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
     """Liveness and readiness probe for Kubernetes & Cloud Run."""
@@ -202,6 +259,55 @@ async def list_indexed_documents() -> Dict[str, Any]:
     _ensure_indexed()
     docs = retriever.list_documents()
     return {"total_documents": len(docs), "documents": docs}
+
+
+@app.get("/documents/{doc_name}/pdf")
+async def document_pdf(doc_name: str) -> FileResponse:
+    """Return the original PDF for inline browser preview or download."""
+    clean_name = _clean_doc_name(doc_name)
+    for root in (settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR):
+        pdf_path = root / f"{clean_name}.pdf"
+        if pdf_path.exists():
+            return FileResponse(pdf_path, media_type="application/pdf", filename=pdf_path.name)
+    raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
+
+
+@app.post("/documents/clear-all")
+async def clear_all_documents() -> Dict[str, Any]:
+    """Clear the active index and remove user-uploaded PDFs without touching defaults."""
+    global _DEFAULTS_CLEARED
+    _DEFAULTS_CLEARED = True
+    removed_chunks = len(retriever.chunks_store)
+    retriever.clear()
+    semantic_cache.clear()
+    removed_uploads = 0
+    for pdf_path in settings.USER_UPLOADS_DIR.glob("*.pdf"):
+        pdf_path.unlink()
+        removed_uploads += 1
+    return {
+        "status": "cleared",
+        "documents": 0,
+        "chunks_removed": removed_chunks,
+        "uploads_removed": removed_uploads,
+    }
+
+
+@app.post("/documents/restore-defaults")
+async def restore_default_documents() -> Dict[str, Any]:
+    """Restore the checked-in demo corpus and remove any user-uploaded PDFs."""
+    global _DEFAULTS_CLEARED
+    _DEFAULTS_CLEARED = False
+    retriever.clear()
+    semantic_cache.clear()
+    for pdf_path in settings.USER_UPLOADS_DIR.glob("*.pdf"):
+        pdf_path.unlink()
+    default_chunks = load_corpus_chunks_from_pdfs(parser)
+    indexed_count = retriever.index_chunks(default_chunks) if default_chunks else 0
+    return {
+        "status": "restored_defaults",
+        "documents": len(retriever.list_documents()),
+        "chunks_indexed": indexed_count,
+    }
 
 
 @app.get("/documents/{doc_name}")
@@ -287,11 +393,7 @@ async def delete_document(doc_name: str) -> Dict[str, Any]:
     if removed == 0:
         raise HTTPException(status_code=404, detail=f"Document '{clean_name}' not found.")
 
-    baseline_docs = {str(item["doc_name"]) for item in _benchmark_definitions()}
-    if clean_name not in baseline_docs:
-        corpus_path = settings.CORPUS_PDF_DIR / f"{clean_name}.pdf"
-        if corpus_path.exists():
-            corpus_path.unlink()
+    _remove_user_pdf(clean_name)
     return {"status": "deleted", "doc_name": clean_name, "chunks_removed": removed}
 
 
@@ -348,16 +450,21 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
             },
         )
 
+    _ensure_indexed()
+    scope = _normalize_scope(payload.doc_name) or _infer_scope_from_question(
+        input_check.sanitized_text
+    )
+    cache_key = f"{scope or 'ALL'}::{input_check.sanitized_text}"
     if payload.use_cache:
-        cached = semantic_cache.lookup(input_check.sanitized_text)
+        cached = semantic_cache.lookup(cache_key)
         if cached is not None:
             cached["latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
             return QueryResponse(**cached)
 
-    _ensure_indexed()
-
     hybrid_candidates = retriever.retrieve_hybrid(
-        query=input_check.sanitized_text, top_k=max(payload.top_k * 2, 6)
+        query=input_check.sanitized_text,
+        top_k=max(payload.top_k * 2, 6),
+        doc_name=scope,
     )
 
     reranked_chunks = reranker.rerank(
@@ -382,7 +489,12 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
             for delta in TableASTParser.compute_row_deltas(raw_cells)
         ]
 
-    raw_answer = await llm_client.generate_answer(input_check.sanitized_text, reranked_chunks)
+    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
+    raw_answer = await llm_client.generate_answer(
+        input_check.sanitized_text,
+        reranked_chunks,
+        indexed_docs=indexed_docs,
+    )
     output_check = guardrails.sanitize_output(raw_answer)
     verification = numeric_verifier.verify(output_check.sanitized_text, reranked_chunks)
 
@@ -413,11 +525,12 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
         "metadata": {
             "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
             "candidates_evaluated": len(hybrid_candidates),
+            "document_scope": scope or "ALL",
         },
     }
 
     if payload.use_cache and reranked_chunks:
-        semantic_cache.store(input_check.sanitized_text, response_data)
+        semantic_cache.store(cache_key, response_data)
 
     return QueryResponse(**response_data)
 
@@ -431,10 +544,22 @@ async def stream_query_documents(payload: QueryRequest) -> StreamingResponse:
 
     _ensure_indexed()
 
-    candidates = retriever.retrieve_hybrid(input_check.sanitized_text, top_k=payload.top_k * 2)
+    scope = _normalize_scope(payload.doc_name) or _infer_scope_from_question(
+        input_check.sanitized_text
+    )
+    candidates = retriever.retrieve_hybrid(
+        input_check.sanitized_text,
+        top_k=payload.top_k * 2,
+        doc_name=scope,
+    )
     reranked = reranker.rerank(input_check.sanitized_text, candidates, top_n=payload.top_k)
+    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
     return StreamingResponse(
-        llm_client.stream_answer(input_check.sanitized_text, reranked),
+        llm_client.stream_answer(
+            input_check.sanitized_text,
+            reranked,
+            indexed_docs=indexed_docs,
+        ),
         media_type="text/event-stream",
     )
 

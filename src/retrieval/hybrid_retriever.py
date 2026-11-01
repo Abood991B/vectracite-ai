@@ -1,4 +1,5 @@
 import logging
+import hashlib
 import re
 import uuid
 from dataclasses import dataclass
@@ -14,11 +15,46 @@ from src.ingestion.pdf_parser import DocumentChunk
 logger = logging.getLogger(__name__)
 
 _SHARED_EMBEDDER: SentenceTransformer | None = None
+_SHARED_LIGHTWEIGHT_EMBEDDER: "LightweightEmbedder | None" = None
 
 
-def get_shared_embedder() -> SentenceTransformer:
-    """Load the production BGE embedder once per process."""
-    global _SHARED_EMBEDDER
+class LightweightEmbedder:
+    """Deterministic hashing embedder used only for fast tests and local CI."""
+
+    dimension = settings.EMBEDDING_DIM
+
+    def encode(
+        self,
+        texts: List[str],
+        normalize_embeddings: bool = True,
+        show_progress_bar: bool = False,
+    ) -> np.ndarray:
+        del show_progress_bar
+        matrix = np.zeros((len(texts), self.dimension), dtype=np.float32)
+        for row, text in enumerate(texts):
+            tokens = re.findall(r"[a-zA-Z0-9_$\.%]+", text.lower())
+            features = tokens + [
+                f"{left}:{right}" for left, right in zip(tokens, tokens[1:])
+            ]
+            for feature in features:
+                digest = hashlib.sha1(feature.encode("utf-8")).digest()
+                index = int.from_bytes(digest[:4], "big") % self.dimension
+                sign = 1.0 if digest[4] & 1 else -1.0
+                matrix[row, index] += sign
+        if normalize_embeddings:
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            matrix = matrix / np.maximum(norms, 1e-12)
+        return matrix
+
+
+def get_shared_embedder(use_lightweight: bool | None = None) -> Any:
+    """Load either the production BGE embedder or the isolated CI substitute."""
+    global _SHARED_EMBEDDER, _SHARED_LIGHTWEIGHT_EMBEDDER
+    lightweight = settings.USE_LIGHTWEIGHT_MODELS if use_lightweight is None else use_lightweight
+    if lightweight:
+        if _SHARED_LIGHTWEIGHT_EMBEDDER is None:
+            _SHARED_LIGHTWEIGHT_EMBEDDER = LightweightEmbedder()
+        return _SHARED_LIGHTWEIGHT_EMBEDDER
     if _SHARED_EMBEDDER is None:
         _SHARED_EMBEDDER = SentenceTransformer(settings.EMBEDDING_MODEL)
     return _SHARED_EMBEDDER
@@ -52,9 +88,15 @@ class HybridRetriever:
         collection_name: str = settings.QDRANT_COLLECTION,
         in_memory: bool = settings.QDRANT_IN_MEMORY,
         rrf_k: int = 60,
+        use_lightweight_embedder: bool | None = None,
     ) -> None:
         self.collection_name = collection_name
         self.rrf_k = rrf_k
+        self.use_lightweight_embedder = (
+            settings.USE_LIGHTWEIGHT_MODELS
+            if use_lightweight_embedder is None
+            else use_lightweight_embedder
+        )
 
         if in_memory:
             self.qdrant = QdrantClient(":memory:")
@@ -83,25 +125,42 @@ class HybridRetriever:
                 ),
             )
 
-    def _search_dense(self, query_vector: List[float], limit: int) -> List[Any]:
+    def _search_dense(
+        self,
+        query_vector: List[float],
+        limit: int,
+        doc_name: str | None = None,
+    ) -> List[Any]:
         """Run dense search across legacy and current Qdrant client APIs."""
+        query_filter = None
+        if doc_name:
+            query_filter = qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="doc_name",
+                        match=qmodels.MatchValue(value=doc_name),
+                    )
+                ]
+            )
         if hasattr(self.qdrant, "search"):
             return self.qdrant.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
                 limit=limit,
+                query_filter=query_filter,
             )
 
         response = self.qdrant.query_points(
             collection_name=self.collection_name,
             query=query_vector,
             limit=limit,
+            query_filter=query_filter,
         )
         return response.points
 
     def _encode_texts(self, texts: List[str]) -> np.ndarray:
-        """Encode text with the shared production BGE-small model."""
-        embedder = get_shared_embedder()
+        """Encode text with the configured production or test-only embedder."""
+        embedder = get_shared_embedder(self.use_lightweight_embedder)
         embeddings = embedder.encode(
             texts,
             normalize_embeddings=True,
@@ -176,7 +235,12 @@ class HybridRetriever:
             )
         return results
 
-    def retrieve_hybrid(self, query: str, top_k: int = 10) -> List[RetrievedDocument]:
+    def retrieve_hybrid(
+        self,
+        query: str,
+        top_k: int = 10,
+        doc_name: str | None = None,
+    ) -> List[RetrievedDocument]:
         """
         Executes Hybrid Search by fusing Qdrant Dense Rankings and BM25 Lexical Rankings
         via Reciprocal Rank Fusion (RRF):
@@ -185,9 +249,10 @@ class HybridRetriever:
         if not self.chunks_store or self.bm25 is None:
             return []
 
+        scope = doc_name.strip() if doc_name and doc_name.strip().upper() != "ALL" else None
         candidate_limit = max(top_k * 2, 15)
         q_vec = self._encode_texts([query])[0].tolist()
-        dense_hits = self._search_dense(q_vec, candidate_limit)
+        dense_hits = self._search_dense(q_vec, candidate_limit, doc_name=scope)
 
         dense_ranks: Dict[str, int] = {}
         dense_scores: Dict[str, float] = {}
@@ -202,7 +267,14 @@ class HybridRetriever:
         # Compute BM25 lexical scores
         query_tokens = self._tokenize(query)
         raw_bm25_scores = self.bm25.get_scores(query_tokens)
-        sorted_bm25_indices = np.argsort(raw_bm25_scores)[::-1][:candidate_limit]
+        candidate_indices = np.arange(len(self.chunks_store))
+        if scope:
+            candidate_indices = np.asarray(
+                [idx for idx, chunk in enumerate(self.chunks_store) if chunk.doc_name == scope],
+                dtype=int,
+            )
+        ranked_indices = candidate_indices[np.argsort(raw_bm25_scores[candidate_indices])[::-1]]
+        sorted_bm25_indices = ranked_indices[:candidate_limit]
 
         bm25_ranks: Dict[str, int] = {}
         bm25_scores: Dict[str, float] = {}
@@ -222,7 +294,12 @@ class HybridRetriever:
 
             d_rank = dense_ranks.get(cid, candidate_limit + 50)
             b_rank = bm25_ranks.get(cid, candidate_limit + 50)
-            rrf_score = (0.45 / (self.rrf_k + d_rank)) + (0.55 / (self.rrf_k + b_rank))
+            table_bonus = 0.0003 if chunk.contains_table else 0.0
+            rrf_score = (
+                (0.45 / (self.rrf_k + d_rank))
+                + (0.55 / (self.rrf_k + b_rank))
+                + table_bonus
+            )
 
             fused_results.append(
                 RetrievedDocument(
@@ -239,6 +316,13 @@ class HybridRetriever:
 
         fused_results.sort(key=lambda x: x.rrf_score, reverse=True)
         return fused_results[:top_k]
+
+    def clear(self) -> None:
+        """Remove every indexed chunk and recreate the empty vector collection."""
+        self.qdrant.delete_collection(collection_name=self.collection_name)
+        self._ensure_collection()
+        self.chunks_store = []
+        self.bm25 = None
 
     def delete_document(self, doc_name: str) -> int:
         """Removes all chunks belonging to `doc_name` and rebuilds the Qdrant + BM25 index."""

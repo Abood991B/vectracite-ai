@@ -21,6 +21,10 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, description="Analytical question across indexed documents")
     top_k: int = Field(default=4, ge=1, le=20, description="Number of reranked chunks to retrieve")
     use_cache: bool = Field(default=True, description="Whether to check Redis semantic cache")
+    doc_name: str | None = Field(
+        default=None,
+        description="Optional document name to scope search to a single PDF",
+    )
 
 
 class TableCellSchema(BaseModel):

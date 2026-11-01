@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DATA_DIR: Path = BASE_DIR / "data"
     PDF_DIR: Path = DATA_DIR / "pdfs"
     CORPUS_PDF_DIR: Path = DATA_DIR / "corpus_pdfs"
+    USER_UPLOADS_DIR: Path = DATA_DIR / "uploads"
 
     # Qdrant Vector Store Configuration
     QDRANT_HOST: str = "localhost"
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
+    USE_LIGHTWEIGHT_MODELS: bool = False
 
     # Redis Semantic Cache Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -45,3 +47,4 @@ class Settings(BaseSettings):
 settings = Settings()
 settings.PDF_DIR.mkdir(parents=True, exist_ok=True)
 settings.CORPUS_PDF_DIR.mkdir(parents=True, exist_ok=True)
+settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)

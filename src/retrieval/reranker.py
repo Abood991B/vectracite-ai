@@ -1,5 +1,6 @@
 import math
-from typing import List
+import re
+from typing import Any, List
 from sentence_transformers import CrossEncoder
 
 from src.config import settings
@@ -7,11 +8,39 @@ from src.retrieval.hybrid_retriever import RetrievedDocument
 from src.retrieval.table_ast import TableASTParser
 
 _SHARED_CROSS_ENCODER: CrossEncoder | None = None
+_SHARED_LIGHTWEIGHT_CROSS_ENCODER: "LightweightCrossEncoder | None" = None
 
 
-def get_shared_cross_encoder(model_name: str = settings.RERANKER_MODEL) -> CrossEncoder:
-    """Load the production BGE reranker once per process."""
-    global _SHARED_CROSS_ENCODER
+class LightweightCrossEncoder:
+    """Small deterministic scorer used only when tests opt into lightweight mode."""
+
+    @staticmethod
+    def _tokens(value: str) -> set[str]:
+        return set(re.findall(r"[a-zA-Z0-9_$\.%]+", value.lower()))
+
+    def predict(self, pairs: List[tuple[str, str]], show_progress_bar: bool = False) -> List[float]:
+        del show_progress_bar
+        scores: List[float] = []
+        for query, text in pairs:
+            query_tokens = self._tokens(query)
+            text_tokens = self._tokens(text)
+            overlap = len(query_tokens & text_tokens) / max(len(query_tokens), 1)
+            table_signal = 0.8 if "|" in text else 0.0
+            scores.append(round((overlap * 8.0) + table_signal - 2.0, 6))
+        return scores
+
+
+def get_shared_cross_encoder(
+    model_name: str = settings.RERANKER_MODEL,
+    use_lightweight: bool | None = None,
+) -> Any:
+    """Load either the production BGE reranker or the isolated CI substitute."""
+    global _SHARED_CROSS_ENCODER, _SHARED_LIGHTWEIGHT_CROSS_ENCODER
+    lightweight = settings.USE_LIGHTWEIGHT_MODELS if use_lightweight is None else use_lightweight
+    if lightweight:
+        if _SHARED_LIGHTWEIGHT_CROSS_ENCODER is None:
+            _SHARED_LIGHTWEIGHT_CROSS_ENCODER = LightweightCrossEncoder()
+        return _SHARED_LIGHTWEIGHT_CROSS_ENCODER
     if _SHARED_CROSS_ENCODER is None:
         _SHARED_CROSS_ENCODER = CrossEncoder(model_name)
     return _SHARED_CROSS_ENCODER
@@ -33,10 +62,16 @@ class CrossEncoderReranker:
         model_name: str = settings.RERANKER_MODEL,
         speculative_top_m: int = 2,
         margin_threshold: float = 0.35,
+        use_lightweight_scorer: bool | None = None,
     ) -> None:
         self.model_name = model_name
         self.speculative_top_m = speculative_top_m
         self.margin_threshold = margin_threshold
+        self.use_lightweight_scorer = (
+            settings.USE_LIGHTWEIGHT_MODELS
+            if use_lightweight_scorer is None
+            else use_lightweight_scorer
+        )
 
     @staticmethod
     def _sigmoid(x: float) -> float:
@@ -60,7 +95,10 @@ class CrossEncoderReranker:
 
         preliminary.sort(key=lambda item: item[0], reverse=True)
 
-        cross_encoder = get_shared_cross_encoder(self.model_name)
+        cross_encoder = get_shared_cross_encoder(
+            self.model_name,
+            use_lightweight=self.use_lightweight_scorer,
+        )
 
         # Adaptive Margin Gate: if candidate #1 has a strong 2D Table-AST lock,
         # evaluate only 1 neural pass instead of speculative_top_m passes.

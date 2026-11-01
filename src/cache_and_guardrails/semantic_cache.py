@@ -102,6 +102,19 @@ class SemanticCache:
                 pass
         return self._memory_cache
 
+    def clear(self) -> None:
+        """Clear cached responses in both Redis and the local fallback store."""
+        if self._redis_client is not None:
+            try:
+                keys = self._redis_client.keys("vectracite:semcache:*")
+                if keys:
+                    self._redis_client.delete(*keys)
+            except Exception:
+                logger.debug("Unable to clear Redis semantic cache", exc_info=True)
+        self._memory_cache.clear()
+        self.hits = 0
+        self.misses = 0
+
     def stats(self) -> Dict[str, Any]:
         total = self.hits + self.misses
         return {
