@@ -79,7 +79,8 @@ class SemanticCache:
         self._vector_index_ready = False
         self._degraded = True
         self._last_error = f"{type(exc).__name__}: {exc}"[:500]
-        logger.warning("Semantic cache Redis backend unavailable: %s", type(exc).__name__)
+        log_unavailable = logger.warning if settings.REQUIRE_REDIS else logger.info
+        log_unavailable("Semantic cache Redis backend unavailable: %s", type(exc).__name__)
 
     def _ensure_vector_index(self) -> None:
         if self._redis_vector_client is None:

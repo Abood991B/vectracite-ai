@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     PARSER_CHUNK_OVERLAP: int = 200
     EMBEDDING_CACHE_VERSION: int = 1
 
+    # Optional OCR for image-only pages. Native text extraction remains the fast path.
+    OCR_ENABLED: bool = False
+    OCR_ENGINE: str = "auto"
+    OCR_DPI: int = 200
+    OCR_MIN_CHARS: int = 30
+    OCR_MAX_PAGES: int = 50
+    OCR_LANGUAGES: str = "en"
+    OCR_REMOTE_URL: str = ""
+    OCR_TIMEOUT_SECONDS: float = 120.0
+    OCR_PADDLE_DET_MODEL: str = "PP-OCRv5_mobile_det"
+    OCR_PADDLE_REC_MODEL: str = "en_PP-OCRv5_mobile_rec"
+
     # Qdrant Vector Store Configuration
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
@@ -38,7 +50,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
-    RERANKER_GATE: str = "always_top2"
+    RERANKER_GATE: str = "adaptive"
     RERANKER_CONFIDENCE_THRESHOLD: float = 0.5
     USE_LIGHTWEIGHT_MODELS: bool = False
 

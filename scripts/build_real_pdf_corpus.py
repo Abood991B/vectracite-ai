@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
-import fitz
+import pymupdf as fitz
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 

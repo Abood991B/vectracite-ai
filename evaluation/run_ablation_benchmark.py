@@ -8,12 +8,16 @@ import hashlib
 import json
 import logging
 import math
+import os
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
 
 try:
     import mlflow
@@ -131,7 +135,12 @@ def _expected_pages(case: Dict[str, Any]) -> List[int]:
     return sorted({int(page) for page in pages if isinstance(page, int)})
 
 
-def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> Dict[str, Any]:
+def run_evaluation_suite(
+    existing_chunks: List[DocumentChunk] | None = None,
+    *,
+    reranker_gate: str | None = None,
+    reranker_confidence_threshold: float | None = None,
+) -> Dict[str, Any]:
     """Run all retrieval modes against disk-backed or currently indexed chunks."""
     parser = MultimodalFinancialParser(
         chunk_size=settings.PARSER_CHUNK_SIZE,
@@ -168,7 +177,14 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
     eval_cases = valid_cases
 
     retriever = HybridRetriever(in_memory=True)
-    reranker = CrossEncoderReranker()
+    reranker = CrossEncoderReranker(
+        cross_encoder_gate=reranker_gate or settings.RERANKER_GATE,
+        confidence_threshold=(
+            settings.RERANKER_CONFIDENCE_THRESHOLD
+            if reranker_confidence_threshold is None
+            else reranker_confidence_threshold
+        ),
+    )
     if all_chunks:
         retriever.index_chunks(all_chunks, use_embedding_cache=True)
 
@@ -278,4 +294,17 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
 
 
 if __name__ == "__main__":
-    run_evaluation_suite()
+    import argparse
+
+    argument_parser = argparse.ArgumentParser(description=__doc__)
+    argument_parser.add_argument("--reranker-gate", default=settings.RERANKER_GATE)
+    argument_parser.add_argument(
+        "--reranker-confidence-threshold",
+        type=float,
+        default=settings.RERANKER_CONFIDENCE_THRESHOLD,
+    )
+    args = argument_parser.parse_args()
+    run_evaluation_suite(
+        reranker_gate=args.reranker_gate,
+        reranker_confidence_threshold=args.reranker_confidence_threshold,
+    )

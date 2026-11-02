@@ -103,7 +103,7 @@ def test_multimodal_table_parser_preserves_tables() -> None:
 
 def test_vector_pdf_tables_and_visual_page_endpoint() -> None:
     import base64
-    import fitz
+    import pymupdf as fitz
 
     pages = [
         {
@@ -520,7 +520,7 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
 
 def test_pdf_upload_and_document_inspector_endpoints() -> None:
     import base64
-    import fitz
+    import pymupdf as fitz
 
     doc = fitz.open()
     page = doc.new_page()
@@ -669,7 +669,7 @@ def test_pdf_studio_assets_scope_and_reset_contract() -> None:
 
 
 def test_built_in_corpus_has_five_pdf_pages_and_chunks_per_document() -> None:
-    import fitz
+    import pymupdf as fitz
 
     from src.ingestion.pdf_parser import MultimodalFinancialParser
     from src.retrieval.table_ast import TableASTParser
@@ -828,7 +828,7 @@ def test_amd_query_not_contaminated_by_cv_or_cardiology_lab() -> None:
 
 def test_edge_case_pdfs_encrypted_corrupted_and_unicode() -> None:
     import base64
-    import fitz
+    import pymupdf as fitz
 
     def upload(doc_name: str, payload: bytes):
         return client.post(

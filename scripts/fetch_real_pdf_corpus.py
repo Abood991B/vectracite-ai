@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
-import fitz
+import pymupdf as fitz
 import httpx
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "benchmark_version": 1,
-  "generated_at": "2026-11-02T03:42:07Z",
-  "signature": "7bf947b5ec8be81ca0c2ab3e9c9f1f8116e273045178494a76ba73d5c892242f",
+  "generated_at": "2026-11-02T06:56:18Z",
+  "signature": "b18817e1a87a294299a1c015fe530a14b8fef90dd0e2f79d16a6c6bcba21b67c",
   "retrieval_config": {
     "embedding_model": "BAAI/bge-small-en-v1.5",
     "embedding_dim": 384,
     "reranker_model": "BAAI/bge-reranker-base",
-    "reranker_gate": "always_top2",
+    "reranker_gate": "adaptive",
     "reranker_confidence_threshold": 0.5,
     "dense_weight": 0.95,
     "bm25_weight": 0.05,
@@ -52,8 +52,8 @@
       "recall_at_3": 0.7833,
       "mrr": 0.6853,
       "ndcg_at_3": 0.6986,
-      "avg_latency_ms": 25.58,
-      "p95_latency_ms": 35.57,
+      "avg_latency_ms": 23.77,
+      "p95_latency_ms": 33.48,
       "queries_evaluated": 60,
       "confidence_intervals": {
         "precision_at_1": [
@@ -79,8 +79,8 @@
       "recall_at_3": 0.8,
       "mrr": 0.6936,
       "ndcg_at_3": 0.7091,
-      "avg_latency_ms": 26.8,
-      "p95_latency_ms": 34.08,
+      "avg_latency_ms": 24.7,
+      "p95_latency_ms": 30.54,
       "queries_evaluated": 60,
       "confidence_intervals": {
         "precision_at_1": [
@@ -106,8 +106,8 @@
       "recall_at_3": 0.8,
       "mrr": 0.6936,
       "ndcg_at_3": 0.7091,
-      "avg_latency_ms": 183.27,
-      "p95_latency_ms": 256.43,
+      "avg_latency_ms": 25.31,
+      "p95_latency_ms": 36.29,
       "queries_evaluated": 60,
       "confidence_intervals": {
         "precision_at_1": [
@@ -136,8 +136,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9167,
         "ndcg_at_3": 0.9385,
-        "avg_latency_ms": 23.67,
-        "p95_latency_ms": 27.54,
+        "avg_latency_ms": 22.53,
+        "p95_latency_ms": 25.77,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -163,8 +163,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9167,
         "ndcg_at_3": 0.9385,
-        "avg_latency_ms": 24.41,
-        "p95_latency_ms": 26.47,
+        "avg_latency_ms": 22.72,
+        "p95_latency_ms": 26.8,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -190,8 +190,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9167,
         "ndcg_at_3": 0.9385,
-        "avg_latency_ms": 165.15,
-        "p95_latency_ms": 207.46,
+        "avg_latency_ms": 23.11,
+        "p95_latency_ms": 26.58,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -219,8 +219,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9583,
         "ndcg_at_3": 0.9692,
-        "avg_latency_ms": 22.8,
-        "p95_latency_ms": 27.18,
+        "avg_latency_ms": 26.09,
+        "p95_latency_ms": 33.68,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -246,8 +246,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9583,
         "ndcg_at_3": 0.9692,
-        "avg_latency_ms": 24.91,
-        "p95_latency_ms": 30.74,
+        "avg_latency_ms": 25.22,
+        "p95_latency_ms": 32.39,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -273,8 +273,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.9583,
         "ndcg_at_3": 0.9692,
-        "avg_latency_ms": 176.73,
-        "p95_latency_ms": 208.29,
+        "avg_latency_ms": 27.2,
+        "p95_latency_ms": 37.85,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -302,8 +302,8 @@
         "recall_at_3": 0.75,
         "mrr": 0.6347,
         "ndcg_at_3": 0.6359,
-        "avg_latency_ms": 25.84,
-        "p95_latency_ms": 33.79,
+        "avg_latency_ms": 23.6,
+        "p95_latency_ms": 32.12,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -329,8 +329,8 @@
         "recall_at_3": 0.75,
         "mrr": 0.6347,
         "ndcg_at_3": 0.6359,
-        "avg_latency_ms": 26.95,
-        "p95_latency_ms": 32.12,
+        "avg_latency_ms": 23.99,
+        "p95_latency_ms": 28.73,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -356,8 +356,8 @@
         "recall_at_3": 0.75,
         "mrr": 0.6347,
         "ndcg_at_3": 0.6359,
-        "avg_latency_ms": 187.14,
-        "p95_latency_ms": 250.57,
+        "avg_latency_ms": 25.39,
+        "p95_latency_ms": 31.92,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -385,8 +385,8 @@
         "recall_at_3": 0.25,
         "mrr": 0.1389,
         "ndcg_at_3": 0.1359,
-        "avg_latency_ms": 28.17,
-        "p95_latency_ms": 39.88,
+        "avg_latency_ms": 26.35,
+        "p95_latency_ms": 33.58,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -412,8 +412,8 @@
         "recall_at_3": 0.3333,
         "mrr": 0.1597,
         "ndcg_at_3": 0.1885,
-        "avg_latency_ms": 30.01,
-        "p95_latency_ms": 42.28,
+        "avg_latency_ms": 28.88,
+        "p95_latency_ms": 41.29,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -439,8 +439,8 @@
         "recall_at_3": 0.3333,
         "mrr": 0.1597,
         "ndcg_at_3": 0.1885,
-        "avg_latency_ms": 203.57,
-        "p95_latency_ms": 258.51,
+        "avg_latency_ms": 29.02,
+        "p95_latency_ms": 48.89,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -468,8 +468,8 @@
         "recall_at_3": 0.9167,
         "mrr": 0.7778,
         "ndcg_at_3": 0.8135,
-        "avg_latency_ms": 27.38,
-        "p95_latency_ms": 43.08,
+        "avg_latency_ms": 20.27,
+        "p95_latency_ms": 22.9,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -495,8 +495,8 @@
         "recall_at_3": 0.9167,
         "mrr": 0.7986,
         "ndcg_at_3": 0.8135,
-        "avg_latency_ms": 27.72,
-        "p95_latency_ms": 37.49,
+        "avg_latency_ms": 22.67,
+        "p95_latency_ms": 25.77,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -522,8 +522,8 @@
         "recall_at_3": 0.9167,
         "mrr": 0.7986,
         "ndcg_at_3": 0.8135,
-        "avg_latency_ms": 183.73,
-        "p95_latency_ms": 274.24,
+        "avg_latency_ms": 21.84,
+        "p95_latency_ms": 24.29,
         "queries_evaluated": 12,
         "confidence_intervals": {
           "precision_at_1": [
@@ -687,9 +687,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 23.525,
-        "hybrid_rrf": 26.383,
-        "hybrid_plus_reranker": 163.6
+        "dense_only": 21.154,
+        "hybrid_rrf": 25.249,
+        "hybrid_plus_reranker": 24.912
       },
       "retrieved": {
         "dense_only": [
@@ -805,7 +805,7 @@
             "dense_score": 0.77563,
             "bm25_score": 16.86347,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400205
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "788f2b028b29320c",
@@ -815,7 +815,7 @@
             "dense_score": 0.769427,
             "bm25_score": 12.368843,
             "rrf_score": 0.016104,
-            "rerank_score": 0.396733
+            "rerank_score": 0.016104
           },
           {
             "chunk_id": "b16209690b5e6eef",
@@ -825,7 +825,7 @@
             "dense_score": 0.753294,
             "bm25_score": 12.020939,
             "rrf_score": 0.015849,
-            "rerank_score": 0.236857
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "fef0adc75b3a16f1",
@@ -835,7 +835,7 @@
             "dense_score": 0.733967,
             "bm25_score": 15.931163,
             "rrf_score": 0.01565,
-            "rerank_score": 0.233892
+            "rerank_score": 0.01565
           },
           {
             "chunk_id": "f793feadbe1a42f3",
@@ -845,7 +845,7 @@
             "dense_score": 0.709607,
             "bm25_score": 9.544295,
             "rrf_score": 0.01532,
-            "rerank_score": 0.228952
+            "rerank_score": 0.01532
           }
         ]
       }
@@ -876,9 +876,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 22.119,
-        "hybrid_rrf": 22.046,
-        "hybrid_plus_reranker": 147.416
+        "dense_only": 25.475,
+        "hybrid_rrf": 27.227,
+        "hybrid_plus_reranker": 22.97
       },
       "retrieved": {
         "dense_only": [
@@ -994,7 +994,7 @@
             "dense_score": 0.795,
             "bm25_score": 21.909443,
             "rrf_score": 0.016393,
-            "rerank_score": 0.466447
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "a207867f167ea44a",
@@ -1004,7 +1004,7 @@
             "dense_score": 0.793532,
             "bm25_score": 21.909443,
             "rrf_score": 0.016129,
-            "rerank_score": 0.465611
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "fe4921362c291fb2",
@@ -1014,7 +1014,7 @@
             "dense_score": 0.766855,
             "bm25_score": 17.472835,
             "rrf_score": 0.015861,
-            "rerank_score": 0.237037
+            "rerank_score": 0.015861
           },
           {
             "chunk_id": "11c0413820517543",
@@ -1024,7 +1024,7 @@
             "dense_score": 0.764726,
             "bm25_score": 19.795694,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "d0e585b8409affd6",
@@ -1034,7 +1034,7 @@
             "dense_score": 0.65718,
             "bm25_score": 6.236479,
             "rrf_score": 0.015088,
-            "rerank_score": 0.225496
+            "rerank_score": 0.015088
           }
         ]
       }
@@ -1059,9 +1059,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.603,
-        "hybrid_rrf": 26.57,
-        "hybrid_plus_reranker": 163.663
+        "dense_only": 26.135,
+        "hybrid_rrf": 25.259,
+        "hybrid_plus_reranker": 27.227
       },
       "retrieved": {
         "dense_only": [
@@ -1177,7 +1177,7 @@
             "dense_score": 0.855575,
             "bm25_score": 33.323101,
             "rrf_score": 0.016393,
-            "rerank_score": 0.482746
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "b8ae0c4741eda289",
@@ -1187,7 +1187,7 @@
             "dense_score": 0.732152,
             "bm25_score": 6.259775,
             "rrf_score": 0.016037,
-            "rerank_score": 0.397235
+            "rerank_score": 0.016037
           },
           {
             "chunk_id": "881dd11271a0cae3",
@@ -1197,7 +1197,7 @@
             "dense_score": 0.723155,
             "bm25_score": 8.017094,
             "rrf_score": 0.015837,
-            "rerank_score": 0.236683
+            "rerank_score": 0.015837
           },
           {
             "chunk_id": "c68b3ef69702ca5d",
@@ -1207,7 +1207,7 @@
             "dense_score": 0.721682,
             "bm25_score": 8.357649,
             "rrf_score": 0.015613,
-            "rerank_score": 0.233336
+            "rerank_score": 0.015613
           },
           {
             "chunk_id": "a2ab164d6818f20f",
@@ -1217,7 +1217,7 @@
             "dense_score": 0.671199,
             "bm25_score": 12.772639,
             "rrf_score": 0.015422,
-            "rerank_score": 0.230479
+            "rerank_score": 0.015422
           }
         ]
       }
@@ -1246,9 +1246,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 27.13,
-        "hybrid_rrf": 25.742,
-        "hybrid_plus_reranker": 165.46
+        "dense_only": 22.605,
+        "hybrid_rrf": 21.707,
+        "hybrid_plus_reranker": 23.827
       },
       "retrieved": {
         "dense_only": [
@@ -1364,7 +1364,7 @@
             "dense_score": 0.82306,
             "bm25_score": 10.30259,
             "rrf_score": 0.016367,
-            "rerank_score": 0.476292
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "9f5a00376b2011d5",
@@ -1374,7 +1374,7 @@
             "dense_score": 0.800935,
             "bm25_score": 8.142204,
             "rrf_score": 0.016092,
-            "rerank_score": 0.397707
+            "rerank_score": 0.016092
           },
           {
             "chunk_id": "2bb94d7f90cdd6f3",
@@ -1384,7 +1384,7 @@
             "dense_score": 0.784814,
             "bm25_score": 10.591548,
             "rrf_score": 0.015886,
-            "rerank_score": 0.237791
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "a2ab164d6818f20f",
@@ -1394,7 +1394,7 @@
             "dense_score": 0.744917,
             "bm25_score": 16.05046,
             "rrf_score": 0.015663,
-            "rerank_score": 0.234462
+            "rerank_score": 0.015663
           },
           {
             "chunk_id": "03811e63955c7d78",
@@ -1404,7 +1404,7 @@
             "dense_score": 0.699206,
             "bm25_score": 8.546393,
             "rrf_score": 0.015175,
-            "rerank_score": 0.227154
+            "rerank_score": 0.015175
           }
         ]
       }
@@ -1429,9 +1429,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 22.299,
-        "hybrid_rrf": 26.328,
-        "hybrid_plus_reranker": 231.349
+        "dense_only": 21.503,
+        "hybrid_rrf": 20.22,
+        "hybrid_plus_reranker": 23.2
       },
       "retrieved": {
         "dense_only": [
@@ -1547,7 +1547,7 @@
             "dense_score": 0.832418,
             "bm25_score": 11.12944,
             "rrf_score": 0.01638,
-            "rerank_score": 0.492275
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "87443669822ba94b",
@@ -1557,7 +1557,7 @@
             "dense_score": 0.791018,
             "bm25_score": 13.614177,
             "rrf_score": 0.016142,
-            "rerank_score": 0.398187
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "d0e585b8409affd6",
@@ -1567,7 +1567,7 @@
             "dense_score": 0.772134,
             "bm25_score": 5.135219,
             "rrf_score": 0.015826,
-            "rerank_score": 0.236705
+            "rerank_score": 0.015826
           },
           {
             "chunk_id": "69a22cb03421b3f5",
@@ -1577,7 +1577,7 @@
             "dense_score": 0.755385,
             "bm25_score": 10.792842,
             "rrf_score": 0.015637,
-            "rerank_score": 0.23389
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "11c0413820517543",
@@ -1587,7 +1587,7 @@
             "dense_score": 0.683512,
             "bm25_score": 10.216976,
             "rrf_score": 0.014752,
-            "rerank_score": 0.220644
+            "rerank_score": 0.014752
           }
         ]
       }
@@ -1616,9 +1616,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.916,
-        "hybrid_rrf": 21.196,
-        "hybrid_plus_reranker": 138.215
+        "dense_only": 22.611,
+        "hybrid_rrf": 18.216,
+        "hybrid_plus_reranker": 19.366
       },
       "retrieved": {
         "dense_only": [
@@ -1734,7 +1734,7 @@
             "dense_score": 0.758189,
             "bm25_score": 12.830806,
             "rrf_score": 0.01638,
-            "rerank_score": 0.400185
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "0a298218aa189fa1",
@@ -1744,7 +1744,7 @@
             "dense_score": 0.713663,
             "bm25_score": 13.873094,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397446
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "17f297fe75724fc5",
@@ -1754,7 +1754,7 @@
             "dense_score": 0.704129,
             "bm25_score": 12.341956,
             "rrf_score": 0.015861,
-            "rerank_score": 0.237228
+            "rerank_score": 0.015861
           },
           {
             "chunk_id": "f8f1c516ae1f8aab",
@@ -1764,7 +1764,7 @@
             "dense_score": 0.673005,
             "bm25_score": 12.722635,
             "rrf_score": 0.015637,
-            "rerank_score": 0.23389
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "c7a2800efa6293dd",
@@ -1774,7 +1774,7 @@
             "dense_score": 0.591032,
             "bm25_score": 2.426333,
             "rrf_score": 0.014904,
-            "rerank_score": 0.222922
+            "rerank_score": 0.014904
           }
         ]
       }
@@ -1799,9 +1799,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.467,
-        "hybrid_rrf": 24.077,
-        "hybrid_plus_reranker": 156.914
+        "dense_only": 20.3,
+        "hybrid_rrf": 21.81,
+        "hybrid_plus_reranker": 22.667
       },
       "retrieved": {
         "dense_only": [
@@ -1917,7 +1917,7 @@
             "dense_score": 0.817106,
             "bm25_score": 17.442401,
             "rrf_score": 0.016393,
-            "rerank_score": 0.401509
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "3651f9b228e22d01",
@@ -1927,7 +1927,7 @@
             "dense_score": 0.789777,
             "bm25_score": 9.828788,
             "rrf_score": 0.016092,
-            "rerank_score": 0.39764
+            "rerank_score": 0.016092
           },
           {
             "chunk_id": "c7a2800efa6293dd",
@@ -1937,7 +1937,7 @@
             "dense_score": 0.772328,
             "bm25_score": 11.173474,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237222
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "04a99026572f6900",
@@ -1947,7 +1947,7 @@
             "dense_score": 0.717859,
             "bm25_score": 10.319612,
             "rrf_score": 0.015625,
-            "rerank_score": 0.233516
+            "rerank_score": 0.015625
           },
           {
             "chunk_id": "b3b47e35541f8c5d",
@@ -1957,7 +1957,7 @@
             "dense_score": 0.704826,
             "bm25_score": 7.472894,
             "rrf_score": 0.015027,
-            "rerank_score": 0.224576
+            "rerank_score": 0.015027
           }
         ]
       }
@@ -1986,9 +1986,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.341,
-        "hybrid_rrf": 21.129,
-        "hybrid_plus_reranker": 139.142
+        "dense_only": 19.505,
+        "hybrid_rrf": 20.302,
+        "hybrid_plus_reranker": 19.269
       },
       "retrieved": {
         "dense_only": [
@@ -2104,7 +2104,7 @@
             "dense_score": 0.579604,
             "bm25_score": 7.475131,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400039
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "44c8e4e38294d6c0",
@@ -2114,7 +2114,7 @@
             "dense_score": 0.579279,
             "bm25_score": 6.058294,
             "rrf_score": 0.016116,
-            "rerank_score": 0.396625
+            "rerank_score": 0.016116
           },
           {
             "chunk_id": "1b5439614813efc5",
@@ -2124,7 +2124,7 @@
             "dense_score": 0.573147,
             "bm25_score": 4.755903,
             "rrf_score": 0.015837,
-            "rerank_score": 0.236683
+            "rerank_score": 0.015837
           },
           {
             "chunk_id": "4d4ad8073d4c338c",
@@ -2134,7 +2134,7 @@
             "dense_score": 0.559588,
             "bm25_score": 6.192989,
             "rrf_score": 0.015422,
-            "rerank_score": 0.230479
+            "rerank_score": 0.015422
           },
           {
             "chunk_id": "d165db5fc142e26c",
@@ -2144,7 +2144,7 @@
             "dense_score": 0.529334,
             "bm25_score": 4.54787,
             "rrf_score": 0.014925,
-            "rerank_score": 0.22306
+            "rerank_score": 0.014925
           }
         ]
       }
@@ -2169,9 +2169,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 28.05,
-        "hybrid_rrf": 23.244,
-        "hybrid_plus_reranker": 179.044
+        "dense_only": 22.847,
+        "hybrid_rrf": 20.235,
+        "hybrid_plus_reranker": 25.072
       },
       "retrieved": {
         "dense_only": [
@@ -2287,7 +2287,7 @@
             "dense_score": 0.840045,
             "bm25_score": 51.988312,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400211
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "550430e24abdab01",
@@ -2297,7 +2297,7 @@
             "dense_score": 0.690448,
             "bm25_score": 7.734453,
             "rrf_score": 0.015861,
-            "rerank_score": 0.39368
+            "rerank_score": 0.015861
           },
           {
             "chunk_id": "1e0bfa24f2ef21b1",
@@ -2307,7 +2307,7 @@
             "dense_score": 0.687591,
             "bm25_score": 9.738656,
             "rrf_score": 0.01565,
-            "rerank_score": 0.233892
+            "rerank_score": 0.01565
           },
           {
             "chunk_id": "9f5a00376b2011d5",
@@ -2317,7 +2317,7 @@
             "dense_score": 0.709857,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.228996
+            "rerank_score": 0.015323
           },
           {
             "chunk_id": "326be2eb96bfbabf",
@@ -2327,7 +2327,7 @@
             "dense_score": 0.685554,
             "bm25_score": 7.608397,
             "rrf_score": 0.015163,
-            "rerank_score": 0.226614
+            "rerank_score": 0.015163
           }
         ]
       }
@@ -2358,9 +2358,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.811,
-        "hybrid_rrf": 24.337,
-        "hybrid_plus_reranker": 153.946
+        "dense_only": 22.414,
+        "hybrid_rrf": 20.096,
+        "hybrid_plus_reranker": 20.394
       },
       "retrieved": {
         "dense_only": [
@@ -2469,16 +2469,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "0b30ae84423df49f",
-            "doc_name": "RAGBench_covidqa",
-            "page_number": 1,
-            "contains_table": false,
-            "dense_score": 0.642051,
-            "bm25_score": 8.666091,
-            "rrf_score": 0.016129,
-            "rerank_score": 0.400669
-          },
-          {
             "chunk_id": "b3b47e35541f8c5d",
             "doc_name": "RAGBench_covidqa",
             "page_number": 3,
@@ -2486,7 +2476,17 @@
             "dense_score": 0.679699,
             "bm25_score": 8.671403,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400028
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "0b30ae84423df49f",
+            "doc_name": "RAGBench_covidqa",
+            "page_number": 1,
+            "contains_table": false,
+            "dense_score": 0.642051,
+            "bm25_score": 8.666091,
+            "rrf_score": 0.016129,
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "e48d060e63f3f7b5",
@@ -2496,7 +2496,7 @@
             "dense_score": 0.637801,
             "bm25_score": 8.317329,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237222
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "6836864b96a7c743",
@@ -2506,7 +2506,7 @@
             "dense_score": 0.6189,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.22184
+            "rerank_score": 0.014844
           },
           {
             "chunk_id": "3651f9b228e22d01",
@@ -2516,7 +2516,7 @@
             "dense_score": 0.606381,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218427
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -2545,9 +2545,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 22.809,
-        "hybrid_rrf": 25.559,
-        "hybrid_plus_reranker": 155.195
+        "dense_only": 21.318,
+        "hybrid_rrf": 25.818,
+        "hybrid_plus_reranker": 22.419
       },
       "retrieved": {
         "dense_only": [
@@ -2663,7 +2663,7 @@
             "dense_score": 0.811843,
             "bm25_score": 26.566073,
             "rrf_score": 0.016393,
-            "rerank_score": 0.487056
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "dd73484a20f723d7",
@@ -2673,7 +2673,7 @@
             "dense_score": 0.756731,
             "bm25_score": 17.710752,
             "rrf_score": 0.016129,
-            "rerank_score": 0.397029
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "eea6a3d4227b6370",
@@ -2683,7 +2683,7 @@
             "dense_score": 0.749471,
             "bm25_score": 14.86602,
             "rrf_score": 0.015849,
-            "rerank_score": 0.236857
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "476b032ec4ff16c1",
@@ -2693,7 +2693,7 @@
             "dense_score": 0.739785,
             "bm25_score": 17.452137,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "788f2b028b29320c",
@@ -2703,7 +2703,7 @@
             "dense_score": 0.658065,
             "bm25_score": 14.88672,
             "rrf_score": 0.015397,
-            "rerank_score": 0.230103
+            "rerank_score": 0.015397
           }
         ]
       }
@@ -2731,9 +2731,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 26.023,
-        "hybrid_rrf": 26.251,
-        "hybrid_plus_reranker": 187.914
+        "dense_only": 24.511,
+        "hybrid_rrf": 26.45,
+        "hybrid_plus_reranker": 26.042
       },
       "retrieved": {
         "dense_only": [
@@ -2849,7 +2849,7 @@
             "dense_score": 0.83724,
             "bm25_score": 37.624813,
             "rrf_score": 0.016367,
-            "rerank_score": 0.401582
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "c05066af035818fb",
@@ -2859,7 +2859,7 @@
             "dense_score": 0.831302,
             "bm25_score": 66.693833,
             "rrf_score": 0.016142,
-            "rerank_score": 0.398325
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "4620b64d7e36ce26",
@@ -2869,7 +2869,7 @@
             "dense_score": 0.828227,
             "bm25_score": 37.624813,
             "rrf_score": 0.015886,
-            "rerank_score": 0.237791
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "72caf00cb277cfb1",
@@ -2879,7 +2879,7 @@
             "dense_score": 0.627286,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.222193
+            "rerank_score": 0.014844
           },
           {
             "chunk_id": "b3b47e35541f8c5d",
@@ -2889,7 +2889,7 @@
             "dense_score": 0.618496,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218774
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -2914,9 +2914,9 @@
         "hybrid_plus_reranker": 4
       },
       "latencies_ms": {
-        "dense_only": 27.882,
-        "hybrid_rrf": 32.125,
-        "hybrid_plus_reranker": 213.483
+        "dense_only": 33.719,
+        "hybrid_rrf": 25.316,
+        "hybrid_plus_reranker": 25.407
       },
       "retrieved": {
         "dense_only": [
@@ -3032,7 +3032,7 @@
             "dense_score": 0.654111,
             "bm25_score": 11.665725,
             "rrf_score": 0.016223,
-            "rerank_score": 0.400007
+            "rerank_score": 0.016223
           },
           {
             "chunk_id": "fa12a98160311138",
@@ -3042,7 +3042,7 @@
             "dense_score": 0.624912,
             "bm25_score": 9.433885,
             "rrf_score": 0.015925,
-            "rerank_score": 0.396329
+            "rerank_score": 0.015925
           },
           {
             "chunk_id": "b4e49d891f27207c",
@@ -3052,7 +3052,7 @@
             "dense_score": 0.622931,
             "bm25_score": 26.884974,
             "rrf_score": 0.015899,
-            "rerank_score": 0.240106
+            "rerank_score": 0.015899
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -3062,7 +3062,7 @@
             "dense_score": 0.622887,
             "bm25_score": 24.236338,
             "rrf_score": 0.015637,
-            "rerank_score": 0.236155
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "42fa2d3981612201",
@@ -3072,7 +3072,7 @@
             "dense_score": 0.619098,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.22072
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -3097,9 +3097,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 46.352,
-        "hybrid_rrf": 45.021,
-        "hybrid_plus_reranker": 256.166
+        "dense_only": 25.113,
+        "hybrid_rrf": 26.942,
+        "hybrid_plus_reranker": 25.932
       },
       "retrieved": {
         "dense_only": [
@@ -3215,7 +3215,7 @@
             "dense_score": 0.656687,
             "bm25_score": 31.734982,
             "rrf_score": 0.016259,
-            "rerank_score": 0.400007
+            "rerank_score": 0.016259
           },
           {
             "chunk_id": "a3f42af2a96bee8f",
@@ -3225,7 +3225,7 @@
             "dense_score": 0.645806,
             "bm25_score": 50.010555,
             "rrf_score": 0.015886,
-            "rerank_score": 0.395422
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "f77773533d465c93",
@@ -3235,7 +3235,7 @@
             "dense_score": 0.64987,
             "bm25_score": 18.868307,
             "rrf_score": 0.01586,
-            "rerank_score": 0.238995
+            "rerank_score": 0.01586
           },
           {
             "chunk_id": "e64840986d96e8c5",
@@ -3245,7 +3245,7 @@
             "dense_score": 0.641501,
             "bm25_score": 40.974498,
             "rrf_score": 0.015373,
-            "rerank_score": 0.231653
+            "rerank_score": 0.015373
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -3255,7 +3255,7 @@
             "dense_score": 0.637692,
             "bm25_score": 36.868932,
             "rrf_score": 0.015129,
-            "rerank_score": 0.22798
+            "rerank_score": 0.015129
           }
         ]
       }
@@ -3280,9 +3280,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 24.355,
-        "hybrid_rrf": 25.03,
-        "hybrid_plus_reranker": 172.623
+        "dense_only": 22.455,
+        "hybrid_rrf": 28.651,
+        "hybrid_plus_reranker": 23.971
       },
       "retrieved": {
         "dense_only": [
@@ -3398,7 +3398,7 @@
             "dense_score": 0.633265,
             "bm25_score": 26.775746,
             "rrf_score": 0.016343,
-            "rerank_score": 0.400058
+            "rerank_score": 0.016343
           },
           {
             "chunk_id": "e64840986d96e8c5",
@@ -3408,7 +3408,7 @@
             "dense_score": 0.613865,
             "bm25_score": 26.020905,
             "rrf_score": 0.01608,
-            "rerank_score": 0.396788
+            "rerank_score": 0.01608
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -3418,7 +3418,7 @@
             "dense_score": 0.599437,
             "bm25_score": 23.221749,
             "rrf_score": 0.01559,
-            "rerank_score": 0.233712
+            "rerank_score": 0.01559
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -3428,7 +3428,7 @@
             "dense_score": 0.599374,
             "bm25_score": 22.01354,
             "rrf_score": 0.015351,
-            "rerank_score": 0.230124
+            "rerank_score": 0.015351
           },
           {
             "chunk_id": "a3f42af2a96bee8f",
@@ -3438,7 +3438,7 @@
             "dense_score": 0.596516,
             "bm25_score": 20.700674,
             "rrf_score": 0.015108,
-            "rerank_score": 0.226489
+            "rerank_score": 0.015108
           }
         ]
       }
@@ -3463,9 +3463,9 @@
         "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 25.068,
-        "hybrid_rrf": 24.63,
-        "hybrid_plus_reranker": 234.363
+        "dense_only": 22.646,
+        "hybrid_rrf": 24.648,
+        "hybrid_plus_reranker": 26.046
       },
       "retrieved": {
         "dense_only": [
@@ -3581,7 +3581,7 @@
             "dense_score": 0.712165,
             "bm25_score": 37.354664,
             "rrf_score": 0.016393,
-            "rerank_score": 0.40035
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "48f1d7a8f2d0f77c",
@@ -3591,7 +3591,7 @@
             "dense_score": 0.680312,
             "bm25_score": 30.309929,
             "rrf_score": 0.016129,
-            "rerank_score": 0.397115
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -3601,7 +3601,7 @@
             "dense_score": 0.635462,
             "bm25_score": 19.466431,
             "rrf_score": 0.015774,
-            "rerank_score": 0.23574
+            "rerank_score": 0.015774
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -3611,7 +3611,7 @@
             "dense_score": 0.626749,
             "bm25_score": 9.156938,
             "rrf_score": 0.015171,
-            "rerank_score": 0.22673
+            "rerank_score": 0.015171
           },
           {
             "chunk_id": "260428e7d3576db7",
@@ -3621,7 +3621,7 @@
             "dense_score": 0.62481,
             "bm25_score": 20.55942,
             "rrf_score": 0.015098,
-            "rerank_score": 0.225642
+            "rerank_score": 0.015098
           }
         ]
       }
@@ -3646,9 +3646,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 25.747,
-        "hybrid_rrf": 27.287,
-        "hybrid_plus_reranker": 178.664
+        "dense_only": 25.83,
+        "hybrid_rrf": 27.839,
+        "hybrid_plus_reranker": 24.522
       },
       "retrieved": {
         "dense_only": [
@@ -3764,7 +3764,7 @@
             "dense_score": 0.610142,
             "bm25_score": 20.67252,
             "rrf_score": 0.016278,
-            "rerank_score": 0.400004
+            "rerank_score": 0.016278
           },
           {
             "chunk_id": "7f5c23e5086b127a",
@@ -3774,7 +3774,7 @@
             "dense_score": 0.605368,
             "bm25_score": 24.349651,
             "rrf_score": 0.016104,
-            "rerank_score": 0.397864
+            "rerank_score": 0.016104
           },
           {
             "chunk_id": "f77773533d465c93",
@@ -3784,7 +3784,7 @@
             "dense_score": 0.605178,
             "bm25_score": 13.207947,
             "rrf_score": 0.015682,
-            "rerank_score": 0.236026
+            "rerank_score": 0.015682
           },
           {
             "chunk_id": "17e2a931171602b1",
@@ -3794,7 +3794,7 @@
             "dense_score": 0.592072,
             "bm25_score": 25.29109,
             "rrf_score": 0.015637,
-            "rerank_score": 0.235358
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "23cbd57b47151efd",
@@ -3804,7 +3804,7 @@
             "dense_score": 0.581682,
             "bm25_score": 12.750789,
             "rrf_score": 0.015197,
-            "rerank_score": 0.228727
+            "rerank_score": 0.015197
           }
         ]
       }
@@ -3829,9 +3829,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 25.673,
-        "hybrid_rrf": 27.543,
-        "hybrid_plus_reranker": 203.316
+        "dense_only": 24.113,
+        "hybrid_rrf": 24.916,
+        "hybrid_plus_reranker": 24.541
       },
       "retrieved": {
         "dense_only": [
@@ -3947,7 +3947,7 @@
             "dense_score": 0.653638,
             "bm25_score": 37.368565,
             "rrf_score": 0.016367,
-            "rerank_score": 0.400072
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "17e2a931171602b1",
@@ -3957,7 +3957,7 @@
             "dense_score": 0.645758,
             "bm25_score": 19.617304,
             "rrf_score": 0.016008,
-            "rerank_score": 0.395609
+            "rerank_score": 0.016008
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -3967,7 +3967,7 @@
             "dense_score": 0.623845,
             "bm25_score": 31.074054,
             "rrf_score": 0.015826,
-            "rerank_score": 0.23689
+            "rerank_score": 0.015826
           },
           {
             "chunk_id": "48f1d7a8f2d0f77c",
@@ -3977,7 +3977,7 @@
             "dense_score": 0.62009,
             "bm25_score": 40.212665,
             "rrf_score": 0.015663,
-            "rerank_score": 0.234462
+            "rerank_score": 0.015663
           },
           {
             "chunk_id": "b51f70f0806d7712",
@@ -3987,7 +3987,7 @@
             "dense_score": 0.610365,
             "bm25_score": 13.800796,
             "rrf_score": 0.014789,
-            "rerank_score": 0.221371
+            "rerank_score": 0.014789
           }
         ]
       }
@@ -4012,9 +4012,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 34.577,
-        "hybrid_rrf": 40.033,
-        "hybrid_plus_reranker": 261.372
+        "dense_only": 33.002,
+        "hybrid_rrf": 35.136,
+        "hybrid_plus_reranker": 38.073
       },
       "retrieved": {
         "dense_only": [
@@ -4130,7 +4130,7 @@
             "dense_score": 0.621039,
             "bm25_score": 58.904623,
             "rrf_score": 0.01632,
-            "rerank_score": 0.400093
+            "rerank_score": 0.01632
           },
           {
             "chunk_id": "e64840986d96e8c5",
@@ -4140,7 +4140,7 @@
             "dense_score": 0.620887,
             "bm25_score": 61.062482,
             "rrf_score": 0.016104,
-            "rerank_score": 0.397387
+            "rerank_score": 0.016104
           },
           {
             "chunk_id": "4fd978104f8d731e",
@@ -4150,7 +4150,7 @@
             "dense_score": 0.618288,
             "bm25_score": 60.009582,
             "rrf_score": 0.015837,
-            "rerank_score": 0.237748
+            "rerank_score": 0.015837
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -4160,7 +4160,7 @@
             "dense_score": 0.615298,
             "bm25_score": 61.986809,
             "rrf_score": 0.015637,
-            "rerank_score": 0.234752
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -4170,7 +4170,7 @@
             "dense_score": 0.612266,
             "bm25_score": 48.187022,
             "rrf_score": 0.01532,
-            "rerank_score": 0.229981
+            "rerank_score": 0.01532
           }
         ]
       }
@@ -4195,9 +4195,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 25.976,
-        "hybrid_rrf": 27.527,
-        "hybrid_plus_reranker": 198.753
+        "dense_only": 24.683,
+        "hybrid_rrf": 26.817,
+        "hybrid_plus_reranker": 22.951
       },
       "retrieved": {
         "dense_only": [
@@ -4313,7 +4313,7 @@
             "dense_score": 0.703344,
             "bm25_score": 33.495158,
             "rrf_score": 0.016367,
-            "rerank_score": 0.400011
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "48f1d7a8f2d0f77c",
@@ -4323,7 +4323,7 @@
             "dense_score": 0.678437,
             "bm25_score": 36.737802,
             "rrf_score": 0.016129,
-            "rerank_score": 0.397107
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -4333,7 +4333,7 @@
             "dense_score": 0.664392,
             "bm25_score": 23.940043,
             "rrf_score": 0.015849,
-            "rerank_score": 0.237234
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -4343,7 +4343,7 @@
             "dense_score": 0.655117,
             "bm25_score": 16.958862,
             "rrf_score": 0.015579,
-            "rerank_score": 0.233199
+            "rerank_score": 0.015579
           },
           {
             "chunk_id": "b88566fdc07e995c",
@@ -4353,7 +4353,7 @@
             "dense_score": 0.650822,
             "bm25_score": 28.789055,
             "rrf_score": 0.015397,
-            "rerank_score": 0.230469
+            "rerank_score": 0.015397
           }
         ]
       }
@@ -4378,9 +4378,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 26.778,
-        "hybrid_rrf": 28.632,
-        "hybrid_plus_reranker": 203.937
+        "dense_only": 22.56,
+        "hybrid_rrf": 26.22,
+        "hybrid_plus_reranker": 25.631
       },
       "retrieved": {
         "dense_only": [
@@ -4496,7 +4496,7 @@
             "dense_score": 0.552733,
             "bm25_score": 11.843942,
             "rrf_score": 0.015804,
-            "rerank_score": 0.400004
+            "rerank_score": 0.015804
           },
           {
             "chunk_id": "a3f42af2a96bee8f",
@@ -4506,7 +4506,7 @@
             "dense_score": 0.546078,
             "bm25_score": 11.857864,
             "rrf_score": 0.015579,
-            "rerank_score": 0.397159
+            "rerank_score": 0.015579
           },
           {
             "chunk_id": "61bc333b4459b96f",
@@ -4516,7 +4516,7 @@
             "dense_score": 0.559844,
             "bm25_score": 0.0,
             "rrf_score": 0.015574,
-            "rerank_score": 0.241431
+            "rerank_score": 0.015574
           },
           {
             "chunk_id": "d007eb52e296d690",
@@ -4526,7 +4526,7 @@
             "dense_score": 0.556043,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.237537
+            "rerank_score": 0.015323
           },
           {
             "chunk_id": "e64840986d96e8c5",
@@ -4536,7 +4536,7 @@
             "dense_score": 0.543603,
             "bm25_score": 8.748854,
             "rrf_score": 0.014774,
-            "rerank_score": 0.229038
+            "rerank_score": 0.014774
           }
         ]
       }
@@ -4561,9 +4561,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 26.112,
-        "hybrid_rrf": 25.596,
-        "hybrid_plus_reranker": 171.76
+        "dense_only": 24.33,
+        "hybrid_rrf": 24.389,
+        "hybrid_plus_reranker": 25.061
       },
       "retrieved": {
         "dense_only": [
@@ -4679,7 +4679,7 @@
             "dense_score": 0.658654,
             "bm25_score": 6.145669,
             "rrf_score": 0.01632,
-            "rerank_score": 0.400009
+            "rerank_score": 0.01632
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -4689,7 +4689,7 @@
             "dense_score": 0.633458,
             "bm25_score": 4.661103,
             "rrf_score": 0.016027,
-            "rerank_score": 0.396414
+            "rerank_score": 0.016027
           },
           {
             "chunk_id": "a3f42af2a96bee8f",
@@ -4699,7 +4699,7 @@
             "dense_score": 0.631865,
             "bm25_score": 4.623616,
             "rrf_score": 0.015774,
-            "rerank_score": 0.2368
+            "rerank_score": 0.015774
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -4709,7 +4709,7 @@
             "dense_score": 0.630859,
             "bm25_score": 6.889722,
             "rrf_score": 0.015613,
-            "rerank_score": 0.234385
+            "rerank_score": 0.015613
           },
           {
             "chunk_id": "f77773533d465c93",
@@ -4719,7 +4719,7 @@
             "dense_score": 0.62267,
             "bm25_score": 2.462553,
             "rrf_score": 0.015248,
-            "rerank_score": 0.228911
+            "rerank_score": 0.015248
           }
         ]
       }
@@ -4744,9 +4744,9 @@
         "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 24.435,
-        "hybrid_rrf": 29.727,
-        "hybrid_plus_reranker": 181.533
+        "dense_only": 24.314,
+        "hybrid_rrf": 48.806,
+        "hybrid_plus_reranker": 62.105
       },
       "retrieved": {
         "dense_only": [
@@ -4862,7 +4862,7 @@
             "dense_score": 0.676157,
             "bm25_score": 15.612852,
             "rrf_score": 0.016259,
-            "rerank_score": 0.400004
+            "rerank_score": 0.016259
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -4872,7 +4872,7 @@
             "dense_score": 0.67421,
             "bm25_score": 20.288413,
             "rrf_score": 0.016058,
-            "rerank_score": 0.397534
+            "rerank_score": 0.016058
           },
           {
             "chunk_id": "260428e7d3576db7",
@@ -4882,7 +4882,7 @@
             "dense_score": 0.667592,
             "bm25_score": 24.837808,
             "rrf_score": 0.015861,
-            "rerank_score": 0.239001
+            "rerank_score": 0.015861
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -4892,7 +4892,7 @@
             "dense_score": 0.645234,
             "bm25_score": 19.825622,
             "rrf_score": 0.01534,
-            "rerank_score": 0.231157
+            "rerank_score": 0.01534
           },
           {
             "chunk_id": "b51f70f0806d7712",
@@ -4902,7 +4902,7 @@
             "dense_score": 0.64764,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.223678
+            "rerank_score": 0.014844
           }
         ]
       }
@@ -4927,9 +4927,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 25.118,
-        "hybrid_rrf": 26.957,
-        "hybrid_plus_reranker": 166.905
+        "dense_only": 33.465,
+        "hybrid_rrf": 26.878,
+        "hybrid_plus_reranker": 23.96
       },
       "retrieved": {
         "dense_only": [
@@ -5045,7 +5045,7 @@
             "dense_score": 0.6211,
             "bm25_score": 29.838423,
             "rrf_score": 0.01632,
-            "rerank_score": 0.400042
+            "rerank_score": 0.01632
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -5055,7 +5055,7 @@
             "dense_score": 0.620373,
             "bm25_score": 29.685766,
             "rrf_score": 0.016058,
-            "rerank_score": 0.396923
+            "rerank_score": 0.016058
           },
           {
             "chunk_id": "4fd978104f8d731e",
@@ -5065,7 +5065,7 @@
             "dense_score": 0.613308,
             "bm25_score": 34.220884,
             "rrf_score": 0.015886,
-            "rerank_score": 0.238481
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "a3f42af2a96bee8f",
@@ -5075,7 +5075,7 @@
             "dense_score": 0.605938,
             "bm25_score": 27.920789,
             "rrf_score": 0.015568,
-            "rerank_score": 0.233716
+            "rerank_score": 0.015568
           },
           {
             "chunk_id": "b4e49d891f27207c",
@@ -5085,7 +5085,7 @@
             "dense_score": 0.597241,
             "bm25_score": 36.331341,
             "rrf_score": 0.015435,
-            "rerank_score": 0.231714
+            "rerank_score": 0.015435
           }
         ]
       }
@@ -5110,9 +5110,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 23.64,
-        "hybrid_rrf": 24.388,
-        "hybrid_plus_reranker": 153.631
+        "dense_only": 22.777,
+        "hybrid_rrf": 23.222,
+        "hybrid_plus_reranker": 20.791
       },
       "retrieved": {
         "dense_only": [
@@ -5228,7 +5228,7 @@
             "dense_score": 0.787267,
             "bm25_score": 20.352775,
             "rrf_score": 0.016393,
-            "rerank_score": 0.420151
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "ab7c896569da3f6c",
@@ -5238,7 +5238,7 @@
             "dense_score": 0.777328,
             "bm25_score": 20.311293,
             "rrf_score": 0.016129,
-            "rerank_score": 0.408342
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "03b232891b4badd0",
@@ -5248,7 +5248,7 @@
             "dense_score": 0.680108,
             "bm25_score": 7.796506,
             "rrf_score": 0.015804,
-            "rerank_score": 0.236191
+            "rerank_score": 0.015804
           },
           {
             "chunk_id": "035bbc0bba840fdd",
@@ -5258,7 +5258,7 @@
             "dense_score": 0.648235,
             "bm25_score": 16.313374,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "0dc48a2912a2f58b",
@@ -5268,7 +5268,7 @@
             "dense_score": 0.609287,
             "bm25_score": 11.875005,
             "rrf_score": 0.015385,
-            "rerank_score": 0.229923
+            "rerank_score": 0.015385
           }
         ]
       }
@@ -5293,9 +5293,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.027,
-        "hybrid_rrf": 23.223,
-        "hybrid_plus_reranker": 187.34
+        "dense_only": 18.866,
+        "hybrid_rrf": 21.559,
+        "hybrid_plus_reranker": 23.759
       },
       "retrieved": {
         "dense_only": [
@@ -5411,7 +5411,7 @@
             "dense_score": 0.713168,
             "bm25_score": 10.338318,
             "rrf_score": 0.016393,
-            "rerank_score": 0.446007
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "6d149ce9672e22f2",
@@ -5421,7 +5421,7 @@
             "dense_score": 0.656585,
             "bm25_score": 2.465964,
             "rrf_score": 0.015918,
-            "rerank_score": 0.394394
+            "rerank_score": 0.015918
           },
           {
             "chunk_id": "c93c4a839f26fae0",
@@ -5431,7 +5431,7 @@
             "dense_score": 0.651938,
             "bm25_score": 2.065063,
             "rrf_score": 0.015617,
-            "rerank_score": 0.233396
+            "rerank_score": 0.015617
           },
           {
             "chunk_id": "3c504ac3f910805c",
@@ -5441,7 +5441,7 @@
             "dense_score": 0.647547,
             "bm25_score": 3.059392,
             "rrf_score": 0.015502,
-            "rerank_score": 0.231672
+            "rerank_score": 0.015502
           },
           {
             "chunk_id": "1a256ac241699b9f",
@@ -5451,7 +5451,7 @@
             "dense_score": 0.622256,
             "bm25_score": 2.595089,
             "rrf_score": 0.015011,
-            "rerank_score": 0.224343
+            "rerank_score": 0.015011
           }
         ]
       }
@@ -5480,9 +5480,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 31.996,
-        "hybrid_rrf": 31.062,
-        "hybrid_plus_reranker": 243.558
+        "dense_only": 21.013,
+        "hybrid_rrf": 26.869,
+        "hybrid_plus_reranker": 24.928
       },
       "retrieved": {
         "dense_only": [
@@ -5591,16 +5591,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "c0325f7415cf3df2",
-            "doc_name": "RAGBench_emanual",
-            "page_number": 2,
-            "contains_table": false,
-            "dense_score": 0.772875,
-            "bm25_score": 14.768118,
-            "rrf_score": 0.016047,
-            "rerank_score": 0.468826
-          },
-          {
             "chunk_id": "1a256ac241699b9f",
             "doc_name": "RAGBench_emanual",
             "page_number": 3,
@@ -5608,7 +5598,17 @@
             "dense_score": 0.773106,
             "bm25_score": 30.263744,
             "rrf_score": 0.016393,
-            "rerank_score": 0.402539
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "c0325f7415cf3df2",
+            "doc_name": "RAGBench_emanual",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.772875,
+            "bm25_score": 14.768118,
+            "rrf_score": 0.016047,
+            "rerank_score": 0.016047
           },
           {
             "chunk_id": "091506dcf4dde9c1",
@@ -5618,7 +5618,7 @@
             "dense_score": 0.753271,
             "bm25_score": 6.640941,
             "rrf_score": 0.015704,
-            "rerank_score": 0.234702
+            "rerank_score": 0.015704
           },
           {
             "chunk_id": "c93c4a839f26fae0",
@@ -5628,7 +5628,7 @@
             "dense_score": 0.73056,
             "bm25_score": 8.476789,
             "rrf_score": 0.015519,
-            "rerank_score": 0.231938
+            "rerank_score": 0.015519
           },
           {
             "chunk_id": "84d52c1713ce8de4",
@@ -5638,7 +5638,7 @@
             "dense_score": 0.729363,
             "bm25_score": 22.651375,
             "rrf_score": 0.015422,
-            "rerank_score": 0.230479
+            "rerank_score": 0.015422
           }
         ]
       }
@@ -5663,9 +5663,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.826,
-        "hybrid_rrf": 27.515,
-        "hybrid_plus_reranker": 311.733
+        "dense_only": 21.365,
+        "hybrid_rrf": 21.287,
+        "hybrid_plus_reranker": 21.176
       },
       "retrieved": {
         "dense_only": [
@@ -5781,7 +5781,7 @@
             "dense_score": 0.6876,
             "bm25_score": 11.590984,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400244
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "ae49a14bcc7bc896",
@@ -5791,7 +5791,7 @@
             "dense_score": 0.674007,
             "bm25_score": 4.810434,
             "rrf_score": 0.015873,
-            "rerank_score": 0.393658
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "8d36727253583429",
@@ -5801,7 +5801,7 @@
             "dense_score": 0.661601,
             "bm25_score": 3.616776,
             "rrf_score": 0.015625,
-            "rerank_score": 0.233516
+            "rerank_score": 0.015625
           },
           {
             "chunk_id": "40decdab491c76fe",
@@ -5811,7 +5811,7 @@
             "dense_score": 0.683161,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.228996
+            "rerank_score": 0.015323
           },
           {
             "chunk_id": "bf1990de0053ffc8",
@@ -5821,7 +5821,7 @@
             "dense_score": 0.636672,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218427
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -5846,9 +5846,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 46.052,
-        "hybrid_rrf": 42.049,
-        "hybrid_plus_reranker": 174.903
+        "dense_only": 17.888,
+        "hybrid_rrf": 21.665,
+        "hybrid_plus_reranker": 20.894
       },
       "retrieved": {
         "dense_only": [
@@ -5964,7 +5964,7 @@
             "dense_score": 0.69162,
             "bm25_score": 11.929668,
             "rrf_score": 0.016393,
-            "rerank_score": 0.40005
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "40decdab491c76fe",
@@ -5974,7 +5974,7 @@
             "dense_score": 0.65624,
             "bm25_score": 5.715509,
             "rrf_score": 0.015837,
-            "rerank_score": 0.394749
+            "rerank_score": 0.015837
           },
           {
             "chunk_id": "bf1990de0053ffc8",
@@ -5984,7 +5984,7 @@
             "dense_score": 0.598205,
             "bm25_score": 6.782039,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "adb81a65bb34e0ec",
@@ -5994,7 +5994,7 @@
             "dense_score": 0.592624,
             "bm25_score": 6.74492,
             "rrf_score": 0.015397,
-            "rerank_score": 0.230103
+            "rerank_score": 0.015397
           },
           {
             "chunk_id": "ada62f932d1a398b",
@@ -6004,7 +6004,7 @@
             "dense_score": 0.678621,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.228996
+            "rerank_score": 0.015323
           }
         ]
       }
@@ -6029,9 +6029,9 @@
         "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 27.48,
-        "hybrid_rrf": 29.298,
-        "hybrid_plus_reranker": 184.424
+        "dense_only": 21.845,
+        "hybrid_rrf": 22.41,
+        "hybrid_plus_reranker": 19.193
       },
       "retrieved": {
         "dense_only": [
@@ -6140,16 +6140,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "40decdab491c76fe",
-            "doc_name": "RAGBench_emanual",
-            "page_number": 2,
-            "contains_table": false,
-            "dense_score": 0.748924,
-            "bm25_score": 8.821146,
-            "rrf_score": 0.016058,
-            "rerank_score": 0.484248
-          },
-          {
             "chunk_id": "ada62f932d1a398b",
             "doc_name": "RAGBench_emanual",
             "page_number": 2,
@@ -6157,7 +6147,17 @@
             "dense_score": 0.771973,
             "bm25_score": 3.551311,
             "rrf_score": 0.016169,
-            "rerank_score": 0.45857
+            "rerank_score": 0.016169
+          },
+          {
+            "chunk_id": "40decdab491c76fe",
+            "doc_name": "RAGBench_emanual",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.748924,
+            "bm25_score": 8.821146,
+            "rrf_score": 0.016058,
+            "rerank_score": 0.016058
           },
           {
             "chunk_id": "8d36727253583429",
@@ -6167,7 +6167,7 @@
             "dense_score": 0.740836,
             "bm25_score": 16.925506,
             "rrf_score": 0.015899,
-            "rerank_score": 0.240909
+            "rerank_score": 0.015899
           },
           {
             "chunk_id": "adb81a65bb34e0ec",
@@ -6177,7 +6177,7 @@
             "dense_score": 0.663906,
             "bm25_score": 7.845856,
             "rrf_score": 0.015568,
-            "rerank_score": 0.235899
+            "rerank_score": 0.015568
           },
           {
             "chunk_id": "035bbc0bba840fdd",
@@ -6187,7 +6187,7 @@
             "dense_score": 0.661169,
             "bm25_score": 9.75975,
             "rrf_score": 0.015385,
-            "rerank_score": 0.233115
+            "rerank_score": 0.015385
           }
         ]
       }
@@ -6212,9 +6212,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 40.654,
-        "hybrid_rrf": 26.436,
-        "hybrid_plus_reranker": 163.666
+        "dense_only": 21.305,
+        "hybrid_rrf": 22.061,
+        "hybrid_plus_reranker": 22.05
       },
       "retrieved": {
         "dense_only": [
@@ -6330,7 +6330,7 @@
             "dense_score": 0.732084,
             "bm25_score": 17.066964,
             "rrf_score": 0.016393,
-            "rerank_score": 0.491063
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "0ee6307e7909c9a0",
@@ -6340,7 +6340,7 @@
             "dense_score": 0.666524,
             "bm25_score": 4.596095,
             "rrf_score": 0.015964,
-            "rerank_score": 0.396374
+            "rerank_score": 0.015964
           },
           {
             "chunk_id": "155c8ad37accb3a9",
@@ -6350,7 +6350,7 @@
             "dense_score": 0.633976,
             "bm25_score": 12.081233,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237222
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -6360,7 +6360,7 @@
             "dense_score": 0.556798,
             "bm25_score": 4.726923,
             "rrf_score": 0.01531,
-            "rerank_score": 0.228805
+            "rerank_score": 0.01531
           },
           {
             "chunk_id": "3bda94c6963db20b",
@@ -6370,7 +6370,7 @@
             "dense_score": 0.551649,
             "bm25_score": 4.481893,
             "rrf_score": 0.015004,
-            "rerank_score": 0.22423
+            "rerank_score": 0.015004
           }
         ]
       }
@@ -6396,9 +6396,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 23.828,
-        "hybrid_rrf": 33.766,
-        "hybrid_plus_reranker": 150.785
+        "dense_only": 18.223,
+        "hybrid_rrf": 23.446,
+        "hybrid_plus_reranker": 22.161
       },
       "retrieved": {
         "dense_only": [
@@ -6514,7 +6514,7 @@
             "dense_score": 0.776276,
             "bm25_score": 7.371396,
             "rrf_score": 0.016343,
-            "rerank_score": 0.428074
+            "rerank_score": 0.016343
           },
           {
             "chunk_id": "ade93e17450b5104",
@@ -6524,7 +6524,7 @@
             "dense_score": 0.734051,
             "bm25_score": 17.562149,
             "rrf_score": 0.016142,
-            "rerank_score": 0.422349
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "78aba01500c1dbbd",
@@ -6534,7 +6534,7 @@
             "dense_score": 0.620117,
             "bm25_score": 14.718485,
             "rrf_score": 0.015886,
-            "rerank_score": 0.238146
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -6544,7 +6544,7 @@
             "dense_score": 0.60909,
             "bm25_score": 4.726923,
             "rrf_score": 0.015538,
-            "rerank_score": 0.232935
+            "rerank_score": 0.015538
           },
           {
             "chunk_id": "0ee6307e7909c9a0",
@@ -6554,7 +6554,7 @@
             "dense_score": 0.606253,
             "bm25_score": 4.596095,
             "rrf_score": 0.015256,
-            "rerank_score": 0.228711
+            "rerank_score": 0.015256
           }
         ]
       }
@@ -6579,9 +6579,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.027,
-        "hybrid_rrf": 22.233,
-        "hybrid_plus_reranker": 147.78
+        "dense_only": 18.527,
+        "hybrid_rrf": 18.884,
+        "hybrid_plus_reranker": 21.333
       },
       "retrieved": {
         "dense_only": [
@@ -6697,7 +6697,7 @@
             "dense_score": 0.848377,
             "bm25_score": 23.103197,
             "rrf_score": 0.016393,
-            "rerank_score": 0.492135
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "0dc48a2912a2f58b",
@@ -6707,7 +6707,7 @@
             "dense_score": 0.6969,
             "bm25_score": 15.483428,
             "rrf_score": 0.016129,
-            "rerank_score": 0.396888
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "6a74318357f77bb0",
@@ -6717,7 +6717,7 @@
             "dense_score": 0.636234,
             "bm25_score": 9.915814,
             "rrf_score": 0.015849,
-            "rerank_score": 0.236857
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "035bbc0bba840fdd",
@@ -6727,7 +6727,7 @@
             "dense_score": 0.577295,
             "bm25_score": 14.76299,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "03b232891b4badd0",
@@ -6737,7 +6737,7 @@
             "dense_score": 0.559908,
             "bm25_score": 4.826951,
             "rrf_score": 0.014789,
-            "rerank_score": 0.22102
+            "rerank_score": 0.014789
           }
         ]
       }
@@ -6764,9 +6764,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.457,
-        "hybrid_rrf": 23.995,
-        "hybrid_plus_reranker": 142.105
+        "dense_only": 18.539,
+        "hybrid_rrf": 23.224,
+        "hybrid_plus_reranker": 22.435
       },
       "retrieved": {
         "dense_only": [
@@ -6882,7 +6882,7 @@
             "dense_score": 0.797978,
             "bm25_score": 12.097318,
             "rrf_score": 0.016343,
-            "rerank_score": 0.488162
+            "rerank_score": 0.016343
           },
           {
             "chunk_id": "091506dcf4dde9c1",
@@ -6892,7 +6892,7 @@
             "dense_score": 0.779161,
             "bm25_score": 6.640941,
             "rrf_score": 0.016037,
-            "rerank_score": 0.485603
+            "rerank_score": 0.016037
           },
           {
             "chunk_id": "84d52c1713ce8de4",
@@ -6902,7 +6902,7 @@
             "dense_score": 0.777783,
             "bm25_score": 18.772801,
             "rrf_score": 0.015886,
-            "rerank_score": 0.238146
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "1a256ac241699b9f",
@@ -6912,7 +6912,7 @@
             "dense_score": 0.754621,
             "bm25_score": 20.062435,
             "rrf_score": 0.015663,
-            "rerank_score": 0.234812
+            "rerank_score": 0.015663
           },
           {
             "chunk_id": "3c504ac3f910805c",
@@ -6922,7 +6922,7 @@
             "dense_score": 0.60235,
             "bm25_score": 12.729177,
             "rrf_score": 0.01496,
-            "rerank_score": 0.224273
+            "rerank_score": 0.01496
           }
         ]
       }
@@ -6947,9 +6947,9 @@
         "hybrid_plus_reranker": 4
       },
       "latencies_ms": {
-        "dense_only": 24.177,
-        "hybrid_rrf": 25.322,
-        "hybrid_plus_reranker": 148.495
+        "dense_only": 23.051,
+        "hybrid_rrf": 24.865,
+        "hybrid_plus_reranker": 21.101
       },
       "retrieved": {
         "dense_only": [
@@ -7065,7 +7065,7 @@
             "dense_score": 0.636327,
             "bm25_score": 17.802817,
             "rrf_score": 0.016142,
-            "rerank_score": 0.400017
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "adb81a65bb34e0ec",
@@ -7075,7 +7075,7 @@
             "dense_score": 0.651502,
             "bm25_score": 0.0,
             "rrf_score": 0.015574,
-            "rerank_score": 0.396115
+            "rerank_score": 0.015574
           },
           {
             "chunk_id": "8d36727253583429",
@@ -7085,7 +7085,7 @@
             "dense_score": 0.611373,
             "bm25_score": 3.922699,
             "rrf_score": 0.015256,
-            "rerank_score": 0.231555
+            "rerank_score": 0.015256
           },
           {
             "chunk_id": "035bbc0bba840fdd",
@@ -7095,7 +7095,7 @@
             "dense_score": 0.610893,
             "bm25_score": 17.323642,
             "rrf_score": 0.0152,
-            "rerank_score": 0.230705
+            "rerank_score": 0.0152
           },
           {
             "chunk_id": "ada62f932d1a398b",
@@ -7105,7 +7105,7 @@
             "dense_score": 0.625787,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.228868
+            "rerank_score": 0.015079
           }
         ]
       }
@@ -7130,9 +7130,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.421,
-        "hybrid_rrf": 23.398,
-        "hybrid_plus_reranker": 196.348
+        "dense_only": 19.893,
+        "hybrid_rrf": 22.521,
+        "hybrid_plus_reranker": 22.226
       },
       "retrieved": {
         "dense_only": [
@@ -7248,7 +7248,7 @@
             "dense_score": 0.836562,
             "bm25_score": 18.880087,
             "rrf_score": 0.016393,
-            "rerank_score": 0.484868
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "9af9b757fb756df3",
@@ -7258,7 +7258,7 @@
             "dense_score": 0.808866,
             "bm25_score": 6.830983,
             "rrf_score": 0.016104,
-            "rerank_score": 0.408479
+            "rerank_score": 0.016104
           },
           {
             "chunk_id": "60609e31ea12c292",
@@ -7268,7 +7268,7 @@
             "dense_score": 0.799935,
             "bm25_score": 13.061343,
             "rrf_score": 0.015886,
-            "rerank_score": 0.237414
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "6d3a4c67ad0479e0",
@@ -7278,7 +7278,7 @@
             "dense_score": 0.584141,
             "bm25_score": 3.063273,
             "rrf_score": 0.015406,
-            "rerank_score": 0.230236
+            "rerank_score": 0.015406
           },
           {
             "chunk_id": "035bbc0bba840fdd",
@@ -7288,7 +7288,7 @@
             "dense_score": 0.576954,
             "bm25_score": 6.041368,
             "rrf_score": 0.01534,
-            "rerank_score": 0.229257
+            "rerank_score": 0.01534
           }
         ]
       }
@@ -7313,9 +7313,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 35.301,
-        "hybrid_rrf": 33.704,
-        "hybrid_plus_reranker": 228.362
+        "dense_only": 26.697,
+        "hybrid_rrf": 29.41,
+        "hybrid_plus_reranker": 23.917
       },
       "retrieved": {
         "dense_only": [
@@ -7431,7 +7431,7 @@
             "dense_score": 0.744345,
             "bm25_score": 32.141549,
             "rrf_score": 0.01638,
-            "rerank_score": 0.485242
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "787131ab6a99917c",
@@ -7441,7 +7441,7 @@
             "dense_score": 0.740606,
             "bm25_score": 45.78285,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397123
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "43613ee36eeb9f0f",
@@ -7451,7 +7451,7 @@
             "dense_score": 0.653489,
             "bm25_score": 16.730945,
             "rrf_score": 0.015784,
-            "rerank_score": 0.236076
+            "rerank_score": 0.015784
           },
           {
             "chunk_id": "105dcf0ba37b53f6",
@@ -7461,7 +7461,7 @@
             "dense_score": 0.636334,
             "bm25_score": 13.999247,
             "rrf_score": 0.015418,
-            "rerank_score": 0.230615
+            "rerank_score": 0.015418
           },
           {
             "chunk_id": "6c773df481f4a3f4",
@@ -7471,7 +7471,7 @@
             "dense_score": 0.632404,
             "bm25_score": 28.657324,
             "rrf_score": 0.015188,
-            "rerank_score": 0.227162
+            "rerank_score": 0.015188
           }
         ]
       }
@@ -7496,9 +7496,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.725,
-        "hybrid_rrf": 23.902,
-        "hybrid_plus_reranker": 215.357
+        "dense_only": 25.889,
+        "hybrid_rrf": 28.174,
+        "hybrid_plus_reranker": 28.007
       },
       "retrieved": {
         "dense_only": [
@@ -7614,7 +7614,7 @@
             "dense_score": 0.759076,
             "bm25_score": 32.192467,
             "rrf_score": 0.016393,
-            "rerank_score": 0.414238
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "7f5c23e5086b127a",
@@ -7624,7 +7624,7 @@
             "dense_score": 0.633407,
             "bm25_score": 19.925043,
             "rrf_score": 0.016129,
-            "rerank_score": 0.396795
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "260428e7d3576db7",
@@ -7634,7 +7634,7 @@
             "dense_score": 0.624493,
             "bm25_score": 8.484292,
             "rrf_score": 0.015682,
-            "rerank_score": 0.234364
+            "rerank_score": 0.015682
           },
           {
             "chunk_id": "cb574217404d9c22",
@@ -7644,7 +7644,7 @@
             "dense_score": 0.619918,
             "bm25_score": 10.123551,
             "rrf_score": 0.0153,
-            "rerank_score": 0.228663
+            "rerank_score": 0.0153
           },
           {
             "chunk_id": "e3229550d315cc0e",
@@ -7654,7 +7654,7 @@
             "dense_score": 0.621582,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.22184
+            "rerank_score": 0.014844
           }
         ]
       }
@@ -7681,9 +7681,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 27.487,
-        "hybrid_rrf": 24.772,
-        "hybrid_plus_reranker": 165.764
+        "dense_only": 20.012,
+        "hybrid_rrf": 23.569,
+        "hybrid_plus_reranker": 26.049
       },
       "retrieved": {
         "dense_only": [
@@ -7799,7 +7799,7 @@
             "dense_score": 0.817647,
             "bm25_score": 32.934132,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400116
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "f32b30f345c48928",
@@ -7809,7 +7809,7 @@
             "dense_score": 0.710637,
             "bm25_score": 12.071518,
             "rrf_score": 0.016069,
-            "rerank_score": 0.398652
+            "rerank_score": 0.016069
           },
           {
             "chunk_id": "61bc333b4459b96f",
@@ -7819,7 +7819,7 @@
             "dense_score": 0.681342,
             "bm25_score": 25.533754,
             "rrf_score": 0.015886,
-            "rerank_score": 0.237414
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "add43bf2818aef6c",
@@ -7829,7 +7829,7 @@
             "dense_score": 0.655562,
             "bm25_score": 24.705513,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -7839,7 +7839,7 @@
             "dense_score": 0.642484,
             "bm25_score": 7.138922,
             "rrf_score": 0.015204,
-            "rerank_score": 0.227218
+            "rerank_score": 0.015204
           }
         ]
       }
@@ -7864,9 +7864,9 @@
         "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 28.199,
-        "hybrid_rrf": 29.631,
-        "hybrid_plus_reranker": 146.371
+        "dense_only": 23.967,
+        "hybrid_rrf": 23.733,
+        "hybrid_plus_reranker": 26.502
       },
       "retrieved": {
         "dense_only": [
@@ -7982,7 +7982,7 @@
             "dense_score": 0.737133,
             "bm25_score": 13.721588,
             "rrf_score": 0.016331,
-            "rerank_score": 0.400078
+            "rerank_score": 0.016331
           },
           {
             "chunk_id": "43613ee36eeb9f0f",
@@ -7992,7 +7992,7 @@
             "dense_score": 0.727371,
             "bm25_score": 26.420781,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397703
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "9e27d544fb862a7b",
@@ -8002,7 +8002,7 @@
             "dense_score": 0.726169,
             "bm25_score": 15.592378,
             "rrf_score": 0.015849,
-            "rerank_score": 0.237758
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "787131ab6a99917c",
@@ -8012,7 +8012,7 @@
             "dense_score": 0.675518,
             "bm25_score": 16.508345,
             "rrf_score": 0.015409,
-            "rerank_score": 0.231164
+            "rerank_score": 0.015409
           },
           {
             "chunk_id": "6c773df481f4a3f4",
@@ -8022,7 +8022,7 @@
             "dense_score": 0.665657,
             "bm25_score": 16.491724,
             "rrf_score": 0.015175,
-            "rerank_score": 0.227656
+            "rerank_score": 0.015175
           }
         ]
       }
@@ -8047,9 +8047,9 @@
         "hybrid_plus_reranker": 5
       },
       "latencies_ms": {
-        "dense_only": 25.344,
-        "hybrid_rrf": 26.741,
-        "hybrid_plus_reranker": 162.635
+        "dense_only": 21.342,
+        "hybrid_rrf": 25.806,
+        "hybrid_plus_reranker": 25.841
       },
       "retrieved": {
         "dense_only": [
@@ -8165,7 +8165,7 @@
             "dense_score": 0.76243,
             "bm25_score": 39.932909,
             "rrf_score": 0.016393,
-            "rerank_score": 0.400237
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "f32b30f345c48928",
@@ -8175,7 +8175,7 @@
             "dense_score": 0.717489,
             "bm25_score": 12.495,
             "rrf_score": 0.015964,
-            "rerank_score": 0.394824
+            "rerank_score": 0.015964
           },
           {
             "chunk_id": "61bc333b4459b96f",
@@ -8185,7 +8185,7 @@
             "dense_score": 0.71476,
             "bm25_score": 15.833882,
             "rrf_score": 0.015849,
-            "rerank_score": 0.236857
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "d007eb52e296d690",
@@ -8195,7 +8195,7 @@
             "dense_score": 0.691568,
             "bm25_score": 26.078344,
             "rrf_score": 0.01565,
-            "rerank_score": 0.233892
+            "rerank_score": 0.01565
           },
           {
             "chunk_id": "42fa2d3981612201",
@@ -8205,7 +8205,7 @@
             "dense_score": 0.649342,
             "bm25_score": 15.183724,
             "rrf_score": 0.01534,
-            "rerank_score": 0.229257
+            "rerank_score": 0.01534
           }
         ]
       }
@@ -8230,9 +8230,9 @@
         "hybrid_plus_reranker": 4
       },
       "latencies_ms": {
-        "dense_only": 24.948,
-        "hybrid_rrf": 30.833,
-        "hybrid_plus_reranker": 162.458
+        "dense_only": 22.75,
+        "hybrid_rrf": 23.644,
+        "hybrid_plus_reranker": 23.046
       },
       "retrieved": {
         "dense_only": [
@@ -8348,7 +8348,7 @@
             "dense_score": 0.765579,
             "bm25_score": 39.43747,
             "rrf_score": 0.016393,
-            "rerank_score": 0.402131
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "fa12a98160311138",
@@ -8358,7 +8358,7 @@
             "dense_score": 0.682744,
             "bm25_score": 30.885409,
             "rrf_score": 0.015886,
-            "rerank_score": 0.394346
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "42fa2d3981612201",
@@ -8368,7 +8368,7 @@
             "dense_score": 0.685353,
             "bm25_score": 6.853769,
             "rrf_score": 0.015878,
-            "rerank_score": 0.237299
+            "rerank_score": 0.015878
           },
           {
             "chunk_id": "e1e2a6810aebf9d7",
@@ -8378,7 +8378,7 @@
             "dense_score": 0.666451,
             "bm25_score": 22.131394,
             "rrf_score": 0.015637,
-            "rerank_score": 0.233701
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "3d1183cc765eb65d",
@@ -8388,7 +8388,7 @@
             "dense_score": 0.664738,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218427
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -8415,9 +8415,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 22.355,
-        "hybrid_rrf": 24.798,
-        "hybrid_plus_reranker": 209.63
+        "dense_only": 19.622,
+        "hybrid_rrf": 19.475,
+        "hybrid_plus_reranker": 23.049
       },
       "retrieved": {
         "dense_only": [
@@ -8533,7 +8533,7 @@
             "dense_score": 0.755399,
             "bm25_score": 14.678862,
             "rrf_score": 0.016367,
-            "rerank_score": 0.407132
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "8580cdfb39fe7e72",
@@ -8543,7 +8543,7 @@
             "dense_score": 0.699325,
             "bm25_score": 12.961938,
             "rrf_score": 0.016104,
-            "rerank_score": 0.399162
+            "rerank_score": 0.016104
           },
           {
             "chunk_id": "e3229550d315cc0e",
@@ -8553,7 +8553,7 @@
             "dense_score": 0.664478,
             "bm25_score": 8.355344,
             "rrf_score": 0.015837,
-            "rerank_score": 0.237059
+            "rerank_score": 0.015837
           },
           {
             "chunk_id": "ed3da590aed49ed4",
@@ -8563,7 +8563,7 @@
             "dense_score": 0.650417,
             "bm25_score": 17.021296,
             "rrf_score": 0.015214,
-            "rerank_score": 0.227729
+            "rerank_score": 0.015214
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -8573,7 +8573,7 @@
             "dense_score": 0.652483,
             "bm25_score": 2.302514,
             "rrf_score": 0.015142,
-            "rerank_score": 0.226652
+            "rerank_score": 0.015142
           }
         ]
       }
@@ -8598,9 +8598,9 @@
         "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 22.608,
-        "hybrid_rrf": 23.998,
-        "hybrid_plus_reranker": 150.832
+        "dense_only": 19.071,
+        "hybrid_rrf": 19.431,
+        "hybrid_plus_reranker": 17.13
       },
       "retrieved": {
         "dense_only": [
@@ -8716,7 +8716,7 @@
             "dense_score": 0.807544,
             "bm25_score": 26.575348,
             "rrf_score": 0.016393,
-            "rerank_score": 0.486383
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "0029f3647fef13e9",
@@ -8726,7 +8726,7 @@
             "dense_score": 0.78238,
             "bm25_score": 22.361887,
             "rrf_score": 0.016129,
-            "rerank_score": 0.466593
+            "rerank_score": 0.016129
           },
           {
             "chunk_id": "3d1183cc765eb65d",
@@ -8736,7 +8736,7 @@
             "dense_score": 0.739816,
             "bm25_score": 15.557177,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237222
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "c0407627edea5bd9",
@@ -8746,7 +8746,7 @@
             "dense_score": 0.718923,
             "bm25_score": 6.924659,
             "rrf_score": 0.015568,
-            "rerank_score": 0.23267
+            "rerank_score": 0.015568
           },
           {
             "chunk_id": "3e6b63e26ba0cac1",
@@ -8756,7 +8756,7 @@
             "dense_score": 0.694069,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218427
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -8783,9 +8783,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.506,
-        "hybrid_rrf": 25.93,
-        "hybrid_plus_reranker": 167.235
+        "dense_only": 19.494,
+        "hybrid_rrf": 23.659,
+        "hybrid_plus_reranker": 34.527
       },
       "retrieved": {
         "dense_only": [
@@ -8901,7 +8901,7 @@
             "dense_score": 0.738947,
             "bm25_score": 41.814034,
             "rrf_score": 0.01638,
-            "rerank_score": 0.437195
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "f77773533d465c93",
@@ -8911,7 +8911,7 @@
             "dense_score": 0.726432,
             "bm25_score": 64.40815,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397098
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "ae1d82f6727fb34f",
@@ -8921,7 +8921,7 @@
             "dense_score": 0.722649,
             "bm25_score": 39.188118,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237414
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "2429aeb1f08c4aba",
@@ -8931,7 +8931,7 @@
             "dense_score": 0.679336,
             "bm25_score": 15.279672,
             "rrf_score": 0.015601,
-            "rerank_score": 0.23335
+            "rerank_score": 0.015601
           },
           {
             "chunk_id": "c0407627edea5bd9",
@@ -8941,7 +8941,7 @@
             "dense_score": 0.67577,
             "bm25_score": 12.392285,
             "rrf_score": 0.0153,
-            "rerank_score": 0.228848
+            "rerank_score": 0.0153
           }
         ]
       }
@@ -8966,9 +8966,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 21.805,
-        "hybrid_rrf": 25.637,
-        "hybrid_plus_reranker": 181.108
+        "dense_only": 34.326,
+        "hybrid_rrf": 27.199,
+        "hybrid_plus_reranker": 29.779
       },
       "retrieved": {
         "dense_only": [
@@ -9084,7 +9084,7 @@
             "dense_score": 0.761438,
             "bm25_score": 39.2543,
             "rrf_score": 0.01638,
-            "rerank_score": 0.42608
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "6c773df481f4a3f4",
@@ -9094,7 +9094,7 @@
             "dense_score": 0.735425,
             "bm25_score": 50.671099,
             "rrf_score": 0.016142,
-            "rerank_score": 0.413
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "c0407627edea5bd9",
@@ -9104,7 +9104,7 @@
             "dense_score": 0.729235,
             "bm25_score": 6.768785,
             "rrf_score": 0.015661,
-            "rerank_score": 0.234239
+            "rerank_score": 0.015661
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -9114,7 +9114,7 @@
             "dense_score": 0.713371,
             "bm25_score": 22.007135,
             "rrf_score": 0.015613,
-            "rerank_score": 0.233524
+            "rerank_score": 0.015613
           },
           {
             "chunk_id": "ed3da590aed49ed4",
@@ -9124,7 +9124,7 @@
             "dense_score": 0.695701,
             "bm25_score": 37.052545,
             "rrf_score": 0.015409,
-            "rerank_score": 0.230474
+            "rerank_score": 0.015409
           }
         ]
       }
@@ -9149,9 +9149,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 32.554,
-        "hybrid_rrf": 30.131,
-        "hybrid_plus_reranker": 277.708
+        "dense_only": 30.309,
+        "hybrid_rrf": 24.644,
+        "hybrid_plus_reranker": 25.136
       },
       "retrieved": {
         "dense_only": [
@@ -9267,7 +9267,7 @@
             "dense_score": 0.833303,
             "bm25_score": 37.335366,
             "rrf_score": 0.01638,
-            "rerank_score": 0.492133
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "2429aeb1f08c4aba",
@@ -9277,7 +9277,7 @@
             "dense_score": 0.746099,
             "bm25_score": 44.111108,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397322
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "02473955556f666e",
@@ -9287,7 +9287,7 @@
             "dense_score": 0.742646,
             "bm25_score": 17.955251,
             "rrf_score": 0.015849,
-            "rerank_score": 0.237048
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -9297,7 +9297,7 @@
             "dense_score": 0.718492,
             "bm25_score": 23.519078,
             "rrf_score": 0.015409,
-            "rerank_score": 0.230474
+            "rerank_score": 0.015409
           },
           {
             "chunk_id": "43613ee36eeb9f0f",
@@ -9307,7 +9307,7 @@
             "dense_score": 0.704995,
             "bm25_score": 12.198311,
             "rrf_score": 0.015098,
-            "rerank_score": 0.225824
+            "rerank_score": 0.015098
           }
         ]
       }
@@ -9332,9 +9332,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 22.296,
-        "hybrid_rrf": 23.288,
-        "hybrid_plus_reranker": 178.274
+        "dense_only": 19.767,
+        "hybrid_rrf": 19.193,
+        "hybrid_plus_reranker": 21.663
       },
       "retrieved": {
         "dense_only": [
@@ -9450,7 +9450,7 @@
             "dense_score": 0.834373,
             "bm25_score": 22.885623,
             "rrf_score": 0.01638,
-            "rerank_score": 0.471517
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "61fd7ac744ebeeb4",
@@ -9460,7 +9460,7 @@
             "dense_score": 0.676072,
             "bm25_score": 29.867596,
             "rrf_score": 0.015899,
-            "rerank_score": 0.394419
+            "rerank_score": 0.015899
           },
           {
             "chunk_id": "c0407627edea5bd9",
@@ -9470,7 +9470,7 @@
             "dense_score": 0.677675,
             "bm25_score": 4.917321,
             "rrf_score": 0.015843,
-            "rerank_score": 0.236971
+            "rerank_score": 0.015843
           },
           {
             "chunk_id": "f32b30f345c48928",
@@ -9480,7 +9480,7 @@
             "dense_score": 0.65309,
             "bm25_score": 6.484086,
             "rrf_score": 0.015485,
-            "rerank_score": 0.231607
+            "rerank_score": 0.015485
           },
           {
             "chunk_id": "e3229550d315cc0e",
@@ -9490,7 +9490,7 @@
             "dense_score": 0.646761,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218603
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -9517,9 +9517,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 24.026,
-        "hybrid_rrf": 26.61,
-        "hybrid_plus_reranker": 182.838
+        "dense_only": 24.278,
+        "hybrid_rrf": 23.578,
+        "hybrid_plus_reranker": 25.082
       },
       "retrieved": {
         "dense_only": [
@@ -9635,7 +9635,7 @@
             "dense_score": 0.787885,
             "bm25_score": 29.892627,
             "rrf_score": 0.01638,
-            "rerank_score": 0.44515
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "bb717c09fc5e5fab",
@@ -9645,7 +9645,7 @@
             "dense_score": 0.773112,
             "bm25_score": 27.909336,
             "rrf_score": 0.016116,
-            "rerank_score": 0.398864
+            "rerank_score": 0.016116
           },
           {
             "chunk_id": "93be9d02f55d0104",
@@ -9655,7 +9655,7 @@
             "dense_score": 0.769973,
             "bm25_score": 33.8561,
             "rrf_score": 0.015899,
-            "rerank_score": 0.237803
+            "rerank_score": 0.015899
           },
           {
             "chunk_id": "123e657733250eef",
@@ -9665,7 +9665,7 @@
             "dense_score": 0.646192,
             "bm25_score": 9.782093,
             "rrf_score": 0.015625,
-            "rerank_score": 0.233704
+            "rerank_score": 0.015625
           },
           {
             "chunk_id": "45f780a522f69629",
@@ -9675,7 +9675,7 @@
             "dense_score": 0.59597,
             "bm25_score": 8.572118,
             "rrf_score": 0.014914,
-            "rerank_score": 0.223076
+            "rerank_score": 0.014914
           }
         ]
       }
@@ -9702,9 +9702,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 27.339,
-        "hybrid_rrf": 33.663,
-        "hybrid_plus_reranker": 200.917
+        "dense_only": 26.902,
+        "hybrid_rrf": 24.583,
+        "hybrid_plus_reranker": 27.985
       },
       "retrieved": {
         "dense_only": [
@@ -9820,7 +9820,7 @@
             "dense_score": 0.833159,
             "bm25_score": 44.47205,
             "rrf_score": 0.01638,
-            "rerank_score": 0.442561
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "cbcb0d8344ddecd7",
@@ -9830,7 +9830,7 @@
             "dense_score": 0.767888,
             "bm25_score": 51.052199,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397302
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "48f20afb45ce7831",
@@ -9840,7 +9840,7 @@
             "dense_score": 0.611702,
             "bm25_score": 12.566521,
             "rrf_score": 0.015354,
-            "rerank_score": 0.22965
+            "rerank_score": 0.015354
           },
           {
             "chunk_id": "8580cdfb39fe7e72",
@@ -9850,7 +9850,7 @@
             "dense_score": 0.612776,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.225543
+            "rerank_score": 0.015079
           },
           {
             "chunk_id": "7f5c23e5086b127a",
@@ -9860,7 +9860,7 @@
             "dense_score": 0.568254,
             "bm25_score": 18.665628,
             "rrf_score": 0.014804,
-            "rerank_score": 0.221426
+            "rerank_score": 0.014804
           }
         ]
       }
@@ -9889,9 +9889,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 19.208,
-        "hybrid_rrf": 23.134,
-        "hybrid_plus_reranker": 163.005
+        "dense_only": 21.847,
+        "hybrid_rrf": 21.536,
+        "hybrid_plus_reranker": 19.751
       },
       "retrieved": {
         "dense_only": [
@@ -10007,7 +10007,7 @@
             "dense_score": 0.734048,
             "bm25_score": 20.137583,
             "rrf_score": 0.016393,
-            "rerank_score": 0.40082
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "123e657733250eef",
@@ -10017,7 +10017,7 @@
             "dense_score": 0.65843,
             "bm25_score": 9.803514,
             "rrf_score": 0.015637,
-            "rerank_score": 0.390792
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "ff948f240b56af0b",
@@ -10027,7 +10027,7 @@
             "dense_score": 0.645571,
             "bm25_score": 10.398113,
             "rrf_score": 0.015422,
-            "rerank_score": 0.230479
+            "rerank_score": 0.015422
           },
           {
             "chunk_id": "64cdb4552aa5e99d",
@@ -10037,7 +10037,7 @@
             "dense_score": 0.70759,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.228996
+            "rerank_score": 0.015323
           },
           {
             "chunk_id": "da6ca8640d737b64",
@@ -10047,7 +10047,7 @@
             "dense_score": 0.670295,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.225361
+            "rerank_score": 0.015079
           }
         ]
       }
@@ -10074,9 +10074,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.213,
-        "hybrid_rrf": 26.725,
-        "hybrid_plus_reranker": 190.999
+        "dense_only": 27.996,
+        "hybrid_rrf": 24.427,
+        "hybrid_plus_reranker": 39.879
       },
       "retrieved": {
         "dense_only": [
@@ -10192,7 +10192,7 @@
             "dense_score": 0.599625,
             "bm25_score": 16.977205,
             "rrf_score": 0.01638,
-            "rerank_score": 0.400005
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "48f20afb45ce7831",
@@ -10202,7 +10202,7 @@
             "dense_score": 0.576847,
             "bm25_score": 11.90683,
             "rrf_score": 0.015972,
-            "rerank_score": 0.395031
+            "rerank_score": 0.015972
           },
           {
             "chunk_id": "d903701472ba5625",
@@ -10212,7 +10212,7 @@
             "dense_score": 0.516385,
             "bm25_score": 8.256019,
             "rrf_score": 0.015584,
-            "rerank_score": 0.233097
+            "rerank_score": 0.015584
           },
           {
             "chunk_id": "b5a01293099c6267",
@@ -10222,7 +10222,7 @@
             "dense_score": 0.481401,
             "bm25_score": 14.959037,
             "rrf_score": 0.015175,
-            "rerank_score": 0.226976
+            "rerank_score": 0.015175
           },
           {
             "chunk_id": "8580cdfb39fe7e72",
@@ -10232,7 +10232,7 @@
             "dense_score": 0.490259,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.222019
+            "rerank_score": 0.014844
           }
         ]
       }
@@ -10257,9 +10257,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 22.375,
-        "hybrid_rrf": 23.903,
-        "hybrid_plus_reranker": 159.008
+        "dense_only": 36.475,
+        "hybrid_rrf": 34.935,
+        "hybrid_plus_reranker": 36.194
       },
       "retrieved": {
         "dense_only": [
@@ -10375,7 +10375,7 @@
             "dense_score": 0.781087,
             "bm25_score": 21.399862,
             "rrf_score": 0.016393,
-            "rerank_score": 0.401556
+            "rerank_score": 0.016393
           },
           {
             "chunk_id": "123e657733250eef",
@@ -10385,7 +10385,7 @@
             "dense_score": 0.684809,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.38694
+            "rerank_score": 0.015323
           },
           {
             "chunk_id": "44c8e4e38294d6c0",
@@ -10395,7 +10395,7 @@
             "dense_score": 0.667606,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.225361
+            "rerank_score": 0.015079
           },
           {
             "chunk_id": "881dd11271a0cae3",
@@ -10405,7 +10405,7 @@
             "dense_score": 0.633744,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.22184
+            "rerank_score": 0.014844
           },
           {
             "chunk_id": "0a298218aa189fa1",
@@ -10415,7 +10415,7 @@
             "dense_score": 0.632441,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218427
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -10448,9 +10448,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 20.249,
-        "hybrid_rrf": 20.752,
-        "hybrid_plus_reranker": 152.016
+        "dense_only": 22.314,
+        "hybrid_rrf": 22.937,
+        "hybrid_plus_reranker": 27.56
       },
       "retrieved": {
         "dense_only": [
@@ -10566,7 +10566,7 @@
             "dense_score": 0.758353,
             "bm25_score": 23.045322,
             "rrf_score": 0.016367,
-            "rerank_score": 0.400839
+            "rerank_score": 0.016367
           },
           {
             "chunk_id": "d7da0602b7baa1e2",
@@ -10576,7 +10576,7 @@
             "dense_score": 0.756611,
             "bm25_score": 24.571662,
             "rrf_score": 0.016142,
-            "rerank_score": 0.398381
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "832e019d5b34cadf",
@@ -10586,7 +10586,7 @@
             "dense_score": 0.755886,
             "bm25_score": 19.771438,
             "rrf_score": 0.015849,
-            "rerank_score": 0.237234
+            "rerank_score": 0.015849
           },
           {
             "chunk_id": "bee9b6d639cd0255",
@@ -10596,7 +10596,7 @@
             "dense_score": 0.752036,
             "bm25_score": 20.094356,
             "rrf_score": 0.015625,
-            "rerank_score": 0.233887
+            "rerank_score": 0.015625
           },
           {
             "chunk_id": "fa784fa207a1b125",
@@ -10606,7 +10606,7 @@
             "dense_score": 0.735103,
             "bm25_score": 23.520087,
             "rrf_score": 0.015422,
-            "rerank_score": 0.230846
+            "rerank_score": 0.015422
           }
         ]
       }
@@ -10633,9 +10633,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 25.004,
-        "hybrid_rrf": 26.882,
-        "hybrid_plus_reranker": 184.697
+        "dense_only": 24.459,
+        "hybrid_rrf": 26.234,
+        "hybrid_plus_reranker": 27.126
       },
       "retrieved": {
         "dense_only": [
@@ -10751,7 +10751,7 @@
             "dense_score": 0.726154,
             "bm25_score": 25.536772,
             "rrf_score": 0.01638,
-            "rerank_score": 0.400924
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "966933d39b82a750",
@@ -10761,7 +10761,7 @@
             "dense_score": 0.690319,
             "bm25_score": 34.25576,
             "rrf_score": 0.016142,
-            "rerank_score": 0.397378
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "4398dc8ee260e667",
@@ -10771,7 +10771,7 @@
             "dense_score": 0.587647,
             "bm25_score": 14.129648,
             "rrf_score": 0.01559,
-            "rerank_score": 0.233181
+            "rerank_score": 0.01559
           },
           {
             "chunk_id": "4620b64d7e36ce26",
@@ -10781,7 +10781,7 @@
             "dense_score": 0.557383,
             "bm25_score": 10.733322,
             "rrf_score": 0.015204,
-            "rerank_score": 0.227401
+            "rerank_score": 0.015204
           },
           {
             "chunk_id": "52504af493eaf223",
@@ -10791,7 +10791,7 @@
             "dense_score": 0.597513,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.225543
+            "rerank_score": 0.015079
           }
         ]
       }
@@ -10824,9 +10824,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 19.464,
-        "hybrid_rrf": 20.434,
-        "hybrid_plus_reranker": 171.957
+        "dense_only": 20.721,
+        "hybrid_rrf": 19.788,
+        "hybrid_plus_reranker": 23.56
       },
       "retrieved": {
         "dense_only": [
@@ -10935,16 +10935,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "fc67d6b9c0cec640",
-            "doc_name": "RAGBench_expertqa",
-            "page_number": 4,
-            "contains_table": false,
-            "dense_score": 0.787111,
-            "bm25_score": 20.56332,
-            "rrf_score": 0.016092,
-            "rerank_score": 0.452644
-          },
-          {
             "chunk_id": "f13766dcc4bc1ffc",
             "doc_name": "RAGBench_expertqa",
             "page_number": 3,
@@ -10952,7 +10942,17 @@
             "dense_score": 0.787969,
             "bm25_score": 21.468072,
             "rrf_score": 0.016355,
-            "rerank_score": 0.401545
+            "rerank_score": 0.016355
+          },
+          {
+            "chunk_id": "fc67d6b9c0cec640",
+            "doc_name": "RAGBench_expertqa",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.787111,
+            "bm25_score": 20.56332,
+            "rrf_score": 0.016092,
+            "rerank_score": 0.016092
           },
           {
             "chunk_id": "aa60cf4093ceadfe",
@@ -10962,7 +10962,7 @@
             "dense_score": 0.763392,
             "bm25_score": 22.842735,
             "rrf_score": 0.015886,
-            "rerank_score": 0.237971
+            "rerank_score": 0.015886
           },
           {
             "chunk_id": "4b78bc803e43254b",
@@ -10972,7 +10972,7 @@
             "dense_score": 0.757305,
             "bm25_score": 22.829371,
             "rrf_score": 0.015637,
-            "rerank_score": 0.23425
+            "rerank_score": 0.015637
           },
           {
             "chunk_id": "f4ef896ee90d788b",
@@ -10982,7 +10982,7 @@
             "dense_score": 0.719109,
             "bm25_score": 23.311436,
             "rrf_score": 0.015435,
-            "rerank_score": 0.231219
+            "rerank_score": 0.015435
           }
         ]
       }
@@ -11009,9 +11009,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 20.731,
-        "hybrid_rrf": 23.553,
-        "hybrid_plus_reranker": 149.971
+        "dense_only": 28.22,
+        "hybrid_rrf": 26.811,
+        "hybrid_plus_reranker": 27.482
       },
       "retrieved": {
         "dense_only": [
@@ -11127,7 +11127,7 @@
             "dense_score": 0.806828,
             "bm25_score": 17.546875,
             "rrf_score": 0.01638,
-            "rerank_score": 0.403537
+            "rerank_score": 0.01638
           },
           {
             "chunk_id": "f81130db2f44babe",
@@ -11137,7 +11137,7 @@
             "dense_score": 0.792024,
             "bm25_score": 20.401815,
             "rrf_score": 0.016142,
-            "rerank_score": 0.398229
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "f22a28427de168b4",
@@ -11147,7 +11147,7 @@
             "dense_score": 0.765651,
             "bm25_score": 16.58816,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237414
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "17f297fe75724fc5",
@@ -11157,7 +11157,7 @@
             "dense_score": 0.559689,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.222019
+            "rerank_score": 0.014844
           },
           {
             "chunk_id": "c7a2800efa6293dd",
@@ -11167,7 +11167,7 @@
             "dense_score": 0.551159,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.218603
+            "rerank_score": 0.014615
           }
         ]
       }
@@ -11194,9 +11194,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 23.431,
-        "hybrid_rrf": 23.101,
-        "hybrid_plus_reranker": 215.687
+        "dense_only": 31.385,
+        "hybrid_rrf": 27.713,
+        "hybrid_plus_reranker": 26.231
       },
       "retrieved": {
         "dense_only": [
@@ -11312,7 +11312,7 @@
             "dense_score": 0.689204,
             "bm25_score": 5.343615,
             "rrf_score": 0.016162,
-            "rerank_score": 0.400323
+            "rerank_score": 0.016162
           },
           {
             "chunk_id": "45f780a522f69629",
@@ -11322,7 +11322,7 @@
             "dense_score": 0.62725,
             "bm25_score": 4.291735,
             "rrf_score": 0.015843,
-            "rerank_score": 0.396257
+            "rerank_score": 0.015843
           },
           {
             "chunk_id": "3e3d1d6c503a876c",
@@ -11332,7 +11332,7 @@
             "dense_score": 0.560003,
             "bm25_score": 7.014982,
             "rrf_score": 0.015712,
-            "rerank_score": 0.238183
+            "rerank_score": 0.015712
           },
           {
             "chunk_id": "123e657733250eef",
@@ -11342,7 +11342,7 @@
             "dense_score": 0.544933,
             "bm25_score": 7.186864,
             "rrf_score": 0.015493,
-            "rerank_score": 0.23486
+            "rerank_score": 0.015493
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -11352,7 +11352,7 @@
             "dense_score": 0.533,
             "bm25_score": 10.850357,
             "rrf_score": 0.015119,
-            "rerank_score": 0.229183
+            "rerank_score": 0.015119
           }
         ]
       }
@@ -11381,9 +11381,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 21.544,
-        "hybrid_rrf": 21.78,
-        "hybrid_plus_reranker": 147.484
+        "dense_only": 20.718,
+        "hybrid_rrf": 19.768,
+        "hybrid_plus_reranker": 17.405
       },
       "retrieved": {
         "dense_only": [
@@ -11492,16 +11492,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "e4d90989859746f3",
-            "doc_name": "RAGBench_expertqa",
-            "page_number": 1,
-            "contains_table": false,
-            "dense_score": 0.736442,
-            "bm25_score": 10.731841,
-            "rrf_score": 0.016142,
-            "rerank_score": 0.415673
-          },
-          {
             "chunk_id": "0a261a7ceec74f66",
             "doc_name": "RAGBench_expertqa",
             "page_number": 3,
@@ -11509,7 +11499,17 @@
             "dense_score": 0.80097,
             "bm25_score": 10.228867,
             "rrf_score": 0.01638,
-            "rerank_score": 0.414961
+            "rerank_score": 0.01638
+          },
+          {
+            "chunk_id": "e4d90989859746f3",
+            "doc_name": "RAGBench_expertqa",
+            "page_number": 1,
+            "contains_table": false,
+            "dense_score": 0.736442,
+            "bm25_score": 10.731841,
+            "rrf_score": 0.016142,
+            "rerank_score": 0.016142
           },
           {
             "chunk_id": "5e54f341d8be2328",
@@ -11519,7 +11519,7 @@
             "dense_score": 0.735612,
             "bm25_score": 10.111842,
             "rrf_score": 0.015873,
-            "rerank_score": 0.237414
+            "rerank_score": 0.015873
           },
           {
             "chunk_id": "c58f00633592adc1",
@@ -11529,7 +11529,7 @@
             "dense_score": 0.542153,
             "bm25_score": 2.218622,
             "rrf_score": 0.015061,
-            "rerank_score": 0.225262
+            "rerank_score": 0.015061
           },
           {
             "chunk_id": "d903701472ba5625",
@@ -11539,7 +11539,7 @@
             "dense_score": 0.578253,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.222019
+            "rerank_score": 0.014844
           }
         ]
       }
@@ -11566,9 +11566,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 27.055,
-        "hybrid_rrf": 28.357,
-        "hybrid_plus_reranker": 202.229
+        "dense_only": 27.709,
+        "hybrid_rrf": 30.309,
+        "hybrid_plus_reranker": 28.175
       },
       "retrieved": {
         "dense_only": [
@@ -11684,7 +11684,7 @@
             "dense_score": 0.761539,
             "bm25_score": 25.27167,
             "rrf_score": 0.016343,
-            "rerank_score": 0.40009
+            "rerank_score": 0.016343
           },
           {
             "chunk_id": "a4861c5ee6702965",
@@ -11694,7 +11694,7 @@
             "dense_score": 0.727553,
             "bm25_score": 23.230304,
             "rrf_score": 0.016027,
-            "rerank_score": 0.396244
+            "rerank_score": 0.016027
           },
           {
             "chunk_id": "23cbd57b47151efd",
@@ -11704,7 +11704,7 @@
             "dense_score": 0.679456,
             "bm25_score": 52.944231,
             "rrf_score": 0.015899,
-            "rerank_score": 0.238344
+            "rerank_score": 0.015899
           },
           {
             "chunk_id": "f77773533d465c93",
@@ -11714,7 +11714,7 @@
             "dense_score": 0.60671,
             "bm25_score": 16.918964,
             "rrf_score": 0.015153,
-            "rerank_score": 0.227161
+            "rerank_score": 0.015153
           },
           {
             "chunk_id": "f32b30f345c48928",
@@ -11724,7 +11724,7 @@
             "dense_score": 0.603384,
             "bm25_score": 20.197701,
             "rrf_score": 0.014996,
-            "rerank_score": 0.224812
+            "rerank_score": 0.014996
           }
         ]
       }

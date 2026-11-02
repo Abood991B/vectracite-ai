@@ -4,7 +4,7 @@
     "recall_at_3": 0.3125,
     "mrr": 0.3125,
     "ndcg_at_3": 0.2894,
-    "avg_latency_ms": 39.35,
+    "avg_latency_ms": 34.82,
     "queries_evaluated": 16
   },
   "hybrid_rrf": {
@@ -12,7 +12,7 @@
     "recall_at_3": 0.3125,
     "mrr": 0.3125,
     "ndcg_at_3": 0.2894,
-    "avg_latency_ms": 76.82,
+    "avg_latency_ms": 71.23,
     "queries_evaluated": 16
   },
   "hybrid_plus_reranker": {
@@ -20,7 +20,7 @@
     "recall_at_3": 0.3125,
     "mrr": 0.3125,
     "ndcg_at_3": 0.2894,
-    "avg_latency_ms": 79.3,
+    "avg_latency_ms": 71.62,
     "queries_evaluated": 16
   },
   "per_query_breakdown": [

@@ -50,9 +50,10 @@ dataset and 2,000 bootstrap samples.
 - Do not compare the page-level and passage-level aggregate scores directly.
 - Treat a change as a candidate only when the paired confidence interval and per-domain breakdown
   support it. A single aggregate improvement is not enough.
-- Legal retrieval is an observed weakness in the first baseline. Phase 2 improved it with the
-  adopted top-2 reranker; see `docs/retrieval_experiments.md`.
-- Use `--reranker-gate adaptive` to reproduce the historical Phase 1 baseline.
+- Legal retrieval is an observed weakness. Phase 2 tested a forced top-2 reranker that improved
+  this suite but regressed FinanceBench, so it was rejected; see `docs/retrieval_experiments.md`.
+- Production and the checked-in report use the adaptive gate. Pass `--reranker-gate always_top2`
+  only to reproduce the rejected experiment.
 
 ## Sources and licenses
 

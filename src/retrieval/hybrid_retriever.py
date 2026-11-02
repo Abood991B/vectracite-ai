@@ -132,7 +132,10 @@ def get_embedder(
     key = (model_name, dimension)
     if key not in _SHARED_EMBEDDERS:
         model = SentenceTransformer(model_name)
-        actual_dimension = model.get_sentence_embedding_dimension()
+        dimension_getter = getattr(model, "get_embedding_dimension", None)
+        if dimension_getter is None:
+            dimension_getter = model.get_sentence_embedding_dimension
+        actual_dimension = dimension_getter()
         if actual_dimension is not None and int(actual_dimension) != dimension:
             raise ValueError(
                 f"embedding model {model_name} produces {actual_dimension} dimensions, "

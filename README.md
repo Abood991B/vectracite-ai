@@ -97,9 +97,9 @@ FinanceBench, indexes the five real filings, and evaluates three retrieval modes
 
 | Mode | Precision@1 | Recall@3 | MRR | nDCG@3 | Mean latency |
 |---|---:|---:|---:|---:|---:|
-| Dense-only | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 39.35 ms |
-| Hybrid RRF | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 76.82 ms |
-| Adaptive SCAR reranker | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 79.30 ms |
+| Dense-only | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 34.82 ms |
+| Hybrid RRF | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 71.23 ms |
+| Adaptive SCAR reranker | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 71.62 ms |
 
 These are honest results on a difficult 830-page, five-document corpus. Retrieval is limited by the
 small BGE bi-encoder and by FinanceBench questions that require multi-page reasoning. The adaptive
@@ -121,17 +121,15 @@ Checked-in report: [`data/domain_benchmark_report.json`](data/domain_benchmark_r
 
 | Mode | P@1 | R@3 | MRR | nDCG@3 | Mean latency | p95 latency |
 |---|---:|---:|---:|---:|---:|---:|
-| Dense-only | 0.4118 | 0.5882 | 0.5431 | 0.5154 | 39.69 ms | 54.27 ms |
-| Hybrid RRF | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 62.79 ms | 85.10 ms |
-| Hybrid + adopted top-2 reranker | **0.4118** | **0.7647** | **0.5804** | **0.6190** | 315.63 ms | 560.05 ms |
+| Dense-only | **0.4118** | **0.5882** | **0.5431** | **0.5154** | 35.07 ms | 47.66 ms |
+| Hybrid RRF | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 55.05 ms | 90.45 ms |
+| Hybrid + adaptive reranker | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 56.99 ms | 88.73 ms |
 
 Phase 2 tested fusion weights, candidate depth, embedding upgrades, page fusion, and reranker gates.
-The adopted change is a forced cross-encoder pass over the top two candidates (`RERANKER_GATE=always_top2`).
-It raises R@3 from 0.5294 to 0.7647 with a paired-bootstrap 95% CI of `[0.0588, 0.4706]`; RAGBench
-metrics are unchanged. The cost is CPU latency: mean 316 ms and p95 560 ms on this 5,055-chunk corpus.
-The full matrix and per-domain tradeoffs are in
+A forced top-2 gate raised the domain-suite R@3 to 0.7647, but it reduced the original FinanceBench
+P@1 from 0.2500 to 0.1250 and MRR from 0.3125 to 0.2500. It was therefore rejected; production
+remains on `RERANKER_GATE=adaptive`. The full matrix, including the rejected variants, is in
 [`data/retrieval_experiments_baseline_gates.json`](data/retrieval_experiments_baseline_gates.json).
-To reproduce the historical adaptive baseline, pass `--reranker-gate adaptive`.
 
 The baseline also exposed a real problem: adaptive reranking did not beat dense-only, and legal
 retrieval was weakest. Aggressive BM25 weighting helped short RAGBench passages but hurt the long
@@ -148,7 +146,7 @@ python -m evaluation.domain_benchmark --source ragbench \
 ```
 
 Checked-in report: [`data/ragbench_report.json`](data/ragbench_report.json). It contains 60 cases,
-160 passages, and per-domain results. The top-2 reranker leaves every RAGBench metric unchanged.
+160 passages, and per-domain results. The adaptive reranker leaves every RAGBench metric unchanged.
 This is a retrieval-only suite; page-level citation quality is measured by the PDF suite.
 
 ### 3.2 Cache, sync, and streaming
@@ -164,6 +162,17 @@ This is a retrieval-only suite; page-level citation quality is measured by the P
 
 See [`docs/caching_streaming.md`](docs/caching_streaming.md) for the implementation and validation
 evidence.
+
+### 3.3 OCR status
+
+Digital PDFs use the native PyMuPDF text layer and remain the fast path. OCR is
+optional (`OCR_ENABLED=false` by default). On this 6 GB workstation, PP-OCRv5
+mobile took 5.42 s to load and 16.40 s for a 1157x772 crop at 0.9518 confidence;
+PaddleOCR-VL took 415.66 s for the same crop and OvisOCR2 did not finish within
+15 minutes. Those VLM paths are not interactive on this GPU. For production
+scanned PDFs, use a remote GPU OCR service (`OCR_ENGINE=remote`) or install the
+optional PP-OCRv5 fallback for low-volume work. Details:
+[`docs/ocr.md`](docs/ocr.md).
 
 Supporting checks:
 
@@ -344,7 +353,7 @@ vectracite-ai/
 |   |-- corpus_embeddings.npz          # Cached BGE vectors
 |   |-- benchmark_queries.json         # 16 calibrated FinanceBench questions
 |   |-- domain_benchmark_cases.json    # 17 page-level multi-domain cases
-|   |-- domain_benchmark_report.json   # Adopted page-level report
+|   |-- domain_benchmark_report.json   # Production page-level report
 |   |-- ragbench_report.json           # RAGBench report
 |   |-- retrieval_experiments_baseline_gates.json # Phase 2 matrix
 |   |-- retrieval_experiments_ragbench_embeddings.json # Embedding screen
@@ -379,6 +388,7 @@ vectracite-ai/
 |-- docs/domain_benchmark.md
 |-- docs/retrieval_experiments.md
 |-- docs/caching_streaming.md
+|-- docs/ocr.md
 |-- Dockerfile
 |-- docker-compose.yml
 |-- requirements.txt
@@ -399,11 +409,13 @@ Verification evidence for this worktree is recorded in [`VERIFICATION.md`](VERIF
 - The multi-domain PDF suite has only 17 cases and one reference answer per case. It is a foundation
   for Phase 2 experiments, not a full external leaderboard. RAGBench is retrieval-only and does not
   test page-level citations.
-- The adopted top-2 reranker raises R@3 substantially but costs roughly 5x CPU latency and can
-  change top-1 ordering within a correct top-3 evidence set. GPU reranker execution is not yet
+- The forced top-2 reranker was rejected because it reduced FinanceBench P@1/MRR despite improving
+  the domain suite. Adaptive reranking remains the default; GPU reranker execution is not yet
   validated.
-- OCR for image-only/scanned PDFs is not implemented. The parser rejects encrypted and unreadable
-  PDFs with explicit 4xx errors.
+- OCR is optional and disabled by default. Native text extraction is fast and exact, but the
+  local PP-OCRv5 fallback is CPU-slow and the 2026 VLM OCR models are not interactive on the 6 GB
+  GPU. Use a remote GPU OCR service for production scanned documents. Encrypted and unreadable PDFs
+  still return explicit 4xx errors.
 - GPU QLoRA, vLLM serving, Kubernetes scheduling/storage, and cloud KFP execution require external
   infrastructure and were not executed here.
 - The Redis Stack HNSW cache path requires the `search` module. Deployments with plain Redis fall

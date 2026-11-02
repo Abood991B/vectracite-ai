@@ -6,6 +6,7 @@ from pathlib import Path
 os.environ["USE_LIGHTWEIGHT_MODELS"] = "true"
 os.environ["QDRANT_IN_MEMORY"] = "true"
 os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 
 from src.config import settings
 

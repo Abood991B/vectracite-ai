@@ -11,7 +11,7 @@ import re
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
-import fitz
+import pymupdf as fitz
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
@@ -39,6 +39,7 @@ from src.inference.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from src.ingestion.ocr import build_ocr_backend
 from src.ingestion.pdf_parser import (
     MultimodalFinancialParser,
     PDFRenderError,
@@ -52,6 +53,7 @@ from src.retrieval.table_ast import TableASTParser
 parser = MultimodalFinancialParser(
     chunk_size=settings.PARSER_CHUNK_SIZE,
     chunk_overlap=settings.PARSER_CHUNK_OVERLAP,
+    ocr_backend=build_ocr_backend(),
 )
 retriever = HybridRetriever(
     in_memory=settings.QDRANT_IN_MEMORY,

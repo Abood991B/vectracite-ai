@@ -9,9 +9,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
-import fitz
+import pymupdf as fitz
 
 from src.config import settings
+from src.ingestion.ocr import OCRBackend
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ SECTION_HEADER_REGEX = re.compile(
 )
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
 TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
-PARSER_CACHE_VERSION = 1
+PARSER_CACHE_VERSION = 2
 
 
 class PDFRenderError(ValueError):
@@ -59,11 +60,24 @@ class MultimodalFinancialParser:
     reload cannot silently lose table cells.
     """
 
-    def __init__(self, chunk_size: int = 1400, chunk_overlap: int = 150) -> None:
+    def __init__(
+        self,
+        chunk_size: int = 1400,
+        chunk_overlap: int = 150,
+        *,
+        ocr_backend: OCRBackend | None = None,
+        ocr_dpi: int = settings.OCR_DPI,
+        ocr_min_chars: int = settings.OCR_MIN_CHARS,
+        ocr_max_pages: int = settings.OCR_MAX_PAGES,
+    ) -> None:
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be strictly smaller than chunk_size")
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.ocr_backend = ocr_backend
+        self.ocr_dpi = ocr_dpi
+        self.ocr_min_chars = ocr_min_chars
+        self.ocr_max_pages = ocr_max_pages
 
     def parse_pdf(self, pdf_path: Path, max_pages: int | None = None) -> List[DocumentChunk]:
         """Parse a PDF from disk in strict reading order."""
@@ -102,19 +116,24 @@ class MultimodalFinancialParser:
             total_pages = len(document) if max_pages is None else min(len(document), max_pages)
             chunks: List[DocumentChunk] = []
             total_images_seen = 0
+            ocr_pages = 0
 
             for page_index in range(total_pages):
                 page = document[page_index]
                 total_images_seen += len(page.get_images())
                 try:
-                    chunks.extend(
-                        self._parse_page(
-                            page=page,
-                            doc_name=clean_name,
-                            physical_page_index=page_index,
-                            manifest_tables=manifest_tables,
-                        )
+                    page_chunks = self._parse_page(
+                        page=page,
+                        doc_name=clean_name,
+                        physical_page_index=page_index,
+                        manifest_tables=manifest_tables,
+                        allow_ocr=ocr_pages < self.ocr_max_pages,
                     )
+                    if any(
+                        chunk.metadata.get("ocr_used") for chunk in page_chunks
+                    ):
+                        ocr_pages += 1
+                    chunks.extend(page_chunks)
                 except ValueError:
                     raise
                 except Exception as exc:
@@ -149,6 +168,8 @@ class MultimodalFinancialParser:
         doc_name: str,
         physical_page_index: int,
         manifest_tables: Dict[str, List[str]] | None = None,
+        *,
+        allow_ocr: bool = True,
     ) -> List[DocumentChunk]:
         raw_text = page.get_text("text", sort=True).strip()
         page_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
@@ -166,6 +187,31 @@ class MultimodalFinancialParser:
             raw_text,
             flags=re.IGNORECASE | re.DOTALL,
         ).strip()
+
+        ocr_used = False
+        ocr_engine = None
+        if (
+            allow_ocr
+            and self.ocr_backend is not None
+            and len(raw_text) < self.ocr_min_chars
+            and page.get_images()
+        ):
+            try:
+                pixmap = page.get_pixmap(dpi=self.ocr_dpi, alpha=False)
+                ocr_result = self.ocr_backend.recognize(pixmap.tobytes("png"))
+            except Exception as exc:
+                logger.warning(
+                    "OCR failed for %s page %s: %s",
+                    doc_name,
+                    page_number,
+                    type(exc).__name__,
+                )
+            else:
+                ocr_text = ocr_result.text.strip()
+                if ocr_text:
+                    raw_text = ocr_text
+                    ocr_used = True
+                    ocr_engine = ocr_result.engine
 
         table_markdown_blocks = self._extract_table_blocks(
             page=page,
@@ -193,6 +239,8 @@ class MultimodalFinancialParser:
             doc_name=doc_name,
             page_number=page_number,
             contains_table=contains_table,
+            ocr_used=ocr_used,
+            ocr_engine=ocr_engine,
         )
 
     @classmethod
@@ -355,6 +403,9 @@ class MultimodalFinancialParser:
         doc_name: str,
         page_number: int,
         contains_table: bool,
+        *,
+        ocr_used: bool = False,
+        ocr_engine: str | None = None,
     ) -> List[DocumentChunk]:
         """Split on sections/paragraphs and never cut a word or sentence by index."""
         cleaned = re.sub(r"\n{3,}", "\n\n", text).strip()
@@ -408,11 +459,13 @@ class MultimodalFinancialParser:
                     page_number=page_number,
                     text=full_text,
                     contains_table=chunk_contains_table,
-                    metadata={
+                     metadata={
                         "source": f"{doc_name}.pdf",
                         "page": page_number,
                         "chunk_index": chunk_index,
                         "has_financial_table": chunk_contains_table,
+                        "ocr_used": ocr_used,
+                        "ocr_engine": ocr_engine,
                     },
                 )
             )
