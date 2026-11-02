@@ -153,6 +153,12 @@
     }
     .doc-actions a:hover, .doc-actions button:hover { color: #fff; text-decoration: underline; }
     .sidebar-footer { margin-top: 12px; border-top: 1px solid #263d54; padding-top: 14px; }
+    .auth-panel { margin-bottom: 12px; border: 1px solid #2f455c; border-radius: 8px; padding: 10px 12px; background: #132337; }
+    .auth-panel summary { cursor: pointer; font-size: 11px; font-weight: 600; color: var(--sidebar-text); }
+    .auth-hint { margin: 8px 0 10px; font-size: 11px; line-height: 16px; color: #9fb3c8; }
+    .auth-hint code { font-family: var(--mono); font-size: 10px; color: #cfe0f0; }
+    .auth-hint strong { color: #dce8f5; }
+    .auth-panel .manual-input { margin-bottom: 8px; }
     .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sidebar-actions button {
       min-height: 34px;
@@ -324,6 +330,7 @@
       transform: translate(0, 0) scale(1);
       transform-origin: center;
       user-select: none;
+      -webkit-user-drag: none;
       cursor: grab;
     }
     .page-image-viewport.dragging .page-image { cursor: grabbing; }
@@ -602,13 +609,6 @@
           <div class="brand-sub">PDF evidence workspace</div>
         </div>
       </div>
-      <div class="sidebar-kicker section-spaced">API access</div>
-      <input id="apiKeyInput" class="manual-input" type="password" placeholder="Reader or admin API key" aria-label="Reader or admin API key" autocomplete="off" />
-      <div class="sidebar-actions auth-actions">
-        <button id="saveApiKey" type="button">Save key</button>
-        <button id="clearApiKey" type="button">Clear</button>
-      </div>
-      <div id="authStatus" class="sidebar-status" role="status"></div>
       <label class="upload-btn" for="pdfUploadInput">
         <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
         Upload PDF
@@ -636,6 +636,21 @@
         </details>
       </div>
       <div class="sidebar-footer">
+        <details class="auth-panel" id="authPanel">
+          <summary>API access (only if the server requires a key)</summary>
+          <p class="auth-hint">
+            Needed only when the server runs with <code>AUTH_REQUIRED=true</code>. A
+            <strong>reader</strong> key can ask questions and view documents; an
+            <strong>admin</strong> key can also upload, replace, and delete. The key stays in this
+            browser tab's session storage and is sent as a Bearer token.
+          </p>
+          <input id="apiKeyInput" class="manual-input" type="password" placeholder="Reader or admin API key" aria-label="Reader or admin API key" autocomplete="off" />
+          <div class="sidebar-actions auth-actions">
+            <button id="saveApiKey" type="button">Save key</button>
+            <button id="clearApiKey" type="button">Clear</button>
+          </div>
+          <div id="authStatus" class="sidebar-status" role="status"></div>
+        </details>
         <div class="sidebar-actions">
           <button id="clearDefaults" type="button">Clear Demo PDFs</button>
           <button id="restoreDefaults" type="button">Restore Demo PDFs</button>
@@ -723,7 +738,7 @@
                   </div>
                   <div id="pageImagePane" class="source-pane">
                     <div id="pageImageViewport" class="page-image-viewport">
-                      <img id="pageImage" class="page-image" alt="Rendered cited PDF page with highlighted query terms" />
+                      <img id="pageImage" class="page-image" draggable="false" alt="Rendered cited PDF page with highlighted query terms" />
                     </div>
                     <div class="zoom-toolbar" aria-label="Page image zoom and pan controls">
                       <button id="zoomOut" type="button" aria-label="Zoom out">Zoom −</button>
@@ -783,6 +798,7 @@
             </div>
             <article class="benchmark-card rank-card">
               <h2>Rank comparison by question</h2>
+              <p class="panel-sub">The checked-in evaluation questions for the active corpus. This is independent of the question box and the sidebar scope; it changes when the indexed documents change.</p>
               <div id="rankTable" class="rank-table"></div>
             </article>
           </div>
@@ -808,13 +824,23 @@
         deterministic path remains the default and the automatic fallback on provider failure.
       </p>
       <div class="settings-form">
-        <label for="llmBaseUrl">Provider base URL<input id="llmBaseUrl" type="url" placeholder="http://localhost:8000/v1" /></label>
+        <label for="llmBaseUrl">Provider base URL<input id="llmBaseUrl" type="url" list="llmBaseUrlPresets" placeholder="http://localhost:8000/v1" /></label>
+        <datalist id="llmBaseUrlPresets">
+          <option value="http://localhost:8000/v1">vLLM or another local OpenAI-compatible server</option>
+          <option value="http://localhost:11434/v1">Ollama</option>
+          <option value="https://api.openai.com/v1">OpenAI</option>
+        </datalist>
         <label for="llmModelName">Model name<input id="llmModelName" type="text" placeholder="meta-llama/Llama-3.1-8B-Instruct" /></label>
-        <label for="llmApiKey">API key (stored in memory only)<input id="llmApiKey" type="password" placeholder="Leave blank to keep the current key" /></label>
+        <label for="llmApiKey">API key (kept in server memory only)<input id="llmApiKey" type="password" placeholder="Leave blank to keep the current key" /></label>
         <label class="settings-toggle" for="llmEnabled"><input id="llmEnabled" type="checkbox" /> Use the remote provider (local deterministic fallback remains active on failure)</label>
       </div>
+      <p class="settings-copy">
+        The key is held in this API process's memory, never written to disk, and cleared on restart.
+        The base URL must point at an OpenAI-compatible <code>/v1</code> endpoint.
+      </p>
       <div id="llmSettingsStatus" class="settings-status" role="status"></div>
       <div class="settings-actions">
+        <button id="testLlmSettings" class="action-btn" type="button">Test connection</button>
         <button id="cancelLlmSettings" class="action-btn" type="button">Cancel</button>
         <button id="saveLlmSettings" class="ask-btn" type="button">Save settings</button>
       </div>
@@ -1217,6 +1243,22 @@
           ? "Remote provider enabled and saved in memory."
           : "Provider settings saved; local deterministic answers remain active.",
         "success",
+      );
+    }
+
+    async function testLlmSettings() {
+      const result = await safeFetch("/config/llm/test", {method: "POST"});
+      if (!result.ok) {
+        setStatus("llmSettingsStatus", result.error, "error");
+        return;
+      }
+      const data = result.data || {};
+      setStatus(
+        "llmSettingsStatus",
+        data.ok
+          ? "Provider reachable in " + data.latency_ms + " ms (" + (data.models || 0) + " models listed)."
+          : "Provider test failed: " + (data.detail || "unknown error") + ". Save the settings first if you changed them.",
+        data.ok ? "success" : "error",
       );
     }
 
@@ -1680,6 +1722,7 @@
     byId("closeLlmSettings").addEventListener("click", closeLlmSettings);
     byId("cancelLlmSettings").addEventListener("click", closeLlmSettings);
     byId("saveLlmSettings").addEventListener("click", () => runUiTask(saveLlmSettings, "llmSettingsStatus"));
+    byId("testLlmSettings").addEventListener("click", () => runUiTask(testLlmSettings, "llmSettingsStatus"));
     byId("llmSettingsBackdrop").addEventListener("click", event => {
       if (event.target === byId("llmSettingsBackdrop")) closeLlmSettings();
     });
@@ -1695,12 +1738,15 @@
       changePageZoom(event.deltaY < 0 ? 0.1 : -0.1);
     }, {passive: false});
     byId("pageImageViewport").addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      event.preventDefault();
       pageDragging = true;
       pageDragStartX = event.clientX - pagePanX;
       pageDragStartY = event.clientY - pagePanY;
       byId("pageImageViewport").classList.add("dragging");
       byId("pageImageViewport").setPointerCapture(event.pointerId);
     });
+    byId("pageImage").addEventListener("dragstart", event => event.preventDefault());
     byId("pageImageViewport").addEventListener("pointermove", event => {
       if (!pageDragging) return;
       pagePanX = event.clientX - pageDragStartX;

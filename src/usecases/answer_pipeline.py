@@ -28,6 +28,7 @@ from src.usecases.ports import (
     RetrieverPort,
     SynthesizerPort,
 )
+from src.usecases.synthesis import expand_query
 from src.domain.citations import parse_citations
 
 
@@ -96,13 +97,14 @@ class AnswerPipeline:
                 )
                 return QueryResponse(**cached)
 
+        retrieval_query = expand_query(input_check.sanitized_text)
         hybrid_candidates = self.retriever.retrieve_hybrid(
-            query=input_check.sanitized_text,
+            query=retrieval_query,
             top_k=max(payload.top_k * 2, 6),
             doc_name=scope,
         )
         reranked_chunks = self.reranker.rerank(
-            query=input_check.sanitized_text,
+            query=retrieval_query,
             candidates=hybrid_candidates,
             top_n=payload.top_k,
         )
@@ -232,13 +234,14 @@ class AnswerPipeline:
                 yield QueryResponse(**cached)
                 return
 
+        retrieval_query = expand_query(question)
         hybrid_candidates = self.retriever.retrieve_hybrid(
-            query=question,
+            query=retrieval_query,
             top_k=max(payload.top_k * 2, 6),
             doc_name=scope,
         )
         reranked_chunks = self.reranker.rerank(
-            query=question,
+            query=retrieval_query,
             candidates=hybrid_candidates,
             top_n=payload.top_k,
         )

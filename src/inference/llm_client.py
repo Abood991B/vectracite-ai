@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Any, AsyncGenerator, Dict, List
 from urllib.parse import urlsplit, urlunsplit
 
@@ -127,6 +128,34 @@ class UnifiedLLMClient:
     async def aclose(self) -> None:
         if self._http_client is not None:
             await self._http_client.aclose()
+
+    async def test_connection(self) -> Dict[str, object]:
+        """Probe the configured provider's model list without spending a completion."""
+        if not self.remote_enabled:
+            return {"ok": False, "detail": "Remote provider is disabled."}
+        started = time.perf_counter()
+        try:
+            client = self._get_http_client()
+            response = await client.get(
+                f"{self.base_url.rstrip('/')}/models",
+                headers=self._request_headers(),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            models = payload.get("data") if isinstance(payload, dict) else None
+            self._mark_remote_success()
+            return {
+                "ok": True,
+                "latency_ms": round((time.perf_counter() - started) * 1000.0, 1),
+                "models": len(models or []),
+            }
+        except Exception as exc:
+            self._mark_remote_failure(exc)
+            return {
+                "ok": False,
+                "detail": type(exc).__name__,
+                "latency_ms": round((time.perf_counter() - started) * 1000.0, 1),
+            }
             self._http_client = None
             self._http_client_loop = None
 

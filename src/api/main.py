@@ -438,6 +438,12 @@ async def configure_llm(payload: LLMConfigRequest) -> Dict[str, Any]:
     )
 
 
+@app.post("/config/llm/test", dependencies=[Depends(require_admin_access)])
+async def test_llm_connection() -> Dict[str, Any]:
+    """Probe the configured provider and report reachability without running a completion."""
+    return await llm_client.test_connection()
+
+
 @app.get("/documents", dependencies=[Depends(require_read_access)])
 async def list_indexed_documents() -> Dict[str, Any]:
     """Lists all currently indexed documents, chunk counts, and table counts."""

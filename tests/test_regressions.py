@@ -73,6 +73,62 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
     assert [chunk.chunk_id for chunk in contributors] == ["c1", "c2"]
 
 
+def test_query_expansion_maps_casual_wording_to_financial_terms() -> None:
+    from src.usecases.synthesis import expand_query
+
+    expanded = expand_query("yo what did amd make in fy22")
+    assert "revenue" in expanded
+    assert "2022" in expanded
+
+    formal = "What was net revenue in 2022?"
+    assert expand_query(formal) == formal
+
+
+def test_informal_question_maps_to_the_revenue_table() -> None:
+    """Casual wording ("what did AMD make in fy22") must reach the revenue table, not fall back."""
+    from src.domain.documents import RetrievedDocument
+    from src.usecases.synthesis import LocalSynthesizer
+
+    chunk = RetrievedDocument(
+        chunk_id="c1",
+        doc_name="AMD_2022_10K",
+        page_number=68,
+        text=(
+            "[DOCUMENT: AMD_2022_10K | PAGE: 68]\nSegment results\n"
+            "| Segment | 2022 | 2021 |\n| --- | --- | --- |\n"
+            "| Net revenue | $23,601M | $16,434M |\n"
+            "| Operating income | $1,264M | $3,648M |"
+        ),
+        contains_table=True,
+        dense_score=1.0,
+        bm25_score=1.0,
+        rrf_score=1.0,
+        rerank_score=0.9,
+    )
+
+    answer = LocalSynthesizer().answer("yo what did amd make in fy22", [chunk])
+
+    assert answer.startswith("From [AMD_2022_10K, Page 68]:")
+    assert "23,601" in answer
+    assert "16,434" in answer
+
+
+def test_credit_card_redaction_requires_a_valid_luhn_number() -> None:
+    """Year columns beside each other are not a card number; a real PAN still redacts."""
+    from src.cache_and_guardrails.guardrails import EnterpriseGuardrails
+
+    guardrails = EnterpriseGuardrails()
+    years = "Net sales 2018 2017 2016 2015 2014"
+    kept = guardrails.sanitize_output(years)
+    assert kept.sanitized_text == years
+    assert "PII_REDACTED:CREDIT_CARD" not in kept.triggered_rules
+
+    card = "Card on file: 4111 1111 1111 1111"
+    redacted = guardrails.sanitize_output(card)
+    assert "[REDACTED_CARD]" in redacted.sanitized_text
+    assert "PII_REDACTED:CREDIT_CARD" in redacted.triggered_rules
+
+
 def test_retriever_indexes_the_document_filter_field() -> None:
     """Scoped search filters on doc_name; without a payload index Qdrant scans the collection."""
     from types import SimpleNamespace

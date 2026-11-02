@@ -60,6 +60,22 @@ QUERY_TERM_SYNONYMS: Dict[str, set[str]] = {
     "netincome": {"net", "income"},
     "netsales": {"net", "sales"},
     "totalrevenue": {"total", "revenue"},
+    # Casual verbs people use instead of "revenue" / "income".
+    "make": {"revenue", "sales"},
+    "made": {"revenue", "sales"},
+    "makes": {"revenue", "sales"},
+    "making": {"revenue", "sales"},
+    "earn": {"revenue", "income"},
+    "earned": {"revenue", "income"},
+    "earns": {"revenue", "income"},
+    "generate": {"revenue", "sales"},
+    "generated": {"revenue", "sales"},
+    "bring": {"revenue", "sales"},
+    "brought": {"revenue", "sales"},
+    "sell": {"sales", "revenue"},
+    "sold": {"sales", "revenue"},
+    "topline": {"revenue", "sales"},
+    "bottomline": {"income", "profit"},
 }
 SECTION_ALIASES: Dict[str, tuple[str, ...]] = {
     "summary": ("professional summary", "executive summary", "summary", "profile", "overview"),
@@ -73,6 +89,8 @@ TABLE_INTENT_RE = re.compile(
     r"\b(table|row|column|revenue|sales|income|profit|margin|capex|"
     r"capital expenditure|expense|cash flow|cashflow|assets?|liabilit\w*|"
     r"ratio|earnings|dividend|debt|turnover|growth|percent|percentage|"
+    r"make|made|earn|earned|generate|generated|bring|brought|sell|sold|"
+    r"top\s+line|bottom\s+line|topline|bottomline|"
     r"fy\s?\d{2,4}|\d{4}|%)\b",
     flags=re.IGNORECASE,
 )
@@ -93,6 +111,27 @@ META_RESPONSE = (
     "The default synthesizer is local. When a remote LLM or OCR service is enabled, "
     "document content is sent to that configured service."
 )
+
+
+def expand_query(question: str) -> str:
+    """Append canonical financial terms so casual wording still retrieves the right evidence.
+
+    Only applied when a casual term is recognised, so a question already using the domain
+    vocabulary passes through unchanged.
+    """
+    folded = question.casefold().replace("top line", "topline").replace(
+        "bottom line", "bottomline"
+    )
+    additions: set[str] = set()
+    for word in re.findall(r"[\w]+", folded, flags=re.UNICODE):
+        additions.update(QUERY_TERM_SYNONYMS.get(word, set()))
+        fiscal_year = re.fullmatch(r"fy(\d{2,4})", word)
+        if fiscal_year:
+            digits = fiscal_year.group(1)
+            additions.add(digits if len(digits) == 4 else f"20{digits}")
+    if not additions:
+        return question
+    return f"{question} {' '.join(sorted(additions))}"
 
 
 class LocalSynthesizer:
@@ -126,7 +165,10 @@ class LocalSynthesizer:
         return self._build_evidence(question, chunks)
     @staticmethod
     def _query_terms(question: str) -> set[str]:
-        cleaned = re.sub(r"['�?T]s\b", "", question.lower())
+        cleaned = re.sub(r"['\u2019]s\b", "", question.lower())
+        cleaned = cleaned.replace("top line", "topline").replace(
+            "bottom line", "bottomline"
+        )
         words = re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
         terms: set[str] = set()
         for word in words:
@@ -140,6 +182,10 @@ class LocalSynthesizer:
                     if len(part) > 2 and part not in QUERY_STOPWORDS
                 )
             terms.update(QUERY_TERM_SYNONYMS.get(word, set()))
+            fiscal_year = re.fullmatch(r"fy(\d{2,4})", word)
+            if fiscal_year:
+                digits = fiscal_year.group(1)
+                terms.add(digits if len(digits) == 4 else f"20{digits}")
         return terms
     @classmethod
     def _is_cross_document_request(
@@ -306,7 +352,7 @@ class LocalSynthesizer:
         )
         for chunk in ordered:
             matched_cells = TableASTParser.match_query_cells(
-                question,
+                f"{question} {' '.join(sorted(query_terms))}",
                 chunk.text,
                 doc_name=chunk.doc_name,
                 page_number=chunk.page_number,
@@ -400,7 +446,8 @@ class LocalSynthesizer:
         top = chunks[0]
         top_score = float(top.rerank_score if top.rerank_score is not None else top.rrf_score)
         if top_score >= 0.30:
-            excerpt = " ".join(top.text.split())[:350]
+            cleaned = re.sub(r"^\[DOCUMENT:[^\]]+\]\s*", "", top.text.strip())
+            excerpt = " ".join(cleaned.split())[:350]
             return f"Based on [{top.doc_name}, Page {top.page_number}], {excerpt}"
         return ""
     @staticmethod
