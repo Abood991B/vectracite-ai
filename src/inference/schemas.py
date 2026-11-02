@@ -1,8 +1,6 @@
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
-from src.config import settings
-
 
 class PageInput(BaseModel):
     page_number: int = Field(
@@ -20,7 +18,12 @@ class IngestRequest(BaseModel):
     doc_name: str = Field(
         ..., min_length=1, max_length=200, description="Document identifier (e.g., 'AMD_2022_10K')"
     )
-    pages: List[PageInput] = Field(..., min_length=1, max_length=settings.MAX_STRUCTURED_PAGES)
+    pages: List[PageInput] = Field(
+        ...,
+        min_length=1,
+        max_length=10_000,
+        description="Structured pages; the configured limit is enforced by the ingestion controller",
+    )
 
 
 class PdfUploadRequest(BaseModel):

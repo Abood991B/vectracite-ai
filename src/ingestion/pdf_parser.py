@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List
 
 import pymupdf as fitz
 
-from src.config import settings
 from src.domain.documents import DocumentChunk
 from src.ingestion.ocr import OCRBackend
 
@@ -26,6 +25,13 @@ SECTION_HEADER_REGEX = re.compile(
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
 TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
 PARSER_CACHE_VERSION = 4
+
+# Structural defaults. Deployment values are supplied by the composition root; these keep the parser
+# usable standalone (tests, scripts) without importing configuration.
+DEFAULT_OCR_DPI = 200
+DEFAULT_OCR_MIN_CHARS = 30
+DEFAULT_OCR_MAX_PAGES = 50
+DEFAULT_MAX_RENDERED_PAGES = 5000
 
 
 class PDFRenderError(ValueError):
@@ -52,9 +58,9 @@ class MultimodalFinancialParser:
         chunk_overlap: int = 150,
         *,
         ocr_backend: OCRBackend | None = None,
-        ocr_dpi: int = settings.OCR_DPI,
-        ocr_min_chars: int = settings.OCR_MIN_CHARS,
-        ocr_max_pages: int = settings.OCR_MAX_PAGES,
+        ocr_dpi: int = DEFAULT_OCR_DPI,
+        ocr_min_chars: int = DEFAULT_OCR_MIN_CHARS,
+        ocr_max_pages: int = DEFAULT_OCR_MAX_PAGES,
     ) -> None:
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be strictly smaller than chunk_size")
@@ -495,9 +501,14 @@ class MultimodalFinancialParser:
         return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
     @staticmethod
-    def render_pages_to_pdf_bytes(doc_name: str, pages: List[Dict[str, Any]]) -> bytes:
+    def render_pages_to_pdf_bytes(
+        doc_name: str,
+        pages: List[Dict[str, Any]],
+        *,
+        max_pages: int = DEFAULT_MAX_RENDERED_PAGES,
+    ) -> bytes:
         """Render tables and prose with physical-page pagination and no clipping."""
-        if len(pages) > settings.MAX_RENDERED_PDF_PAGES:
+        if len(pages) > max_pages:
             raise PDFRenderLimitError("Document page limit exceeded.")
         document = fitz.open()
         manifest: Dict[str, List[str]] = {}
@@ -511,7 +522,7 @@ class MultimodalFinancialParser:
         def new_page(source_page: int) -> tuple[fitz.Page, float]:
             nonlocal physical_pages
             physical_pages += 1
-            if physical_pages > settings.MAX_RENDERED_PDF_PAGES:
+            if physical_pages > max_pages:
                 raise PDFRenderLimitError("Rendered PDF page limit exceeded.")
             page = document.new_page(width=612, height=792)
             page.draw_rect(
@@ -678,6 +689,13 @@ class MultimodalFinancialParser:
             document.close()
 
 
-def render_pages_to_pdf_bytes(doc_name: str, pages: List[Dict[str, Any]]) -> bytes:
+def render_pages_to_pdf_bytes(
+    doc_name: str,
+    pages: List[Dict[str, Any]],
+    *,
+    max_pages: int = DEFAULT_MAX_RENDERED_PAGES,
+) -> bytes:
     """Backward-compatible module-level rendering helper."""
-    return MultimodalFinancialParser.render_pages_to_pdf_bytes(doc_name, pages)
+    return MultimodalFinancialParser.render_pages_to_pdf_bytes(
+        doc_name, pages, max_pages=max_pages
+    )

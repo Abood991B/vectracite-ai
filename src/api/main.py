@@ -59,6 +59,9 @@ parser = MultimodalFinancialParser(
     chunk_size=settings.PARSER_CHUNK_SIZE,
     chunk_overlap=settings.PARSER_CHUNK_OVERLAP,
     ocr_backend=build_ocr_backend(),
+    ocr_dpi=settings.OCR_DPI,
+    ocr_min_chars=settings.OCR_MIN_CHARS,
+    ocr_max_pages=settings.OCR_MAX_PAGES,
 )
 retriever = HybridRetriever(
     in_memory=settings.QDRANT_IN_MEMORY,
@@ -148,7 +151,9 @@ def _render_and_parse_document(
     clean_name: str, raw_pages: List[Dict[str, Any]], *, cancel_event: threading.Event
 ) -> tuple[bytes, List[Any]]:
     """Render once, then parse the exact bytes that will be persisted."""
-    pdf_bytes = render_pages_to_pdf_bytes(clean_name, raw_pages)
+    pdf_bytes = render_pages_to_pdf_bytes(
+        clean_name, raw_pages, max_pages=settings.MAX_RENDERED_PDF_PAGES
+    )
     return pdf_bytes, parser.parse_pdf_bytes(pdf_bytes, clean_name, cancel_event=cancel_event)
 
 
