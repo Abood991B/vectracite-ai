@@ -75,8 +75,14 @@ def test_real_retrieval_finds_a_known_evidence_page(monkeypatch) -> None:
 
 
 def test_real_pdf_and_page_image_endpoints(monkeypatch) -> None:
+    from src.adapters.uploads import PdfFileStore
+    from src.api import main
+
     corpus, _, _ = _real_corpus()
     monkeypatch.setattr(settings, "CORPUS_PDF_DIR", corpus)
+    monkeypatch.setattr(
+        main, "upload_store", PdfFileStore(settings.USER_UPLOADS_DIR, corpus)
+    )
     pdf = client.get("/documents/AMD_2022_10K/pdf")
     assert pdf.status_code == 200
     assert pdf.content.startswith(b"%PDF-")

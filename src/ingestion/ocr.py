@@ -6,29 +6,24 @@ import base64
 import io
 import logging
 import warnings
-from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 import httpx
 import numpy as np
 
 from src.config import settings
+from src.domain.ocr import OCRBackend, OCRResult
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class OCRResult:
-    text: str
-    engine: str
-    confidence: float | None = None
-
-
-class OCRBackend(Protocol):
-    name: str
-
-    def recognize(self, image_png: bytes) -> OCRResult:
-        ...
+__all__ = [
+    "OCRBackend",
+    "OCRResult",
+    "PaddleOCRBackend",
+    "RemoteOCRBackend",
+    "build_ocr_backend",
+]
 
 
 class PaddleOCRBackend:

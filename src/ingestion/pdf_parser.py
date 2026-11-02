@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List
 import pymupdf as fitz
 
 from src.domain.documents import DocumentChunk
-from src.ingestion.ocr import OCRBackend
+from src.domain.ocr import OCRBackend
 
 logger = logging.getLogger(__name__)
 

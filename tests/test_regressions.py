@@ -374,11 +374,13 @@ async def test_disconnected_upload_cancels_parsing_before_commit(monkeypatch) ->
 
 
 def test_empty_catalog_is_ready_to_accept_uploads(monkeypatch, tmp_path) -> None:
+    from src.adapters.uploads import PdfFileStore
     from src.api import main
     from src.retrieval.hybrid_retriever import HybridRetriever
 
     (tmp_path / ".defaults-cleared").touch()
     monkeypatch.setattr(main.settings, "USER_UPLOADS_DIR", tmp_path)
+    monkeypatch.setattr(main, "upload_store", PdfFileStore(tmp_path, tmp_path))
     monkeypatch.setattr(main, "retriever", HybridRetriever(in_memory=True, use_lightweight_embedder=True))
     response = client.get("/ready")
     assert response.status_code == 200

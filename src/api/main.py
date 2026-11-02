@@ -8,10 +8,8 @@ from collections import OrderedDict
 import hashlib
 import json
 import logging
-import os
 import re
 import threading
-import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
 import pymupdf as fitz
@@ -26,6 +24,8 @@ from src.api.security import require_admin_access, require_read_access
 from src.api.ui import WORKBENCH_HTML
 from evaluation.run_ablation_benchmark import load_corpus_chunks_from_pdfs
 from src.adapters.evaluation_runner import build_live_cases, compute_signature, run_suite
+from src.adapters.uploads import PdfFileStore
+from src.usecases.documents import commit_document, load_persisted_chunks
 from src.usecases.scenarios import build_scenarios
 from src.usecases.scoping import (
     InvalidDocumentNameError,
@@ -63,6 +63,7 @@ parser = MultimodalFinancialParser(
     ocr_min_chars=settings.OCR_MIN_CHARS,
     ocr_max_pages=settings.OCR_MAX_PAGES,
 )
+upload_store = PdfFileStore(settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR)
 retriever = HybridRetriever(
     in_memory=settings.QDRANT_IN_MEMORY,
     use_lightweight_embedder=settings.USE_LIGHTWEIGHT_MODELS,
@@ -209,17 +210,12 @@ def _validate_pdf_limits(raw_bytes: bytes) -> None:
 
 def _load_persisted_chunks(include_defaults: bool | None = None) -> List[Any]:
     """Load defaults plus user PDFs, letting a user copy override a default by name."""
-    load_defaults = (
-        (not (settings.USER_UPLOADS_DIR / ".defaults-cleared").exists())
-        if include_defaults is None else include_defaults
+    return load_persisted_chunks(
+        parser=parser,
+        corpus_loader=load_corpus_chunks_from_pdfs,
+        uploads=upload_store,
+        include_defaults=include_defaults,
     )
-    baseline_chunks = load_corpus_chunks_from_pdfs(parser) if load_defaults else []
-    upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
-    uploaded_names = {path.stem for path in upload_paths}
-    chunks = [chunk for chunk in baseline_chunks if chunk.doc_name not in uploaded_names]
-    for pdf_path in upload_paths:
-        chunks.extend(parser.parse_pdf(pdf_path))
-    return chunks
 
 
 async def _periodic_index_sync() -> None:
@@ -283,37 +279,17 @@ def _normalize_scope(doc_name: str | None) -> str | None:
 
 def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> Path:
     """Atomically persist a user PDF separately from the checked-in default corpus."""
-    settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    target = settings.USER_UPLOADS_DIR / f"{doc_name}.pdf"
-    temp_path = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temp_path.write_bytes(pdf_bytes)
-        os.replace(temp_path, target)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink(missing_ok=True)
-    return target
+    return upload_store.write(doc_name, pdf_bytes)
 
 
 def _remove_user_pdf(doc_name: str) -> None:
     """Remove a user PDF and any legacy custom copy from the corpus directory."""
-    user_path = settings.USER_UPLOADS_DIR / f"{doc_name}.pdf"
-    if user_path.exists():
-        user_path.unlink()
-
-    legacy_path = settings.CORPUS_PDF_DIR / f"{doc_name}.pdf"
-    if doc_name not in demo_document_names() and legacy_path.exists():
-        legacy_path.unlink()
+    upload_store.delete(doc_name, is_demo=doc_name in demo_document_names())
 
 
 def _find_pdf_path(doc_name: str) -> Path | None:
     """Find a stored user upload first, then a checked-in demo PDF."""
-    clean_name = _clean_doc_name(doc_name)
-    for root in (settings.USER_UPLOADS_DIR, settings.CORPUS_PDF_DIR):
-        pdf_path = root / f"{clean_name}.pdf"
-        if pdf_path.exists():
-            return pdf_path
-    return None
+    return upload_store.find(_clean_doc_name(doc_name))
 
 
 def _ensure_indexed() -> None:
@@ -355,26 +331,15 @@ def _build_scenarios() -> List[Dict[str, Any]]:
 
 def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> int:
     """Persist bytes and swap the indexed version, restoring both on failure."""
-    old_user_path = settings.USER_UPLOADS_DIR / f"{clean_name}.pdf"
-    old_user_bytes = old_user_path.read_bytes() if old_user_path.exists() else None
-    snapshot = retriever.snapshot_document(clean_name)
-    try:
-        _persist_pdf(clean_name, pdf_bytes)
-        removed = retriever.replace_document(clean_name, chunks)
-    except Exception:
-        try:
-            if old_user_bytes is not None:
-                _persist_pdf(clean_name, old_user_bytes)
-            elif old_user_path.exists():
-                old_user_path.unlink(missing_ok=True)
-            if snapshot:
-                retriever.restore_document(clean_name, snapshot)
-        except Exception:
-            logger.exception("Unable to roll back failed document commit")
-        raise
-    semantic_cache.clear()
-    bump_index_generation()
-    return removed
+    return commit_document(
+        doc_name=clean_name,
+        chunks=chunks,
+        pdf_bytes=pdf_bytes,
+        catalog=retriever,
+        uploads=upload_store,
+        invalidate_cache=semantic_cache.clear,
+        notify_index_changed=bump_index_generation,
+    )
 
 
 answer_service = AnswerService(
@@ -627,8 +592,7 @@ async def clear_demo_documents() -> Dict[str, Any]:
             for doc_name in demo_document_names() - user_document_names:
                 removed_chunks += retriever.delete_document(doc_name)
             semantic_cache.clear()
-            settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-            (settings.USER_UPLOADS_DIR / ".defaults-cleared").touch()
+            upload_store.mark_defaults_cleared()
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_demos",
@@ -654,8 +618,7 @@ async def clear_all_documents() -> Dict[str, Any]:
                     removed_files += 1
                 except OSError:
                     logger.exception("Unable to remove uploaded PDF %s", path.name)
-            settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-            (settings.USER_UPLOADS_DIR / ".defaults-cleared").touch()
+            upload_store.mark_defaults_cleared()
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_all",
@@ -681,7 +644,7 @@ async def restore_default_documents() -> Dict[str, Any]:
                 if persisted_chunks
                 else 0
             )
-            (settings.USER_UPLOADS_DIR / ".defaults-cleared").unlink(missing_ok=True)
+            upload_store.clear_defaults_marker()
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "restored_defaults",
