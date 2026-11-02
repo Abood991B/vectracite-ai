@@ -8,80 +8,14 @@ from typing import Any, Dict, List
 import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
-from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 from src.config import settings
 from src.domain.documents import DocumentChunk, RetrievedDocument
 from src.retrieval.embedding_cache import load_embeddings, save_embeddings
+from src.retrieval.lexical_index import LexicalIndex, tokenize
 from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
 
 logger = logging.getLogger(__name__)
-
-BM25_STOPWORDS = frozenset(
-    {
-        "about",
-        "according",
-        "also",
-        "and",
-        "answer",
-        "are",
-        "based",
-        "been",
-        "both",
-        "but",
-        "calculate",
-        "can",
-        "could",
-        "did",
-        "does",
-        "following",
-        "for",
-        "from",
-        "give",
-        "has",
-        "have",
-        "how",
-        "include",
-        "including",
-        "into",
-        "its",
-        "may",
-        "not",
-        "please",
-        "provided",
-        "question",
-        "rely",
-        "relying",
-        "response",
-        "should",
-        "show",
-        "shown",
-        "state",
-        "such",
-        "than",
-        "that",
-        "the",
-        "their",
-        "then",
-        "there",
-        "these",
-        "this",
-        "those",
-        "use",
-        "using",
-        "was",
-        "were",
-        "what",
-        "when",
-        "where",
-        "which",
-        "who",
-        "will",
-        "with",
-        "would",
-        "your",
-    }
-)
 
 _SHARED_EMBEDDERS: dict[tuple[str, int], SentenceTransformer] = {}
 _SHARED_LIGHTWEIGHT_EMBEDDERS: dict[int, "LightweightEmbedder"] = {}
@@ -244,7 +178,7 @@ class HybridRetriever:
                 self.degraded = True
 
         self.chunks_store: List[DocumentChunk] = []
-        self.bm25: BM25Okapi | None = None
+        self._lexical = LexicalIndex()
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:
@@ -307,20 +241,7 @@ class HybridRetriever:
 
     @staticmethod
     def _tokenize(text: str) -> List[str]:
-        cleaned = re.sub(r"['�?T]s\b", "", text.lower())
-        tokens: List[str] = []
-        for token in re.findall(r"[\w$\.%]+", cleaned, flags=re.UNICODE):
-            if len(token) < 2 and not token.isdigit():
-                continue
-            if token in BM25_STOPWORDS:
-                continue
-            tokens.append(token)
-            parts = re.findall(r"[a-z]+|\d+", token)
-            if len(parts) > 1:
-                tokens.extend(
-                    part for part in parts if len(part) >= 2 or part.isdigit()
-                )
-        return tokens
+        return tokenize(text)
 
     @classmethod
     def _query_entities(cls, query: str) -> List[set[str]]:
@@ -391,11 +312,7 @@ class HybridRetriever:
             )
 
     def _rebuild_bm25(self) -> None:
-        if self.chunks_store:
-            tokenized_corpus = [self._tokenize(chunk.text) for chunk in self.chunks_store]
-            self.bm25 = BM25Okapi(tokenized_corpus)
-        else:
-            self.bm25 = None
+        self._lexical.rebuild(self.chunks_store)
 
     def _replace_local_chunks(
         self, doc_name: str, chunks: List[DocumentChunk]
@@ -594,8 +511,7 @@ class HybridRetriever:
         """
         with self._mutation_lock:
             chunks_store = list(self.chunks_store)
-            bm25 = self.bm25
-        if not chunks_store or bm25 is None:
+        if not chunks_store or not self._lexical.ready:
             return []
 
         scope = doc_name.strip() if doc_name and doc_name.strip().upper() != "ALL" else None
@@ -619,23 +535,13 @@ class HybridRetriever:
                 dense_ranks[cid] = rank + 1
                 dense_scores[cid] = float(hit.score)
 
-        query_tokens = self._tokenize(query)
-        raw_bm25_scores = bm25.get_scores(query_tokens)
-        candidate_indices = np.arange(len(chunks_store))
-        if scope:
-            candidate_indices = np.asarray(
-                [idx for idx, chunk in enumerate(chunks_store) if chunk.doc_name == scope],
-                dtype=int,
-            )
-        ranked_indices = candidate_indices[np.argsort(raw_bm25_scores[candidate_indices])[::-1]]
-        sorted_bm25_indices = ranked_indices[:candidate_limit]
-
         bm25_ranks: Dict[str, int] = {}
         bm25_scores: Dict[str, float] = {}
-        for rank, idx in enumerate(sorted_bm25_indices):
-            cid = chunks_store[int(idx)].chunk_id
-            bm25_ranks[cid] = rank + 1
-            bm25_scores[cid] = float(raw_bm25_scores[int(idx)])
+        for rank, (chunk, score) in enumerate(
+            self._lexical.ranked(query, limit=candidate_limit, scope=scope)
+        ):
+            bm25_ranks[chunk.chunk_id] = rank + 1
+            bm25_scores[chunk.chunk_id] = score
 
         all_candidate_ids = set(dense_ranks.keys()) | set(bm25_ranks.keys())
         fused_results: List[RetrievedDocument] = []
@@ -691,7 +597,7 @@ class HybridRetriever:
             self.qdrant.delete_collection(collection_name=self.collection_name)
             self._ensure_collection()
             self.chunks_store = []
-            self.bm25 = None
+            self._lexical.rebuild([])
             self.last_sync_at = time.monotonic()
 
     def delete_document(self, doc_name: str) -> int:

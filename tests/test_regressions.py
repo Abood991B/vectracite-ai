@@ -73,6 +73,21 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
     assert [chunk.chunk_id for chunk in contributors] == ["c1", "c2"]
 
 
+def test_tokenizer_strips_possessives_without_corrupting_words() -> None:
+    """The possessive rule must not eat unrelated letters (a corrupted class once did)."""
+    from src.retrieval.hybrid_retriever import HybridRetriever
+
+    assert HybridRetriever._tokenize("AMD's revenue") == ["amd", "revenue"]
+    assert HybridRetriever._tokenize("the company\u2019s costs") == ["company", "costs"]
+    assert HybridRetriever._tokenize("FY2022 net revenue") == [
+        "fy2022",
+        "fy",
+        "2022",
+        "net",
+        "revenue",
+    ]
+
+
 def test_cross_document_detection_uses_indexed_document_names() -> None:
     from src.usecases.synthesis import LocalSynthesizer
 

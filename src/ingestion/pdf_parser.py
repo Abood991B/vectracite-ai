@@ -196,68 +196,101 @@ class MultimodalFinancialParser:
         *,
         allow_ocr: bool = True,
     ) -> List[DocumentChunk]:
+        """Turn one PDF page into citation-anchored chunks."""
         raw_text = page.get_text("text", sort=True).strip()
         page_number = physical_page_index + 1
-
-        ocr_used = False
-        ocr_engine = None
-        if self.ocr_backend is not None and len(raw_text) < self.ocr_min_chars and page.get_images():
-            if not allow_ocr:
-                raise ValueError(f"OCR page limit reached at page {physical_page_index + 1}.")
-            try:
-                pixmap = page.get_pixmap(dpi=self.ocr_dpi, alpha=False)
-                ocr_result = self.ocr_backend.recognize(pixmap.tobytes("png"))
-            except Exception as exc:
-                logger.warning(
-                    "OCR failed for %s page %s: %s",
-                    doc_name,
-                    page_number,
-                    type(exc).__name__,
-                )
-                raise ValueError(f"OCR failed on page {physical_page_index + 1}.") from exc
-            else:
-                ocr_text = ocr_result.text.strip()
-                if not ocr_text:
-                    raise ValueError(f"OCR returned no text on page {physical_page_index + 1}.")
-                raw_text = ocr_text
-                ocr_used = True
-                ocr_engine = ocr_result.engine
-
-        manifest_blocks = [
-            block
-            for key, blocks in (manifest_tables or {}).items()
-            if key.endswith(f":{physical_page_index}")
-            for block in blocks
-        ]
-        legacy_label = re.search(r"\(SOURCE PAGE:\s*(\d+)\)", raw_text.split("\n", 1)[0])
-        if not manifest_blocks and legacy_label:
-            manifest_blocks = (manifest_tables or {}).get(legacy_label.group(1), [])
-        table_markdown_blocks = self._extract_table_blocks(
-            page=page,
-            raw_text=raw_text,
-            manifest_tables=manifest_blocks,
-        )
-        has_inline_markdown_table = self._has_inline_markdown_table(raw_text)
-        contains_table = bool(table_markdown_blocks) or has_inline_markdown_table
-        document_header = f"[DOCUMENT: {doc_name} | PAGE: {page_number}]"
-
-        if table_markdown_blocks and not has_inline_markdown_table:
-            combined_content = (
-                f"{document_header}\n{raw_text}\n\n"
-                f"EXTRACTED TABLES (PAGE {page_number})\n"
-                + "\n\n".join(table_markdown_blocks)
-            )
-        else:
-            combined_content = f"{document_header}\n{raw_text}"
-
-        return self._chunk_text_content(
-            text=combined_content,
+        raw_text, ocr_used, ocr_engine = self._page_text(
+            page,
+            raw_text,
             doc_name=doc_name,
             page_number=page_number,
-            contains_table=contains_table,
+            physical_page_index=physical_page_index,
+            allow_ocr=allow_ocr,
+        )
+        table_blocks = self._extract_table_blocks(
+            page=page,
+            raw_text=raw_text,
+            manifest_tables=self._manifest_blocks(
+                manifest_tables, physical_page_index, raw_text
+            ),
+        )
+        has_inline_table = self._has_inline_markdown_table(raw_text)
+        return self._chunk_text_content(
+            text=self._compose_content(
+                doc_name, page_number, raw_text, table_blocks, has_inline_table
+            ),
+            doc_name=doc_name,
+            page_number=page_number,
+            contains_table=bool(table_blocks) or has_inline_table,
             ocr_used=ocr_used,
             ocr_engine=ocr_engine,
         )
+
+    def _page_text(
+        self,
+        page: fitz.Page,
+        raw_text: str,
+        *,
+        doc_name: str,
+        page_number: int,
+        physical_page_index: int,
+        allow_ocr: bool,
+    ) -> tuple[str, bool, str | None]:
+        """Return the page text, applying OCR only when the native layer is too thin."""
+        if self.ocr_backend is None or len(raw_text) >= self.ocr_min_chars or not page.get_images():
+            return raw_text, False, None
+        if not allow_ocr:
+            raise ValueError(f"OCR page limit reached at page {physical_page_index + 1}.")
+        try:
+            pixmap = page.get_pixmap(dpi=self.ocr_dpi, alpha=False)
+            ocr_result = self.ocr_backend.recognize(pixmap.tobytes("png"))
+        except Exception as exc:
+            logger.warning(
+                "OCR failed for %s page %s: %s",
+                doc_name,
+                page_number,
+                type(exc).__name__,
+            )
+            raise ValueError(f"OCR failed on page {physical_page_index + 1}.") from exc
+        ocr_text = ocr_result.text.strip()
+        if not ocr_text:
+            raise ValueError(f"OCR returned no text on page {physical_page_index + 1}.")
+        return ocr_text, True, ocr_result.engine
+
+    @staticmethod
+    def _manifest_blocks(
+        manifest_tables: Dict[str, List[str]] | None,
+        physical_page_index: int,
+        raw_text: str,
+    ) -> List[str]:
+        """Return the rendered table blocks recorded for this physical page."""
+        blocks = [
+            block
+            for key, table_blocks in (manifest_tables or {}).items()
+            if key.endswith(f":{physical_page_index}")
+            for block in table_blocks
+        ]
+        legacy_label = re.search(r"\(SOURCE PAGE:\s*(\d+)\)", raw_text.split("\n", 1)[0])
+        if not blocks and legacy_label:
+            blocks = (manifest_tables or {}).get(legacy_label.group(1), [])
+        return blocks
+
+    @staticmethod
+    def _compose_content(
+        doc_name: str,
+        page_number: int,
+        raw_text: str,
+        table_blocks: List[str],
+        has_inline_table: bool,
+    ) -> str:
+        """Attach the citation header and any tables recovered outside the text layer."""
+        content = f"[DOCUMENT: {doc_name} | PAGE: {page_number}]\n{raw_text}"
+        if table_blocks and not has_inline_table:
+            content += (
+                f"\n\nEXTRACTED TABLES (PAGE {page_number})\n"
+                + "\n\n".join(table_blocks)
+            )
+        return content
 
     @classmethod
     def _extract_table_blocks(
