@@ -108,6 +108,10 @@ class AnswerPipeline:
             candidates=hybrid_candidates,
             top_n=payload.top_k,
         )
+        if scope:
+            reranked_chunks = [
+                chunk for chunk in reranked_chunks if chunk.doc_name == scope
+            ]
 
         raw_answer = await self.llm_client.generate_answer(
             input_check.sanitized_text,
@@ -245,6 +249,10 @@ class AnswerPipeline:
             candidates=hybrid_candidates,
             top_n=payload.top_k,
         )
+        if scope:
+            reranked_chunks = [
+                chunk for chunk in reranked_chunks if chunk.doc_name == scope
+            ]
         redactor = self.guardrails.streaming_redactor()
         async for token in self.llm_client.stream_answer(
             question,

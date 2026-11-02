@@ -198,6 +198,24 @@ async def test_validate_rejects_prompt_injection_before_any_retrieval() -> None:
     assert retriever.calls == 0
 
 
+async def test_pipeline_never_cites_outside_the_requested_scope() -> None:
+    """Defence in depth: even if retrieval leaks another document, citations stay in scope."""
+    chunks = [
+        _chunk(1, "Alpha revenue was $10.", doc_name="DOC_A"),
+        _chunk(2, "Beta revenue was $20.", doc_name="DOC_B"),
+    ]
+    service, _, _ = _service(
+        chunks,
+        answer="See [DOC_A, Page 1] and [DOC_B, Page 2].",
+    )
+
+    response = await service.execute(
+        QueryRequest(question="What was revenue?", doc_name="DOC_A")
+    )
+
+    assert [citation.doc_name for citation in response.citations] == ["DOC_A"]
+
+
 async def test_pipeline_refuses_without_any_http_dependency() -> None:
     """The use case raises a domain error; only the delivery adapter turns it into a status code."""
     retriever = FakeRetriever([])

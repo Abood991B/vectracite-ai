@@ -170,6 +170,14 @@ class SemanticCache:
 
     @classmethod
     def _compatible_queries(cls, left: str, right: str) -> bool:
+        left_key = cls._split_cache_key(left)
+        right_key = cls._split_cache_key(right)
+        if left_key and right_key:
+            left_scope, left_top_k, left_question = left_key
+            right_scope, right_top_k, right_question = right_key
+            if left_scope != right_scope or left_top_k != right_top_k:
+                return False
+            left, right = left_question, right_question
         left_numbers, left_words = cls._query_signature(left)
         right_numbers, right_words = cls._query_signature(right)
         if left_numbers != right_numbers:
@@ -178,6 +186,14 @@ class SemanticCache:
             return left_words == right_words
         overlap = len(left_words & right_words) / min(len(left_words), len(right_words))
         return overlap >= 0.65
+
+    @staticmethod
+    def _split_cache_key(key: str) -> tuple[str, str, str] | None:
+        """Split ``scope::top_k=N::question``; legacy entries without the shape return None."""
+        parts = key.split("::", 2)
+        if len(parts) != 3:
+            return None
+        return parts[0], parts[1], parts[2]
 
     @staticmethod
     def _exact_key(query: str) -> str:

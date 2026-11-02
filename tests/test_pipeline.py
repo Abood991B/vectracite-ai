@@ -481,6 +481,8 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
     assert 'id="resetPage"' in dash.text
     assert 'id="llmSettingsButton"' in dash.text
     assert 'id="llmSettingsBackdrop"' in dash.text
+    assert "function resetWorkspaceForScope" in dash.text
+    assert 'id="testLlmSettings"' in dash.text
 
     put_resp = client.put(
         "/documents/SLA_SPEC_2026",
@@ -908,8 +910,9 @@ def test_clear_and_restore_demos_invalidates_cache_and_leaves_no_orphans() -> No
             json={"question": question, "use_cache": True, "top_k": 2},
         )
         assert queried.status_code == 200
-        cache_key = f"ALL::top_k=2::{question}"
+        cache_key = f"AMD_2022_10K::top_k=2::{question}"
         assert semantic_cache.lookup(cache_key) is not None
+        assert semantic_cache.lookup(f"ALL::top_k=2::{question}") is None
 
         cleared = client.post("/documents/clear-demos")
         assert cleared.status_code == 200

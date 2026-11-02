@@ -1034,6 +1034,23 @@
       });
     }
 
+    function resetWorkspaceForScope() {
+      byId("questionInput").value = "";
+      lastQuestion = "";
+      currentCitation = null;
+      currentPageNumbers = [];
+      currentPageIndex = 0;
+      clearEvidence();
+      resetPageView();
+      setStatus(
+        "queryStatus",
+        selectedDoc
+          ? "Scope set to " + selectedDoc + ". Ask a question about this document."
+          : "Scope set to all documents.",
+        "success",
+      );
+    }
+
     function renderDocuments() {
       const list = byId("documentList");
       if (!documents.length) {
@@ -1063,7 +1080,7 @@
         button.addEventListener("click", () => runUiTask(async () => {
           selectedDoc = button.dataset.filter;
           updateScope();
-          setStatus("sidebarStatus", "Scope set to " + selectedDoc, "success");
+          resetWorkspaceForScope();
         }, "sidebarStatus"));
       });
       list.querySelectorAll("[data-delete]").forEach(button => {
@@ -1074,10 +1091,12 @@
             setStatus("sidebarStatus", result.error, "error");
             return;
           }
-          if (selectedDoc === name) selectedDoc = null;
+          const scopeLost = selectedDoc === name;
+          if (scopeLost) selectedDoc = null;
           if (currentCitation && currentCitation.doc_name === name) clearEvidence();
           await loadDocuments();
           await loadScenarios();
+          if (scopeLost) resetWorkspaceForScope();
           setStatus("sidebarStatus", "Removed " + name + " from the active shelf", "success");
         }, "sidebarStatus"));
       });
@@ -1526,6 +1545,7 @@
       await loadDocuments();
       await loadScenarios();
       updateScope();
+      resetWorkspaceForScope();
       const missingPages = result.coverage?.pages_without_text || [];
       const mixedPages = result.coverage?.pages_with_unrecognized_images || [];
       const message = "Indexed " + result.doc_name + " and set its scope";
@@ -1564,6 +1584,7 @@
       await loadDocuments();
       await loadScenarios();
       updateScope();
+      resetWorkspaceForScope();
       setStatus("sidebarStatus", "Saved and indexed " + name, "success");
     }
 
@@ -1701,7 +1722,7 @@
     byId("scopeAll").addEventListener("click", () => runUiTask(async () => {
       selectedDoc = null;
       updateScope();
-      setStatus("sidebarStatus", "Scope set to all documents", "success");
+      resetWorkspaceForScope();
     }, "sidebarStatus"));
     byId("pdfUploadInput").addEventListener("change", () => runUiTask(uploadPdf, "sidebarStatus"));
     byId("cancelUpload").addEventListener("click", () => { if (uploadController) uploadController.abort(); });

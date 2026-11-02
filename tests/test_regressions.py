@@ -73,6 +73,33 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
     assert [chunk.chunk_id for chunk in contributors] == ["c1", "c2"]
 
 
+def test_semantic_cache_never_crosses_scopes() -> None:
+    """A cached answer from one document must not satisfy a query scoped to another."""
+    from src.cache_and_guardrails.semantic_cache import SemanticCache
+
+    same_question = "What was revenue?"
+    assert (
+        SemanticCache._compatible_queries(
+            f"DOC_A::top_k=4::{same_question}",
+            f"DOC_B::top_k=4::{same_question}",
+        )
+        is False
+    )
+    assert (
+        SemanticCache._compatible_queries(
+            f"DOC_A::top_k=4::{same_question}",
+            f"DOC_A::top_k=4::{same_question}",
+        )
+        is True
+    )
+    assert (
+        SemanticCache._compatible_queries(
+            "What was revenue?", "What was revenue?"
+        )
+        is True
+    )
+
+
 def test_query_expansion_maps_casual_wording_to_financial_terms() -> None:
     from src.usecases.synthesis import expand_query
 
