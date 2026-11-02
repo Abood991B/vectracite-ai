@@ -111,7 +111,7 @@ def _service(
         llm_client=FakeLLM(answer, tokens),
         ensure_indexed=lambda: None,
         normalize_scope=lambda scope: scope,
-        infer_scope=lambda _question: None,
+        infer_scope=lambda _question, _names: None,
     )
     return service, retriever, cache
 
@@ -133,7 +133,7 @@ async def test_execute_cites_only_pages_named_in_the_answer() -> None:
 async def test_execute_caches_an_answer_without_citations_when_chunks_were_reranked() -> None:
     """Current behavior: the cache guard is "some chunks were reranked", not "the answer cited them".
 
-    Pinned as-is rather than fixed here — see TECH-DEBT.md.
+    Pinned as-is rather than fixed here â€” see TECH-DEBT.md.
     """
     chunks = [_chunk(5, "Revenue grew.")]
     service, _, cache = _service(chunks, answer="Revenue grew without a page reference.")
@@ -210,7 +210,7 @@ async def test_pipeline_refuses_without_any_http_dependency() -> None:
         llm_client=FakeLLM("unused"),
         ensure_indexed=lambda: None,
         normalize_scope=lambda scope: scope,
-        infer_scope=lambda _question: None,
+        infer_scope=lambda _question, _names: None,
     )
 
     with pytest.raises(QueryBlockedError) as blocked:

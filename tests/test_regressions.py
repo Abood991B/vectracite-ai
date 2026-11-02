@@ -84,11 +84,16 @@ def test_cross_document_detection_uses_indexed_document_names() -> None:
 
 
 def test_scope_inference_does_not_pick_one_side_of_a_comparison() -> None:
-    from src.api.main import _infer_scope_from_question
+    from src.api.main import retriever
+    from src.usecases.scoping import infer_scope_from_question
 
     client.get("/documents")
-    assert _infer_scope_from_question("Compare AMD and MSFT revenue.") is None
-    assert _infer_scope_from_question("What was AMD revenue in 2022?") == "AMD_2022_10K"
+    indexed = retriever.indexed_document_names()
+    assert infer_scope_from_question("Compare AMD and MSFT revenue.", indexed) is None
+    assert (
+        infer_scope_from_question("What was AMD revenue in 2022?", indexed)
+        == "AMD_2022_10K"
+    )
 
 
 def test_document_inspector_paginates_and_rejects_out_of_range_pages() -> None:

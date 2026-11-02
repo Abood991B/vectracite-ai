@@ -24,11 +24,14 @@ from src.api.index_state import bump_index_generation, read_index_generation
 from src.api.middleware import BodySizeLimitMiddleware
 from src.api.security import require_admin_access, require_read_access
 from src.api.ui import WORKBENCH_HTML
-from evaluation.run_ablation_benchmark import (
-    build_dynamic_eval_queries,
-    compute_evaluation_signature,
-    load_corpus_chunks_from_pdfs,
-    run_evaluation_suite,
+from evaluation.run_ablation_benchmark import load_corpus_chunks_from_pdfs
+from src.adapters.evaluation_runner import build_live_cases, compute_signature, run_suite
+from src.usecases.scenarios import build_scenarios
+from src.usecases.scoping import (
+    InvalidDocumentNameError,
+    clean_document_name,
+    infer_scope_from_question,
+    normalize_scope,
 )
 from src.cache_and_guardrails.guardrails import EnterpriseGuardrails
 from src.cache_and_guardrails.numeric_verifier import DeterministicNumericVerifier
@@ -51,7 +54,6 @@ from src.ingestion.pdf_parser import (
 )
 from src.retrieval.hybrid_retriever import HybridRetriever
 from src.retrieval.reranker import CrossEncoderReranker
-from src.retrieval.table_ast import TableASTParser
 
 parser = MultimodalFinancialParser(
     chunk_size=settings.PARSER_CHUNK_SIZE,
@@ -259,81 +261,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def _clean_doc_name(doc_name: str) -> str:
-    """Normalize a document identifier before using it as a corpus filename."""
-    clean_name = doc_name.strip().replace("\\", "/").rsplit("/", maxsplit=1)[-1]
-    if clean_name.lower().endswith(".pdf"):
-        clean_name = clean_name[:-4]
-    if not clean_name or clean_name in {".", ".."}:
-        raise HTTPException(status_code=400, detail="Document name cannot be empty.")
-    if any(character in '<>:"/\\|?*' for character in clean_name):
-        raise HTTPException(status_code=400, detail="Document name contains invalid filename characters.")
-    return clean_name
+    """Map a domain filename refusal to the HTTP status the API promises."""
+    try:
+        return clean_document_name(doc_name)
+    except InvalidDocumentNameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _normalize_scope(doc_name: str | None) -> str | None:
-    """Normalize the optional query scope while treating ALL as global search."""
-    if not doc_name or not doc_name.strip() or doc_name.strip().upper() == "ALL":
-        return None
-    return _clean_doc_name(doc_name)
-
-
-def _infer_scope_from_question(question: str) -> str | None:
-    """Honor an explicit document reference only when it is unambiguous."""
-    question_folded = question.casefold()
-    question_compact = re.sub(r"[^a-z0-9]", "", question_folded)
-    indexed_names = sorted(
-        {chunk.doc_name for chunk in retriever.chunks_store},
-        key=len,
-        reverse=True,
-    )
-    if len(indexed_names) <= 1:
-        return indexed_names[0] if indexed_names else None
-
-    exact_matches = [
-        doc_name
-        for doc_name in indexed_names
-        if re.search(rf"\b{re.escape(doc_name.casefold())}\b", question_folded)
-    ]
-    if exact_matches:
-        return exact_matches[0] if len(exact_matches) == 1 else None
-
-    matches: List[str] = []
-    for doc_name in indexed_names:
-        aliases = {
-            doc_name.split("_", maxsplit=1)[0].casefold(),
-        }
-        compact_aliases = {
-            re.sub(r"[^a-z0-9]", "", alias) for alias in aliases if len(alias) >= 2
-        }
-        if any(
-            len(alias) >= 2
-            and re.search(rf"\b{re.escape(alias)}\b", question_folded)
-            for alias in aliases
-        ) or any(alias and alias in question_compact for alias in compact_aliases):
-            matches.append(doc_name)
-
-    if len(matches) > 1:
-        years = {
-            year if len(year) == 4 else f"20{year}"
-            for year in re.findall(r"\b(?:fy\s?)?((?:19|20)\d{2}|\d{2})\b", question, re.I)
-        }
-        year_matches = [
-            doc_name
-            for doc_name in matches
-            if any(year in doc_name for year in years)
-        ]
-        if len(year_matches) == 1:
-            matches = year_matches
-
-    if len(matches) != 1:
-        return None
-    if re.search(
-        r"\b(compare|comparison|between|across|versus|vs\.?|both|each)\b",
-        question,
-        flags=re.IGNORECASE,
-    ):
-        return None
-    return matches[0]
+    """Map a domain scope refusal to the HTTP status the API promises."""
+    try:
+        return normalize_scope(doc_name)
+    except InvalidDocumentNameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> Path:
@@ -401,73 +341,11 @@ def _benchmark_definitions() -> List[Dict[str, Any]]:
 
 def _build_scenarios() -> List[Dict[str, Any]]:
     """Build scenario cards from benchmark JSON plus live table schemas."""
-    definitions = _benchmark_definitions()
-    indexed_docs = {document["doc_name"] for document in retriever.list_documents()}
-    scenarios: List[Dict[str, Any]] = []
-    covered_docs: set[str] = set()
-
-    for definition in definitions:
-        doc_name = str(definition["doc_name"])
-        if doc_name not in indexed_docs:
-            continue
-        scenarios.append(
-            {
-                "id": f"benchmark:{doc_name}:{definition['page_number']}",
-                "doc_name": doc_name,
-                "page_number": int(definition["page_number"]),
-                "question": str(definition["question"]),
-                "source": "benchmark",
-            }
-        )
-        covered_docs.add(doc_name)
-
-    live_cases = build_dynamic_eval_queries(retriever.chunks_store)
-    for case in live_cases:
-        doc_name = str(case["doc_name"])
-        if doc_name not in indexed_docs or doc_name in covered_docs:
-            continue
-        scenarios.append(
-            {
-                "id": f"live:{doc_name}:{case['page_number']}",
-                "doc_name": doc_name,
-                "page_number": int(case["page_number"]),
-                "question": str(case["question"]),
-                "source": "live_table_schema",
-            }
-        )
-        covered_docs.add(doc_name)
-
-    for doc_name in sorted(indexed_docs - covered_docs):
-        chunks = retriever.get_document_chunks(doc_name)
-        table_chunk = next((chunk for chunk in chunks if chunk["contains_table"]), None)
-        if table_chunk:
-            cells = TableASTParser.extract_cells(
-                table_chunk["text"], doc_name, int(table_chunk["page_number"])
-            )
-            if cells:
-                first_cell = cells[0]
-                question = (
-                    f"In {doc_name}, what was {first_cell.row_key} in "
-                    f"{first_cell.col_header}?"
-                )
-            else:
-                question = f"What does the indexed table in {doc_name} show?"
-            page_number = int(table_chunk["page_number"])
-        else:
-            question = f"Summarize the indexed evidence in {doc_name}."
-            page_number = int(chunks[0]["page_number"]) if chunks else 1
-
-        scenarios.append(
-            {
-                "id": f"indexed:{doc_name}:{page_number}",
-                "doc_name": doc_name,
-                "page_number": page_number,
-                "question": question,
-                "source": "indexed_document",
-            }
-        )
-
-    return scenarios
+    return build_scenarios(
+        definitions=_benchmark_definitions(),
+        retriever=retriever,
+        live_cases=build_live_cases(retriever.chunks_store),
+    )
 
 
 def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> int:
@@ -503,7 +381,7 @@ answer_service = AnswerService(
     llm_client=llm_client,
     ensure_indexed=_ensure_indexed,
     normalize_scope=_normalize_scope,
-    infer_scope=_infer_scope_from_question,
+    infer_scope=infer_scope_from_question,
 )
 
 
@@ -1023,12 +901,12 @@ async def latest_evaluation() -> Dict[str, Any]:
     _ensure_indexed()
     report_path = settings.DATA_DIR / "latest_evaluation_report.json"
     if not report_path.exists():
-        return run_evaluation_suite(retriever.chunks_store)
+        return run_suite(retriever.chunks_store)
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    current_signature = compute_evaluation_signature(retriever.chunks_store)
+    current_signature = compute_signature(retriever.chunks_store)
     if report.get("evaluation_signature") != current_signature:
-        return run_evaluation_suite(retriever.chunks_store)
+        return run_suite(retriever.chunks_store)
     return report
 
 
@@ -1036,7 +914,7 @@ async def latest_evaluation() -> Dict[str, Any]:
 async def evaluate_current_index() -> Dict[str, Any]:
     """Run a live ablation across all currently indexed documents."""
     _ensure_indexed()
-    return run_evaluation_suite(retriever.chunks_store)
+    return run_suite(retriever.chunks_store)
 
 
 async def _execute_query(payload: QueryRequest) -> QueryResponse:

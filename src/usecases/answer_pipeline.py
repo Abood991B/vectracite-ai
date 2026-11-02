@@ -67,7 +67,7 @@ class AnswerPipeline:
         llm_client: SynthesizerPort,
         ensure_indexed: Callable[[], None],
         normalize_scope: Callable[[str | None], str | None],
-        infer_scope: Callable[[str], str | None],
+        infer_scope: Callable[[str, List[str]], str | None],
     ) -> None:
         self.retriever = retriever
         self.reranker = reranker
@@ -88,8 +88,9 @@ class AnswerPipeline:
             raise QueryBlockedError(input_check.triggered_rules)
 
         self.ensure_indexed()
+        indexed_docs = self.retriever.indexed_document_names()
         scope = self.normalize_scope(payload.doc_name) or self.infer_scope(
-            input_check.sanitized_text
+            input_check.sanitized_text, indexed_docs
         )
         cache_key = (
             f"{scope or 'ALL'}::top_k={payload.top_k}::{input_check.sanitized_text}"
@@ -113,7 +114,6 @@ class AnswerPipeline:
             top_n=payload.top_k,
         )
 
-        indexed_docs = self.retriever.indexed_document_names()
         raw_answer = await self.llm_client.generate_answer(
             input_check.sanitized_text,
             reranked_chunks,
@@ -219,7 +219,10 @@ class AnswerPipeline:
         started_at = time.perf_counter()
         question = self.validate(payload)
         self.ensure_indexed()
-        scope = self.normalize_scope(payload.doc_name) or self.infer_scope(question)
+        indexed_docs = self.retriever.indexed_document_names()
+        scope = self.normalize_scope(payload.doc_name) or self.infer_scope(
+            question, indexed_docs
+        )
         cache_key = f"{scope or 'ALL'}::top_k={payload.top_k}::{question}"
         if payload.use_cache:
             cached = self.semantic_cache.lookup(cache_key)
@@ -246,7 +249,6 @@ class AnswerPipeline:
             candidates=hybrid_candidates,
             top_n=payload.top_k,
         )
-        indexed_docs = self.retriever.indexed_document_names()
         redactor = self.guardrails.streaming_redactor()
         async for token in self.llm_client.stream_answer(
             question,
