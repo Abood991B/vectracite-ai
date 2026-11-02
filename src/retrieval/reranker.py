@@ -91,6 +91,13 @@ class CrossEncoderReranker:
 
         max_rrf = max((c.rrf_score for c in candidates), default=1.0) or 1.0
         ast_scores = [TableASTParser.compute_ast_alignment_score(query, c.text) for c in candidates]
+        ordered_ast = sorted(ast_scores, reverse=True)
+        top_ast = ordered_ast[0] if ordered_ast else 0.0
+        second_ast = ordered_ast[1] if len(ordered_ast) > 1 else 0.0
+        if top_ast < 0.50 or (top_ast - second_ast) < self.margin_threshold:
+            for doc in candidates:
+                doc.rerank_score = doc.rrf_score
+            return candidates[:top_n]
 
         preliminary = []
         for doc, ast_align in zip(candidates, ast_scores):

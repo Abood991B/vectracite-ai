@@ -1,17 +1,26 @@
 from contextlib import asynccontextmanager
+import asyncio
 import base64
+import binascii
 import json
+import logging
+import os
 import re
-import time
+import uuid
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
 import fitz
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from src.api.answer_service import AnswerService
+from src.api.distributed_lock import distributed_mutation_lock
+from src.api.middleware import BodySizeLimitMiddleware
+from src.api.security import require_admin_access, require_read_access
 from src.api.ui import WORKBENCH_HTML
 from evaluation.run_ablation_benchmark import (
     build_dynamic_eval_queries,
+    compute_evaluation_signature,
     load_corpus_chunks_from_pdfs,
     run_evaluation_suite,
 )
@@ -21,22 +30,26 @@ from src.cache_and_guardrails.semantic_cache import SemanticCache
 from src.config import settings
 from src.inference.llm_client import UnifiedLLMClient
 from src.inference.schemas import (
-    CitationItem,
     IngestRequest,
     LLMConfigRequest,
-    NumericVerificationSchema,
     PdfUploadRequest,
-    RowDeltaSchema,
-    TableCellSchema,
     QueryRequest,
     QueryResponse,
 )
-from src.ingestion.pdf_parser import MultimodalFinancialParser, render_pages_to_pdf_bytes
+from src.ingestion.pdf_parser import (
+    MultimodalFinancialParser,
+    PDFRenderError,
+    PDFRenderLimitError,
+    render_pages_to_pdf_bytes,
+)
 from src.retrieval.hybrid_retriever import HybridRetriever
 from src.retrieval.reranker import CrossEncoderReranker
 from src.retrieval.table_ast import TableASTParser
 
-parser = MultimodalFinancialParser(chunk_size=1200, chunk_overlap=200)
+parser = MultimodalFinancialParser(
+    chunk_size=settings.PARSER_CHUNK_SIZE,
+    chunk_overlap=settings.PARSER_CHUNK_OVERLAP,
+)
 retriever = HybridRetriever(
     in_memory=settings.QDRANT_IN_MEMORY,
     use_lightweight_embedder=settings.USE_LIGHTWEIGHT_MODELS,
@@ -59,9 +72,75 @@ DEMO_DOCUMENT_NAMES = frozenset(
 )
 
 
-def _load_persisted_chunks() -> List[Any]:
+def demo_document_names() -> frozenset[str]:
+    """Return the demo shelf from the corpus manifest, with a safe fallback."""
+    manifest_path = settings.CORPUS_PDF_DIR / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            documents = manifest.get("documents") or {}
+            if documents:
+                return frozenset(str(name) for name in documents)
+        except (OSError, ValueError, json.JSONDecodeError):
+            logger.warning("Ignoring malformed corpus manifest %s", manifest_path)
+    stems = frozenset(path.stem for path in settings.CORPUS_PDF_DIR.glob("*.pdf"))
+    return stems or DEMO_DOCUMENT_NAMES
+
+
+T = TypeVar("T")
+logger = logging.getLogger(__name__)
+_mutation_lock = asyncio.Lock()
+
+
+def _cors_origins() -> list[str]:
+    """Return the explicit browser origins permitted to call the API."""
+    return [origin.strip() for origin in settings.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+
+async def _run_ingestion_step(operation: Callable[..., T], *args: Any) -> T:
+    """Bound CPU-heavy PDF work without blocking the event loop indefinitely."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(operation, *args), timeout=settings.INGEST_TIMEOUT_SECONDS
+        )
+    except TimeoutError as exc:
+        raise HTTPException(status_code=408, detail="Document processing timed out.") from exc
+
+
+def _validate_structured_pages(pages: list[Any]) -> None:
+    if len(pages) > settings.MAX_STRUCTURED_PAGES:
+        raise HTTPException(status_code=413, detail="Document page limit exceeded.")
+    if sum(len(page.text) for page in pages) > settings.MAX_STRUCTURED_TEXT_CHARS:
+        raise HTTPException(status_code=413, detail="Document text limit exceeded.")
+
+
+def _render_and_parse_document(
+    clean_name: str, raw_pages: List[Dict[str, Any]]
+) -> tuple[bytes, List[Any]]:
+    """Render once, then parse the exact bytes that will be persisted."""
+    pdf_bytes = render_pages_to_pdf_bytes(clean_name, raw_pages)
+    return pdf_bytes, parser.parse_pdf_bytes(pdf_bytes, clean_name)
+
+
+def _validate_pdf_limits(raw_bytes: bytes) -> None:
+    if len(raw_bytes) > settings.MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="PDF size limit exceeded.")
+    try:
+        with fitz.open(stream=raw_bytes, filetype="pdf") as document:
+            if document.page_count > settings.MAX_PDF_PAGES:
+                raise HTTPException(status_code=413, detail="PDF page limit exceeded.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Uploaded content is not a valid PDF.") from exc
+
+
+def _load_persisted_chunks(include_defaults: bool | None = None) -> List[Any]:
     """Load defaults plus user PDFs, letting a user copy override a default by name."""
-    baseline_chunks = [] if _DEFAULTS_CLEARED else load_corpus_chunks_from_pdfs(parser)
+    load_defaults = (
+        (not _DEFAULTS_CLEARED) if include_defaults is None else include_defaults
+    )
+    baseline_chunks = load_corpus_chunks_from_pdfs(parser) if load_defaults else []
     upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
     uploaded_names = {path.stem for path in upload_paths}
     chunks = [chunk for chunk in baseline_chunks if chunk.doc_name not in uploaded_names]
@@ -70,16 +149,33 @@ def _load_persisted_chunks() -> List[Any]:
     return chunks
 
 
+async def _periodic_index_sync() -> None:
+    """Refresh the local BM25/catalog view from the shared Qdrant store."""
+    interval = max(1.0, settings.INDEX_SYNC_SECONDS)
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await asyncio.to_thread(retriever.sync_from_qdrant)
+        except Exception:
+            logger.exception("Periodic Qdrant catalog sync failed")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Index the on-disk PDF corpus and warm up both production BGE models."""
-    if not retriever.chunks_store and not _DEFAULTS_CLEARED:
-        corpus_chunks = _load_persisted_chunks()
-        if corpus_chunks:
-            retriever.index_chunks(corpus_chunks)
+    """Validate security, hydrate shared state, and warm up the retrieval stack."""
+    settings.validate_auth_configuration()
+    _ensure_indexed()
     warmup = retriever.retrieve_hybrid("warmup", top_k=1)
     reranker.rerank("warmup", warmup, top_n=1)
-    yield
+    sync_task = asyncio.create_task(_periodic_index_sync())
+    try:
+        yield
+    finally:
+        sync_task.cancel()
+        try:
+            await sync_task
+        except asyncio.CancelledError:
+            pass
 
 
 def _clean_doc_name(doc_name: str) -> str:
@@ -87,8 +183,10 @@ def _clean_doc_name(doc_name: str) -> str:
     clean_name = doc_name.strip().replace("\\", "/").rsplit("/", maxsplit=1)[-1]
     if clean_name.lower().endswith(".pdf"):
         clean_name = clean_name[:-4]
-    if not clean_name:
+    if not clean_name or clean_name in {".", ".."}:
         raise HTTPException(status_code=400, detail="Document name cannot be empty.")
+    if any(character in '<>:"/\\|?*' for character in clean_name):
+        raise HTTPException(status_code=400, detail="Document name contains invalid filename characters.")
     return clean_name
 
 
@@ -100,23 +198,76 @@ def _normalize_scope(doc_name: str | None) -> str | None:
 
 
 def _infer_scope_from_question(question: str) -> str | None:
-    """Honor an explicit indexed document name in a question as a convenience scope."""
+    """Honor an explicit document reference only when it is unambiguous."""
     question_folded = question.casefold()
+    question_compact = re.sub(r"[^a-z0-9]", "", question_folded)
     indexed_names = sorted(
         {chunk.doc_name for chunk in retriever.chunks_store},
         key=len,
         reverse=True,
     )
-    return next(
-        (doc_name for doc_name in indexed_names if doc_name.casefold() in question_folded),
-        None,
-    )
+    if len(indexed_names) <= 1:
+        return indexed_names[0] if indexed_names else None
+
+    exact_matches = [
+        doc_name
+        for doc_name in indexed_names
+        if re.search(rf"\b{re.escape(doc_name.casefold())}\b", question_folded)
+    ]
+    if exact_matches:
+        return exact_matches[0] if len(exact_matches) == 1 else None
+
+    matches: List[str] = []
+    for doc_name in indexed_names:
+        aliases = {
+            doc_name.split("_", maxsplit=1)[0].casefold(),
+        }
+        compact_aliases = {
+            re.sub(r"[^a-z0-9]", "", alias) for alias in aliases if len(alias) >= 2
+        }
+        if any(
+            len(alias) >= 2
+            and re.search(rf"\b{re.escape(alias)}\b", question_folded)
+            for alias in aliases
+        ) or any(alias and alias in question_compact for alias in compact_aliases):
+            matches.append(doc_name)
+
+    if len(matches) > 1:
+        years = {
+            year if len(year) == 4 else f"20{year}"
+            for year in re.findall(r"\b(?:fy\s?)?((?:19|20)\d{2}|\d{2})\b", question, re.I)
+        }
+        year_matches = [
+            doc_name
+            for doc_name in matches
+            if any(year in doc_name for year in years)
+        ]
+        if len(year_matches) == 1:
+            matches = year_matches
+
+    if len(matches) != 1:
+        return None
+    if re.search(
+        r"\b(compare|comparison|between|across|versus|vs\.?|both|each)\b",
+        question,
+        flags=re.IGNORECASE,
+    ):
+        return None
+    return matches[0]
 
 
-def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> None:
-    """Persist a user PDF separately from the checked-in default corpus."""
+def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> Path:
+    """Atomically persist a user PDF separately from the checked-in default corpus."""
     settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    (settings.USER_UPLOADS_DIR / f"{doc_name}.pdf").write_bytes(pdf_bytes)
+    target = settings.USER_UPLOADS_DIR / f"{doc_name}.pdf"
+    temp_path = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temp_path.write_bytes(pdf_bytes)
+        os.replace(temp_path, target)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+    return target
 
 
 def _remove_user_pdf(doc_name: str) -> None:
@@ -126,7 +277,7 @@ def _remove_user_pdf(doc_name: str) -> None:
         user_path.unlink()
 
     legacy_path = settings.CORPUS_PDF_DIR / f"{doc_name}.pdf"
-    if doc_name not in DEMO_DOCUMENT_NAMES and legacy_path.exists():
+    if doc_name not in demo_document_names() and legacy_path.exists():
         legacy_path.unlink()
 
 
@@ -141,11 +292,24 @@ def _find_pdf_path(doc_name: str) -> Path | None:
 
 
 def _ensure_indexed() -> None:
-    """Load the real corpus lazily for clients that do not trigger lifespan hooks."""
-    if not retriever.chunks_store and not _DEFAULTS_CLEARED:
-        corpus_chunks = _load_persisted_chunks()
-        if corpus_chunks:
-            retriever.index_chunks(corpus_chunks)
+    """Load or hydrate a usable catalog for clients that do not trigger lifespan."""
+    if retriever.chunks_store or _DEFAULTS_CLEARED:
+        return
+    if retriever.backend != "memory" or retriever.shared_client:
+        try:
+            if retriever.count_points() > 0:
+                retriever.hydrate_from_qdrant()
+                if retriever.chunks_store:
+                    return
+        except Exception:
+            logger.exception("Unable to hydrate the shared Qdrant catalog")
+    corpus_chunks = _load_persisted_chunks()
+    if corpus_chunks:
+        retriever.index_chunks(
+            corpus_chunks,
+            use_embedding_cache=True,
+            write_embedding_cache=True,
+        )
 
 
 def _benchmark_definitions() -> List[Dict[str, Any]]:
@@ -164,6 +328,8 @@ def _build_scenarios() -> List[Dict[str, Any]]:
 
     for definition in definitions:
         doc_name = str(definition["doc_name"])
+        if doc_name not in indexed_docs:
+            continue
         scenarios.append(
             {
                 "id": f"benchmark:{doc_name}:{definition['page_number']}",
@@ -178,7 +344,7 @@ def _build_scenarios() -> List[Dict[str, Any]]:
     live_cases = build_dynamic_eval_queries(retriever.chunks_store)
     for case in live_cases:
         doc_name = str(case["doc_name"])
-        if doc_name in covered_docs:
+        if doc_name not in indexed_docs or doc_name in covered_docs:
             continue
         scenarios.append(
             {
@@ -224,25 +390,40 @@ def _build_scenarios() -> List[Dict[str, Any]]:
     return scenarios
 
 
-def _answer_contributors(
-    answer: str,
-    chunks: List[Any],
-) -> List[Any]:
-    """Keep only evidence pages explicitly cited by the synthesized answer."""
-    cited_pages = {
-        (match.group(1).strip(), int(match.group(2)))
-        for match in re.finditer(r"\[([^,\]]+),\s*Page\s+(\d+)\]", answer)
-    }
-    if not cited_pages:
-        return []
-    contributors: List[Any] = []
-    seen: set[str] = set()
-    for chunk in chunks:
-        key = (chunk.doc_name, chunk.page_number)
-        if key in cited_pages and chunk.chunk_id not in seen:
-            contributors.append(chunk)
-            seen.add(chunk.chunk_id)
-    return contributors
+def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> int:
+    """Persist bytes and swap the indexed version, restoring both on failure."""
+    old_user_path = settings.USER_UPLOADS_DIR / f"{clean_name}.pdf"
+    old_user_bytes = old_user_path.read_bytes() if old_user_path.exists() else None
+    snapshot = retriever.snapshot_document(clean_name)
+    try:
+        _persist_pdf(clean_name, pdf_bytes)
+        removed = retriever.replace_document(clean_name, chunks)
+    except Exception:
+        try:
+            if old_user_bytes is not None:
+                _persist_pdf(clean_name, old_user_bytes)
+            elif old_user_path.exists():
+                old_user_path.unlink(missing_ok=True)
+            if snapshot:
+                retriever.restore_document(clean_name, snapshot)
+        except Exception:
+            logger.exception("Unable to roll back failed document commit")
+        raise
+    semantic_cache.clear()
+    return removed
+
+
+answer_service = AnswerService(
+    retriever=retriever,
+    reranker=reranker,
+    semantic_cache=semantic_cache,
+    guardrails=guardrails,
+    numeric_verifier=numeric_verifier,
+    llm_client=llm_client,
+    ensure_indexed=_ensure_indexed,
+    normalize_scope=_normalize_scope,
+    infer_scope=_infer_scope_from_question,
+)
 
 
 app = FastAPI(
@@ -257,11 +438,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
+app.add_middleware(BodySizeLimitMiddleware)
 
 
 
@@ -292,8 +474,7 @@ async def favicon_asset() -> FileResponse:
 
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
-    """Liveness and readiness probe for Kubernetes & Cloud Run."""
-    _ensure_indexed()
+    """Process liveness probe; dependency readiness lives at /ready."""
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
@@ -304,23 +485,55 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
-@app.get("/config/llm")
+@app.get("/ready")
+async def readiness_check() -> Response:
+    """Readiness probe that fails when the index or required dependencies are unusable."""
+    _ensure_indexed()
+    health = retriever.health()
+    semantic_cache.check_health()
+    cache = semantic_cache.stats()
+    failures: List[str] = []
+    if health["degraded"]:
+        failures.append("vector_backend_degraded")
+    if not retriever.chunks_store:
+        failures.append("index_empty")
+    if settings.REQUIRE_REDIS and cache["backend"] != "redis":
+        failures.append("redis_unavailable")
+    payload = {
+        "status": "ready" if not failures else "not_ready",
+        "service": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "failures": failures,
+        "indexed_chunks": len(retriever.chunks_store),
+        "indexed_documents": len(retriever.list_documents()),
+        "retriever": health,
+        "cache": cache,
+    }
+    return Response(
+        content=json.dumps(payload),
+        media_type="application/json",
+        status_code=200 if not failures else 503,
+    )
+
+
+@app.get("/config/llm", dependencies=[Depends(require_read_access)])
 async def get_llm_config() -> Dict[str, Any]:
     """Return safe runtime provider metadata without exposing the API key."""
     return llm_client.get_provider_status()
 
 
-@app.post("/config/llm")
+@app.post("/config/llm", dependencies=[Depends(require_admin_access)])
 async def configure_llm(payload: LLMConfigRequest) -> Dict[str, Any]:
     """Update the optional OpenAI-compatible provider without restarting."""
     return llm_client.configure_provider(
         base_url=payload.base_url,
         api_key=payload.api_key,
         model_name=payload.model_name,
+        enabled=payload.enabled,
     )
 
 
-@app.get("/documents")
+@app.get("/documents", dependencies=[Depends(require_read_access)])
 async def list_indexed_documents() -> Dict[str, Any]:
     """Lists all currently indexed documents, chunk counts, and table counts."""
     _ensure_indexed()
@@ -334,7 +547,7 @@ async def list_indexed_documents() -> Dict[str, Any]:
     return {"total_documents": len(docs), "documents": docs}
 
 
-@app.get("/documents/{doc_name}/pdf")
+@app.get("/documents/{doc_name}/pdf", dependencies=[Depends(require_read_access)])
 async def document_pdf(doc_name: str) -> FileResponse:
     """Return the original PDF for inline browser preview or download."""
     clean_name = _clean_doc_name(doc_name)
@@ -349,7 +562,10 @@ async def document_pdf(doc_name: str) -> FileResponse:
     )
 
 
-@app.get("/documents/{doc_name}/pages/{page_number}/image")
+@app.get(
+    "/documents/{doc_name}/pages/{page_number}/image",
+    dependencies=[Depends(require_read_access)],
+)
 async def document_page_image(
     doc_name: str, page_number: int, highlight: str = ""
 ) -> Response:
@@ -363,16 +579,39 @@ async def document_page_image(
 
     document = fitz.open(pdf_path)
     try:
-        selected_page = None
-        fallback_index = min(page_number - 1, len(document) - 1)
-        for page in document:
-            source_text = page.get_text("text", sort=True)
-            source_match = re.search(r"SOURCE PAGE:\s*(\d+)", source_text, flags=re.IGNORECASE)
-            if source_match and int(source_match.group(1)) == page_number:
-                selected_page = page
-                break
-        if selected_page is None:
-            selected_page = document[fallback_index]
+        generated = bool(
+            len(document)
+            and re.search(
+                r"SOURCE PAGE:\s*\d+",
+                document[0].get_text("text", sort=True),
+                flags=re.IGNORECASE,
+            )
+        )
+        if generated:
+            selected_page = None
+            for page in document:
+                source_text = page.get_text("text", sort=True)
+                source_match = re.search(
+                    r"SOURCE PAGE:\s*(\d+)", source_text, flags=re.IGNORECASE
+                )
+                if source_match and int(source_match.group(1)) == page_number:
+                    selected_page = page
+                    break
+            if selected_page is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Page {page_number} is not present in '{clean_name}'.",
+                )
+        else:
+            if page_number > len(document):
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Page {page_number} is outside '{clean_name}' "
+                        f"({len(document)} pages)."
+                    ),
+                )
+            selected_page = document[page_number - 1]
 
         stopwords = {
             "about",
@@ -413,17 +652,20 @@ async def document_page_image(
         document.close()
 
 
-@app.post("/documents/clear-demos")
-@app.post("/documents/clear-all")
+@app.post("/documents/clear-demos", dependencies=[Depends(require_admin_access)])
 async def clear_demo_documents() -> Dict[str, Any]:
     """Remove only demo documents from the active index and preserve user uploads."""
     global _DEFAULTS_CLEARED
-    _DEFAULTS_CLEARED = True
-    user_document_names = {path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")}
-    removed_chunks = 0
-    for doc_name in DEMO_DOCUMENT_NAMES - user_document_names:
-        removed_chunks += retriever.delete_document(doc_name)
-    semantic_cache.clear()
+    async with _mutation_lock:
+        async with distributed_mutation_lock():
+            user_document_names = {
+                path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")
+            }
+            _DEFAULTS_CLEARED = True
+            removed_chunks = 0
+            for doc_name in demo_document_names() - user_document_names:
+                removed_chunks += retriever.delete_document(doc_name)
+            semantic_cache.clear()
     return {
         "status": "cleared_demos",
         "documents": len(retriever.list_documents()),
@@ -433,15 +675,49 @@ async def clear_demo_documents() -> Dict[str, Any]:
     }
 
 
-@app.post("/documents/restore-defaults")
+@app.post("/documents/clear-all", dependencies=[Depends(require_admin_access)])
+async def clear_all_documents() -> Dict[str, Any]:
+    """Remove every indexed document, uploaded PDF, and cached answer."""
+    global _DEFAULTS_CLEARED
+    async with _mutation_lock:
+        async with distributed_mutation_lock():
+            upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
+            _DEFAULTS_CLEARED = True
+            retriever.clear()
+            semantic_cache.clear()
+            removed_files = 0
+            for path in upload_paths:
+                try:
+                    path.unlink(missing_ok=True)
+                    removed_files += 1
+                except OSError:
+                    logger.exception("Unable to remove uploaded PDF %s", path.name)
+    return {
+        "status": "cleared_all",
+        "documents": len(retriever.list_documents()),
+        "uploads_removed": removed_files,
+    }
+
+
+@app.post("/documents/restore-defaults", dependencies=[Depends(require_admin_access)])
 async def restore_default_documents() -> Dict[str, Any]:
     """Restore demos while preserving and re-indexing every user upload."""
     global _DEFAULTS_CLEARED
-    _DEFAULTS_CLEARED = False
-    retriever.clear()
-    semantic_cache.clear()
-    persisted_chunks = _load_persisted_chunks()
-    indexed_count = retriever.index_chunks(persisted_chunks) if persisted_chunks else 0
+    async with _mutation_lock:
+        async with distributed_mutation_lock():
+            persisted_chunks = _load_persisted_chunks(include_defaults=True)
+            _DEFAULTS_CLEARED = False
+            retriever.clear()
+            semantic_cache.clear()
+            indexed_count = (
+                retriever.index_chunks(
+                    persisted_chunks,
+                    use_embedding_cache=True,
+                    write_embedding_cache=True,
+                )
+                if persisted_chunks
+                else 0
+            )
     return {
         "status": "restored_defaults",
         "documents": len(retriever.list_documents()),
@@ -449,94 +725,139 @@ async def restore_default_documents() -> Dict[str, Any]:
     }
 
 
-@app.get("/documents/{doc_name}")
-async def inspect_document(doc_name: str) -> Dict[str, Any]:
-    """Returns all indexed pages, chunks, and extracted Markdown tables for `doc_name`."""
+@app.get("/documents/{doc_name}", dependencies=[Depends(require_read_access)])
+async def inspect_document(
+    doc_name: str,
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> Dict[str, Any]:
+    """Returns paginated indexed pages, chunks, and extracted Markdown tables."""
     _ensure_indexed()
     chunks = retriever.get_document_chunks(doc_name)
     if not chunks:
         raise HTTPException(status_code=404, detail=f"Document '{doc_name}' not found.")
+    page = chunks[offset : offset + limit]
     return {
         "doc_name": doc_name,
         "total_chunks": len(chunks),
         "table_chunks": sum(1 for c in chunks if c["contains_table"]),
-        "chunks": chunks,
+        "offset": offset,
+        "limit": limit,
+        "returned_chunks": len(page),
+        "truncated": offset + len(page) < len(chunks),
+        "chunks": page,
     }
 
 
-@app.post("/ingest/pdf")
+@app.post("/ingest/pdf", dependencies=[Depends(require_admin_access)])
 async def ingest_pdf_file(payload: PdfUploadRequest) -> Dict[str, Any]:
-    """Decodes a base64-encoded PDF file, extracts text and tables, and indexes it."""
+    """Decode, validate, persist, and atomically index an uploaded PDF."""
+    maximum_encoded_size = ((settings.MAX_PDF_BYTES + 2) // 3) * 4
+    if len(payload.pdf_base64) > maximum_encoded_size:
+        raise HTTPException(status_code=413, detail="PDF size limit exceeded.")
     try:
         raw_bytes = base64.b64decode(payload.pdf_base64, validate=True)
+        _validate_pdf_limits(raw_bytes)
         clean_name = _clean_doc_name(payload.doc_name)
-        chunks = parser.parse_pdf_bytes(raw_bytes, doc_name=clean_name)
+        chunks = await _run_ingestion_step(
+            parser.parse_pdf_bytes, raw_bytes, clean_name
+        )
         if not chunks:
             raise ValueError("No readable text or tables found in PDF.")
-        retriever.delete_document(clean_name)
-        _persist_pdf(clean_name, raw_bytes)
-        indexed_count = retriever.index_chunks(chunks)
-        semantic_cache.clear()
+        async with _mutation_lock:
+            async with distributed_mutation_lock():
+                await asyncio.to_thread(
+                    _commit_document, clean_name, chunks, raw_bytes
+                )
         return {
             "status": "indexed_pdf",
             "doc_name": clean_name,
-            "chunks_created": indexed_count,
+            "chunks_created": len(chunks),
             "table_chunks": sum(1 for c in chunks if c.contains_table),
         }
-    except Exception as exc:
+    except HTTPException:
+        raise
+    except (binascii.Error, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {exc}") from exc
 
 
-@app.post("/ingest")
+@app.post("/ingest", dependencies=[Depends(require_admin_access)])
 async def ingest_document(payload: IngestRequest) -> Dict[str, Any]:
-    """Persist and index structured pages as a real PDF document."""
+    """Persist and atomically index structured pages as a real PDF document."""
     clean_name = _clean_doc_name(payload.doc_name)
+    _validate_structured_pages(payload.pages)
     raw_pages = [{"page_number": p.page_number, "text": p.text} for p in payload.pages]
-    chunks = parser.parse_raw_pages(doc_name=clean_name, pages=raw_pages)
-    if not chunks:
-        raise HTTPException(status_code=400, detail="No readable text or tables found in document.")
-    retriever.delete_document(clean_name)
-    _persist_pdf(clean_name, render_pages_to_pdf_bytes(clean_name, raw_pages))
-    indexed_count = retriever.index_chunks(chunks)
-    semantic_cache.clear()
+    try:
+        pdf_bytes, chunks = await _run_ingestion_step(
+            _render_and_parse_document, clean_name, raw_pages
+        )
+        if not chunks:
+            raise HTTPException(
+                status_code=400,
+                detail="No readable text or tables found in document.",
+            )
+        async with _mutation_lock:
+            async with distributed_mutation_lock():
+                await asyncio.to_thread(
+                    _commit_document, clean_name, chunks, pdf_bytes
+                )
+    except PDFRenderLimitError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {
         "status": "indexed",
         "doc_name": clean_name,
-        "chunks_created": indexed_count,
+        "chunks_created": len(chunks),
         "table_chunks": sum(1 for c in chunks if c.contains_table),
     }
 
 
-@app.put("/documents/{doc_name}")
+@app.put("/documents/{doc_name}", dependencies=[Depends(require_admin_access)])
 async def update_or_replace_document(doc_name: str, payload: IngestRequest) -> Dict[str, Any]:
-    """Atomically replaces an indexed document and its persisted PDF."""
+    """Atomically replace an indexed document and its persisted PDF."""
     clean_name = _clean_doc_name(doc_name)
+    _validate_structured_pages(payload.pages)
     raw_pages = [{"page_number": p.page_number, "text": p.text} for p in payload.pages]
-    chunks = parser.parse_raw_pages(doc_name=clean_name, pages=raw_pages)
-    if not chunks:
-        raise HTTPException(status_code=400, detail="No readable text or tables found in document.")
-    removed = retriever.delete_document(clean_name)
-    _persist_pdf(clean_name, render_pages_to_pdf_bytes(clean_name, raw_pages))
-    indexed_count = retriever.index_chunks(chunks)
-    semantic_cache.clear()
+    try:
+        pdf_bytes, chunks = await _run_ingestion_step(
+            _render_and_parse_document, clean_name, raw_pages
+        )
+        if not chunks:
+            raise HTTPException(
+                status_code=400,
+                detail="No readable text or tables found in document.",
+            )
+        async with _mutation_lock:
+            async with distributed_mutation_lock():
+                removed = await asyncio.to_thread(
+                    _commit_document, clean_name, chunks, pdf_bytes
+                )
+    except PDFRenderLimitError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except PDFRenderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {
         "status": "updated",
         "doc_name": clean_name,
         "previous_chunks_removed": removed,
-        "new_chunks_indexed": indexed_count,
+        "new_chunks_indexed": len(chunks),
     }
 
 
-@app.delete("/documents/{doc_name}")
+@app.delete("/documents/{doc_name}", dependencies=[Depends(require_admin_access)])
 async def delete_document(doc_name: str) -> Dict[str, Any]:
-    """Deletes a document and all of its chunks from Qdrant + BM25."""
+    """Delete a document and all of its chunks from Qdrant and BM25."""
     clean_name = _clean_doc_name(doc_name)
-    removed = retriever.delete_document(clean_name)
-    if removed == 0:
-        raise HTTPException(status_code=404, detail=f"Document '{clean_name}' not found.")
-
-    _remove_user_pdf(clean_name)
-    semantic_cache.clear()
+    async with _mutation_lock:
+        async with distributed_mutation_lock():
+            removed = retriever.delete_document(clean_name)
+            if removed == 0:
+                raise HTTPException(
+                    status_code=404, detail=f"Document '{clean_name}' not found."
+                )
+            _remove_user_pdf(clean_name)
+            semantic_cache.clear()
     return {
         "status": "deleted",
         "doc_name": clean_name,
@@ -545,7 +866,7 @@ async def delete_document(doc_name: str) -> Dict[str, Any]:
     }
 
 
-@app.get("/scenarios")
+@app.get("/scenarios", dependencies=[Depends(require_read_access)])
 async def list_query_scenarios() -> Dict[str, Any]:
     """Return benchmark and live schema scenarios for every indexed document."""
     _ensure_indexed()
@@ -553,168 +874,78 @@ async def list_query_scenarios() -> Dict[str, Any]:
     return {"total_scenarios": len(scenarios), "scenarios": scenarios}
 
 
-@app.get("/evaluate/latest")
+@app.get("/evaluate/latest", dependencies=[Depends(require_read_access)])
 async def latest_evaluation() -> Dict[str, Any]:
-    """Return the latest persisted evaluation, creating it when absent."""
+    """Return the persisted evaluation only when it matches the current index."""
     _ensure_indexed()
     report_path = settings.DATA_DIR / "latest_evaluation_report.json"
     if not report_path.exists():
         return run_evaluation_suite(retriever.chunks_store)
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report_docs = {row["doc_name"] for row in report.get("per_query_breakdown", [])}
-    live_docs = {case["doc_name"] for case in build_dynamic_eval_queries(retriever.chunks_store)}
-    if report_docs != live_docs:
+    current_signature = compute_evaluation_signature(retriever.chunks_store)
+    if report.get("evaluation_signature") != current_signature:
         return run_evaluation_suite(retriever.chunks_store)
     return report
 
 
-@app.post("/evaluate")
+@app.post("/evaluate", dependencies=[Depends(require_admin_access)])
 async def evaluate_current_index() -> Dict[str, Any]:
     """Run a live ablation across all currently indexed documents."""
     _ensure_indexed()
     return run_evaluation_suite(retriever.chunks_store)
 
 
-@app.post("/query", response_model=QueryResponse)
+async def _execute_query(payload: QueryRequest) -> QueryResponse:
+    """Execute the shared guarded RAG pipeline."""
+    return await answer_service.execute(payload)
+
+
+@app.post(
+    "/query", response_model=QueryResponse, dependencies=[Depends(require_read_access)]
+)
 async def query_documents(payload: QueryRequest) -> QueryResponse:
-    """
-    End-to-end RAG execution pipeline:
-      1. Input Prompt-Injection Guardrail Check
-      2. Redis Semantic Cache Lookup (<5ms fast path)
-      3. Qdrant Dense + BM25 Sparse Hybrid Retrieval (Reciprocal Rank Fusion)
-      4. Table-Schema Calibrated Cross-Encoder Reranking (BAAI/bge-reranker-base)
-      5. Citation-Grounded LLM Synthesis + Deterministic Numeric Verification + PII Redaction
-    """
-    start_time = time.perf_counter()
-
-    input_check = guardrails.validate_input(payload.question)
-    if not input_check.passed:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "Query blocked by Enterprise AI Guardrails.",
-                "triggered_rules": input_check.triggered_rules,
-            },
-        )
-
-    _ensure_indexed()
-    scope = _normalize_scope(payload.doc_name) or _infer_scope_from_question(
-        input_check.sanitized_text
-    )
-    cache_key = f"{scope or 'ALL'}::{input_check.sanitized_text}"
-    if payload.use_cache:
-        cached = semantic_cache.lookup(cache_key)
-        if cached is not None:
-            cached["latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
-            return QueryResponse(**cached)
-
-    hybrid_candidates = retriever.retrieve_hybrid(
-        query=input_check.sanitized_text,
-        top_k=max(payload.top_k * 2, 6),
-        doc_name=scope,
-    )
-
-    reranked_chunks = reranker.rerank(
-        query=input_check.sanitized_text,
-        candidates=hybrid_candidates,
-        top_n=payload.top_k,
-    )
-
-    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
-    raw_answer = await llm_client.generate_answer(
-        input_check.sanitized_text,
-        reranked_chunks,
-        indexed_docs=indexed_docs,
-    )
-    output_check = guardrails.sanitize_output(raw_answer)
-    answer_chunks = _answer_contributors(output_check.sanitized_text, reranked_chunks)
-
-    matched_cells = []
-    computed_deltas = []
-    if answer_chunks:
-        top_c = answer_chunks[0]
-        raw_cells = TableASTParser.match_query_cells(
-            input_check.sanitized_text,
-            top_c.text,
-            doc_name=top_c.doc_name,
-            page_number=top_c.page_number,
-        )
-        matched_cells = [TableCellSchema(**cell.to_dict()).model_dump() for cell in raw_cells]
-        computed_deltas = [
-            RowDeltaSchema(**delta).model_dump()
-            for delta in TableASTParser.compute_row_deltas(raw_cells)
-        ]
-
-    verification = numeric_verifier.verify(output_check.sanitized_text, answer_chunks)
-
-    citations: List[CitationItem] = [
-        CitationItem(
-            chunk_id=c.chunk_id,
-            doc_name=c.doc_name,
-            page_number=c.page_number,
-            contains_table=c.contains_table,
-            rerank_score=round(float(c.rerank_score or c.rrf_score), 4),
-            excerpt=c.text[:280],
-        )
-        for c in answer_chunks
-    ]
-
-    latency_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
-    response_data = {
-        "question": input_check.sanitized_text,
-        "answer": output_check.sanitized_text,
-        "matched_cells": matched_cells,
-        "computed_deltas": computed_deltas,
-        "citations": [c.model_dump() for c in citations],
-        "verification": NumericVerificationSchema(**verification.to_dict()).model_dump(),
-        "cache_hit": False,
-        "cache_similarity": None,
-        "latency_ms": latency_ms,
-        "guardrail_flags": output_check.triggered_rules,
-        "metadata": {
-            "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
-            "candidates_evaluated": len(hybrid_candidates),
-            "document_scope": scope or "ALL",
-        },
-    }
-
-    if payload.use_cache and reranked_chunks:
-        semantic_cache.store(cache_key, response_data)
-
-    return QueryResponse(**response_data)
+    """Execute the shared guarded RAG pipeline and return its structured result."""
+    return await _execute_query(payload)
 
 
-@app.post("/query/stream")
+@app.post("/query/stream", dependencies=[Depends(require_read_access)])
 async def stream_query_documents(payload: QueryRequest) -> StreamingResponse:
-    """Streams citation-grounded tokens via Server-Sent Events (SSE)."""
-    input_check = guardrails.validate_input(payload.question)
-    if not input_check.passed:
-        raise HTTPException(status_code=400, detail=input_check.triggered_rules)
+    """Stream the fully guarded query result via Server-Sent Events (SSE).
 
-    _ensure_indexed()
+    The complete answer is produced and sanitized before the first token is
+    emitted. This deliberately trades token immediacy for a hard guarantee that
+    PII-shaped text cannot straddle event boundaries and bypass redaction.
+    """
+    result = await _execute_query(payload)
 
-    scope = _normalize_scope(payload.doc_name) or _infer_scope_from_question(
-        input_check.sanitized_text
-    )
-    candidates = retriever.retrieve_hybrid(
-        input_check.sanitized_text,
-        top_k=payload.top_k * 2,
-        doc_name=scope,
-    )
-    reranked = reranker.rerank(input_check.sanitized_text, candidates, top_n=payload.top_k)
-    indexed_docs = sorted({chunk.doc_name for chunk in retriever.chunks_store})
+    async def event_stream() -> AsyncIterator[str]:
+        words = result.answer.split(" ")
+        for index, word in enumerate(words):
+            text = word + (" " if index < len(words) - 1 else "")
+            yield f"event: token\ndata: {json.dumps({'text': text})}\n\n"
+
+        verification_event = {
+            "question": result.question,
+            "verification": result.verification.model_dump(),
+            "citations": [citation.model_dump() for citation in result.citations],
+            "guardrail_flags": result.guardrail_flags,
+            "cache_hit": result.cache_hit,
+            "cache_similarity": result.cache_similarity,
+            "latency_ms": result.latency_ms,
+            "metadata": result.metadata,
+        }
+        yield f"event: verification\ndata: {json.dumps(verification_event)}\n\n"
+        yield "event: done\ndata: [DONE]\n\n"
+
     return StreamingResponse(
-        llm_client.stream_answer(
-            input_check.sanitized_text,
-            reranked,
-            indexed_docs=indexed_docs,
-        ),
+        event_stream(),
         media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
-@app.get("/metrics")
+@app.get("/metrics", dependencies=[Depends(require_read_access)])
 async def service_metrics() -> Dict[str, Any]:
     """Exposes operational telemetry for monitoring dashboards."""
     provider_status = llm_client.get_provider_status()
@@ -727,4 +958,8 @@ async def service_metrics() -> Dict[str, Any]:
         "llm_model": provider_status["model_name"],
         "llm_base_url": provider_status["base_url"],
         "llm_api_key_configured": provider_status["api_key_configured"],
+        "llm_remote_enabled": provider_status["enabled"],
+        "llm_last_provider": provider_status["last_provider"],
+        "llm_last_error": provider_status["last_error"],
+        "retriever": retriever.health(),
     }

@@ -1,36 +1,57 @@
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 
+from src.config import settings
+
 
 class PageInput(BaseModel):
-    page_number: int = Field(..., ge=1, description="1-indexed page number in the document")
-    text: str = Field(..., min_length=10, description="Page text and/or Markdown tables")
+    page_number: int = Field(
+        ..., ge=1, le=10_000, description="1-indexed page number in the document"
+    )
+    text: str = Field(
+        ...,
+        min_length=10,
+        max_length=200_000,
+        description="Page text and/or Markdown tables",
+    )
 
 
 class IngestRequest(BaseModel):
-    doc_name: str = Field(..., description="Document identifier (e.g., 'AMD_2022_10K')")
-    pages: List[PageInput] = Field(..., min_length=1)
+    doc_name: str = Field(
+        ..., min_length=1, max_length=200, description="Document identifier (e.g., 'AMD_2022_10K')"
+    )
+    pages: List[PageInput] = Field(..., min_length=1, max_length=settings.MAX_STRUCTURED_PAGES)
 
 
 class PdfUploadRequest(BaseModel):
-    doc_name: str = Field(..., min_length=1, description="Document name or filename")
-    pdf_base64: str = Field(..., min_length=20, description="Base64-encoded PDF file content")
+    doc_name: str = Field(
+        ..., min_length=1, max_length=200, description="Document name or filename"
+    )
+    pdf_base64: str = Field(
+        ..., min_length=20, max_length=50_000_000, description="Base64-encoded PDF file content"
+    )
 
 
 class QueryRequest(BaseModel):
-    question: str = Field(..., min_length=3, description="Analytical question across indexed documents")
+    question: str = Field(
+        ..., min_length=3, max_length=4000, description="Analytical question across indexed documents"
+    )
     top_k: int = Field(default=4, ge=1, le=20, description="Number of reranked chunks to retrieve")
     use_cache: bool = Field(default=True, description="Whether to check Redis semantic cache")
     doc_name: str | None = Field(
         default=None,
+        max_length=200,
         description="Optional document name to scope search to a single PDF",
     )
 
 
 class LLMConfigRequest(BaseModel):
-    base_url: str | None = Field(default=None, min_length=1)
-    api_key: str | None = Field(default=None)
-    model_name: str | None = Field(default=None, min_length=1)
+    base_url: str | None = Field(default=None, min_length=1, max_length=2000)
+    api_key: str | None = Field(default=None, max_length=1000)
+    model_name: str | None = Field(default=None, min_length=1, max_length=200)
+    enabled: bool | None = Field(
+        default=None, description="Explicitly enable or disable the remote provider"
+    )
 
 
 class TableCellSchema(BaseModel):
@@ -39,6 +60,8 @@ class TableCellSchema(BaseModel):
     row_key: str
     col_header: str
     value: str
+    row_index: int = 0
+    col_index: int = 0
 
 
 class RowDeltaSchema(BaseModel):
@@ -62,6 +85,7 @@ class NumericVerificationSchema(BaseModel):
     numeric_grounding_score: float
     verified_figures: List[str] = Field(default_factory=list)
     unverified_figures: List[str] = Field(default_factory=list)
+    verification_applicable: bool = True
 
 
 class QueryResponse(BaseModel):

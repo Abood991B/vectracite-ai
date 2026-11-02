@@ -1,6 +1,14 @@
 import re
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 from typing import Any, Dict, List, Set
+
+from src.retrieval.financial_numbers import (
+    FinancialNumber,
+    common_scale,
+    format_financial_value,
+    parse_financial_number,
+)
 
 
 KNOWN_ENTITY_ALIASES: Dict[str, set[str]] = {
@@ -21,6 +29,8 @@ class TableCellCoordinate:
     row_key: str
     col_header: str
     value: str
+    row_index: int = 0
+    col_index: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -69,7 +79,7 @@ class TableASTParser:
         headers = raw_rows[0]
         coordinates: List[TableCellCoordinate] = []
 
-        for row in raw_rows[1:]:
+        for row_index, row in enumerate(raw_rows[1:]):
             row_key = row[0].strip()
             if not row_key:
                 continue
@@ -84,6 +94,8 @@ class TableASTParser:
                             row_key=row_key,
                             col_header=col_header,
                             value=cell_val,
+                            row_index=row_index,
+                            col_index=col_idx,
                         )
                     )
         return coordinates
@@ -102,6 +114,11 @@ class TableASTParser:
             return []
 
         q_tokens = cls._tokens(query) - cls.STOPWORDS
+        lowered = query.casefold()
+        if "capital expenditure" in lowered or "capex" in lowered:
+            q_tokens.update({"purchases", "property", "plant", "equipment"})
+        if "free cash flow" in lowered or "free cashflow" in lowered or "fcf" in lowered:
+            q_tokens.update({"net", "cash", "provided", "operating", "activities"})
         scored_cells = []
 
         for cell in cells:
@@ -184,34 +201,43 @@ class TableASTParser:
         """
         Deterministically computes numerical and percentage deltas across adjacent columns
         of the same row key (e.g., FY 2022 vs FY 2021) so LLMs never hallucinate arithmetic.
+
+        Accounting parentheses, explicit signs, currency symbols, percentages, and scale
+        suffixes are parsed structurally. Column order is preserved from the source table.
         """
         by_row: Dict[str, List[TableCellCoordinate]] = {}
-        for c in cells:
-            by_row.setdefault(c.row_key, []).append(c)
+        for cell in cells:
+            by_row.setdefault(cell.row_key, []).append(cell)
 
         deltas: List[Dict[str, Any]] = []
         for row_key, row_cells in by_row.items():
             if len(row_cells) < 2:
                 continue
-            nums = []
-            for rc in row_cells[:2]:
-                cleaned = re.sub(r"[^0-9.\-]", "", rc.value)
-                try:
-                    nums.append((rc.col_header, float(cleaned)))
-                except ValueError:
-                    pass
-            if len(nums) == 2 and nums[1][1] != 0:
-                col_new, val_new = nums[0]
-                col_old, val_old = nums[1]
-                diff = round(val_new - val_old, 2)
-                pct = round(((val_new - val_old) / abs(val_old)) * 100.0, 2)
-                sign = "+" if diff >= 0 else ""
-                deltas.append(
-                    {
-                        "row_key": row_key,
-                        "comparison": f"{col_new} vs {col_old}",
-                        "absolute_change": f"{sign}{diff:,.2f}",
-                        "pct_change": f"{sign}{pct}%",
-                    }
-                )
+            ordered = sorted(row_cells, key=lambda cell: (cell.row_index, cell.col_index))
+            parsed: List[tuple[TableCellCoordinate, FinancialNumber]] = []
+            for cell in ordered[:2]:
+                number = parse_financial_number(cell.value)
+                if number is not None:
+                    parsed.append((cell, number))
+            if len(parsed) != 2:
+                continue
+
+            (col_new, new_number), (col_old, old_number) = parsed
+            if old_number.scaled_value == 0:
+                continue
+
+            scale = common_scale([new_number, old_number])
+            new_value = new_number.scaled_value / scale
+            old_value = old_number.scaled_value / scale
+            diff = new_value - old_value
+            pct = (diff / abs(old_value)) * Decimal("100")
+
+            deltas.append(
+                {
+                    "row_key": row_key,
+                    "comparison": f"{col_new.col_header} vs {col_old.col_header}",
+                    "absolute_change": format_financial_value(diff, scale=scale),
+                    "pct_change": format_financial_value(pct, is_percentage=True),
+                }
+            )
         return deltas

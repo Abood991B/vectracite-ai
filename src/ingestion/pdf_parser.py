@@ -3,12 +3,15 @@
 import hashlib
 import json
 import logging
+import math
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 
 import fitz
+
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,15 @@ SECTION_HEADER_REGEX = re.compile(
 )
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
 TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
+PARSER_CACHE_VERSION = 1
+
+
+class PDFRenderError(ValueError):
+    """Raised when structured pages cannot be rendered faithfully."""
+
+
+class PDFRenderLimitError(PDFRenderError):
+    """Raised when structured input exceeds the configured render limit."""
 
 
 @dataclass
@@ -120,13 +132,13 @@ class MultimodalFinancialParser:
         return chunks
 
     @staticmethod
-    def _load_manifest(document: fitz.Document) -> Dict[int, List[str]]:
+    def _load_manifest(document: fitz.Document) -> Dict[str, List[str]]:
         raw_keywords = (document.metadata or {}).get("keywords", "") or ""
         if not raw_keywords.startswith(TABLE_MANIFEST_PREFIX):
             return {}
         try:
             decoded = json.loads(raw_keywords[len(TABLE_MANIFEST_PREFIX) :])
-            return {int(page): list(blocks) for page, blocks in decoded.items()}
+            return {str(page): list(blocks) for page, blocks in decoded.items()}
         except (TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Ignoring malformed VectraCite table manifest")
             return {}
@@ -136,7 +148,7 @@ class MultimodalFinancialParser:
         page: fitz.Page,
         doc_name: str,
         physical_page_index: int,
-        manifest_tables: Dict[int, List[str]] | None = None,
+        manifest_tables: Dict[str, List[str]] | None = None,
     ) -> List[DocumentChunk]:
         raw_text = page.get_text("text", sort=True).strip()
         page_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
@@ -158,7 +170,10 @@ class MultimodalFinancialParser:
         table_markdown_blocks = self._extract_table_blocks(
             page=page,
             raw_text=raw_text,
-            manifest_tables=(manifest_tables or {}).get(page_number, []),
+            manifest_tables=(
+                (manifest_tables or {}).get(f"{page_number}:{physical_page_index}")
+                or (manifest_tables or {}).get(str(page_number), [])
+            ),
         )
         has_inline_markdown_table = self._has_inline_markdown_table(raw_text)
         contains_table = bool(table_markdown_blocks) or has_inline_markdown_table
@@ -409,51 +424,86 @@ class MultimodalFinancialParser:
 
     @staticmethod
     def render_pages_to_pdf_bytes(doc_name: str, pages: List[Dict[str, Any]]) -> bytes:
-        """Render vector tables and store their exact Markdown grids in PDF metadata."""
+        """Render tables and prose with physical-page pagination and no clipping."""
+        if len(pages) > settings.MAX_RENDERED_PDF_PAGES:
+            raise PDFRenderLimitError("Document page limit exceeded.")
         document = fitz.open()
         manifest: Dict[str, List[str]] = {}
+        physical_pages = 0
+        prose_font_size = 9.5
+        prose_line_height = 16.0
+        body_top = 66.0
+        body_bottom = 750.0
+        prose_chars_per_line = 88
+
+        def new_page(source_page: int) -> tuple[fitz.Page, float]:
+            nonlocal physical_pages
+            physical_pages += 1
+            if physical_pages > settings.MAX_RENDERED_PDF_PAGES:
+                raise PDFRenderLimitError("Rendered PDF page limit exceeded.")
+            page = document.new_page(width=612, height=792)
+            page.draw_rect(
+                fitz.Rect(36, 26, 576, 48),
+                color=(0.78, 0.82, 0.88),
+                fill=(0.95, 0.97, 0.99),
+                width=0.7,
+            )
+            page.insert_text(
+                (44, 41),
+                f"{doc_name} - Document Page {source_page} (SOURCE PAGE: {source_page})",
+                fontsize=8.5,
+                fontname="helv",
+                color=(0.28, 0.33, 0.41),
+            )
+            return page, body_top
+
         try:
             for item in pages:
-                page_number = int(item.get("page_number", 1))
+                source_page = int(item.get("page_number", 1))
                 text = str(item.get("text", "")).strip()
-                page = document.new_page(width=612, height=792)
-                page.draw_rect(
-                    fitz.Rect(36, 26, 576, 48),
-                    color=(0.78, 0.82, 0.88),
-                    fill=(0.95, 0.97, 0.99),
-                    width=0.7,
-                )
-                page.insert_text(
-                    (44, 41),
-                    f"{doc_name} - Document Page {page_number} (SOURCE PAGE: {page_number})",
-                    fontsize=8.5,
-                    fontname="helv",
-                    color=(0.28, 0.33, 0.41),
-                )
-
-                y_cursor = 66.0
+                page, y_cursor = new_page(source_page)
                 prose_lines: List[str] = []
                 table_rows: List[List[str]] = []
                 raw_table_lines: List[str] = []
+
+                def ensure_space(height: float) -> None:
+                    nonlocal page, y_cursor
+                    if y_cursor + height <= body_bottom:
+                        return
+                    page, y_cursor = new_page(source_page)
+
+                def write_prose_line(line: str) -> None:
+                    nonlocal y_cursor
+                    if not line:
+                        y_cursor += 4.0
+                        return
+                    wrapped_lines = max(
+                        1, math.ceil(len(line) / prose_chars_per_line)
+                    )
+                    height = wrapped_lines * prose_line_height
+                    ensure_space(height)
+                    result = page.insert_textbox(
+                        fitz.Rect(40, y_cursor, 572, y_cursor + height),
+                        line,
+                        fontsize=prose_font_size,
+                        fontname="helv",
+                        color=(0.06, 0.09, 0.16),
+                    )
+                    if result is not None and result < 0:
+                        raise PDFRenderError(
+                            "Structured prose could not be rendered without clipping."
+                        )
+                    y_cursor += height + 2.0
 
                 def flush_prose() -> None:
                     nonlocal y_cursor
                     if not prose_lines:
                         return
-                    joined = "\n".join(prose_lines)
+                    pending = list(prose_lines)
                     prose_lines.clear()
-                    estimated_lines = sum(
-                        max(1, len(line) // 88 + 1) for line in joined.splitlines()
-                    )
-                    box_height = min(660.0, max(28.0, estimated_lines * 14.5))
-                    page.insert_textbox(
-                        fitz.Rect(40, y_cursor, 572, min(750.0, y_cursor + box_height)),
-                        joined,
-                        fontsize=9.5,
-                        fontname="helv",
-                        color=(0.06, 0.09, 0.16),
-                    )
-                    y_cursor = min(750.0, y_cursor + box_height + 8.0)
+                    for line in pending:
+                        write_prose_line(line)
+                    y_cursor += 6.0
 
                 def flush_table() -> None:
                     nonlocal y_cursor
@@ -464,37 +514,65 @@ class MultimodalFinancialParser:
                         flush_prose()
                         return
 
-                    manifest.setdefault(str(page_number), []).append(
-                        "\n".join(raw_table_lines)
-                    )
+                    raw_manifest_table = "\n".join(raw_table_lines)
                     raw_table_lines.clear()
                     column_count = max(len(row) for row in table_rows)
                     column_width = 532.0 / max(column_count, 1)
-                    row_height = 24.0
                     for row_index, row in enumerate(table_rows):
-                        if y_cursor + row_height > 750.0:
-                            break
+                        cell_font_size = 8.2
+                        chars_per_cell = max(
+                            8, int(column_width / (cell_font_size * 0.52))
+                        )
+                        row_height = max(
+                            24.0,
+                            max(
+                                math.ceil(
+                                    len(row[index]) / chars_per_cell
+                                )
+                                * 10.0
+                                for index in range(column_count)
+                                if index < len(row)
+                            )
+                            if any(row)
+                            else 24.0,
+                        )
+                        ensure_space(row_height)
+                        if row_index == 0:
+                            manifest.setdefault(
+                                f"{source_page}:{physical_pages - 1}", []
+                            ).append(raw_manifest_table)
                         for column_index in range(column_count):
                             cell_text = row[column_index] if column_index < len(row) else ""
                             x0 = 40.0 + column_index * column_width
                             x1 = x0 + column_width
-                            cell_rect = fitz.Rect(x0, y_cursor, x1, y_cursor + row_height)
+                            cell_rect = fitz.Rect(
+                                x0, y_cursor, x1, y_cursor + row_height
+                            )
                             page.draw_rect(
                                 cell_rect,
                                 color=(0.68, 0.73, 0.80),
-                                fill=(0.90, 0.94, 0.98) if row_index == 0 else (1, 1, 1),
+                                fill=(0.90, 0.94, 0.98),
                                 width=0.7,
                             )
-                            page.insert_textbox(
-                                fitz.Rect(x0 + 5, y_cursor + 4, x1 - 4, y_cursor + row_height - 3),
+                            result = page.insert_textbox(
+                                fitz.Rect(
+                                    x0 + 5,
+                                    y_cursor + 4,
+                                    x1 - 4,
+                                    y_cursor + row_height - 3,
+                                ),
                                 cell_text,
-                                fontsize=8.2 if row_index else 8.5,
-                                fontname="hebo" if row_index == 0 else "helv",
+                                fontsize=cell_font_size,
+                                fontname="helv",
                                 color=(0.06, 0.09, 0.16),
                             )
+                            if result is not None and result < 0:
+                                raise PDFRenderError(
+                                    "Structured table cell could not be rendered."
+                                )
                         y_cursor += row_height
                     table_rows.clear()
-                    y_cursor = min(750.0, y_cursor + 12.0)
+                    y_cursor = min(body_bottom, y_cursor + 12.0)
 
                 for raw_line in text.splitlines():
                     line = raw_line.strip()
@@ -509,6 +587,8 @@ class MultimodalFinancialParser:
                             flush_table()
                         if line:
                             prose_lines.append(line)
+                        else:
+                            prose_lines.append("")
 
                 if table_rows:
                     flush_table()

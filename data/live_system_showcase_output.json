@@ -3,118 +3,60 @@
     "status": "healthy",
     "service": "VectraCite-AI",
     "version": "1.0.0",
-    "indexed_chunks": 20,
-    "indexed_documents": 4,
+    "indexed_chunks": 4494,
+    "indexed_documents": 5,
     "cache": {
       "backend": "in_memory_fallback",
+      "degraded": true,
+      "last_error": "TimeoutError: Timeout connecting to server",
       "hits": 0,
       "misses": 0,
       "hit_rate": 0.0
     }
   },
   "cold_hybrid_rag_query": {
-    "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
-    "answer": "Verified from [AMD_2022_10K, Page 51]:\n- Total net revenue (FY 2022): $ 23,601\n- Total net revenue (FY 2021): $ 16,434\n- Total net revenue (FY 2020): $ 9,763\n- Gross profit (FY 2022): $ 10,603\n- Gross profit (FY 2021): $ 7,929\n- Operating income (FY 2022): $ 1,264\n\nCalculated comparisons:\n- Period change - Total net revenue (FY 2022 vs FY 2021): +7,167.00 (+43.61%)\n- Period change - Gross profit (FY 2022 vs FY 2021): +2,674.00 (+33.72%)",
-    "matched_cells": [
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Total net revenue",
-        "col_header": "FY 2022",
-        "value": "$ 23,601"
-      },
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Total net revenue",
-        "col_header": "FY 2021",
-        "value": "$ 16,434"
-      },
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Total net revenue",
-        "col_header": "FY 2020",
-        "value": "$ 9,763"
-      },
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Gross profit",
-        "col_header": "FY 2022",
-        "value": "$ 10,603"
-      },
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Gross profit",
-        "col_header": "FY 2021",
-        "value": "$ 7,929"
-      },
-      {
-        "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "row_key": "Operating income",
-        "col_header": "FY 2022",
-        "value": "$ 1,264"
-      }
-    ],
-    "computed_deltas": [
-      {
-        "row_key": "Total net revenue",
-        "comparison": "FY 2022 vs FY 2021",
-        "absolute_change": "+7,167.00",
-        "pct_change": "+43.61%"
-      },
-      {
-        "row_key": "Gross profit",
-        "comparison": "FY 2022 vs FY 2021",
-        "absolute_change": "+2,674.00",
-        "pct_change": "+33.72%"
-      }
-    ],
+    "question": "Did AMD report customer concentration in FY22?",
+    "answer": "According to [AMD_2022_10K, Page 12]:\nOne customer accounted for 16% of our consolidated net revenue for the year ended December 31, 2022.\nSales to this customer consisted of sales of products\nA loss of this customer would have a material adverse effect on our business.",
+    "matched_cells": [],
+    "computed_deltas": [],
     "citations": [
       {
-        "chunk_id": "9623f2c8d603",
+        "chunk_id": "97d58560857f",
         "doc_name": "AMD_2022_10K",
-        "page_number": 51,
-        "contains_table": true,
-        "rerank_score": 0.7781,
-        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 51]\nITEM 8. AMD CONSOLIDATED STATEMENTS OF OPERATIONS TABLE (in millions)\n\nConsolidated Line Item       FY 2022                   FY 2021                   FY 2020\n\nTotal net revenue               $ 23,601                      $ 16,434             "
+        "page_number": 12,
+        "contains_table": false,
+        "rerank_score": 0.0156,
+        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 12]\nTable of Contents\n\nWe also work with our customers to create differentiated products that leverage our CPU, GPU and APU technology. Certain customers pay us non-recurring\nengineering fees for design and development services and a purchase price"
       }
     ],
     "verification": {
       "is_fully_grounded": true,
       "numeric_grounding_score": 1.0,
       "verified_figures": [
-        "$ 23,601",
-        "$ 16,434",
-        "$ 9,763",
-        "$ 10,603",
-        "$ 7,929",
-        "$ 1,264",
-        "7,167.00",
-        "43.61%",
-        "2,674.00",
-        "33.72%"
+        "16%",
+        "31,",
+        "2022"
       ],
-      "unverified_figures": []
+      "unverified_figures": [],
+      "verification_applicable": true
     },
     "cache_hit": false,
     "cache_similarity": null,
-    "latency_ms": 234.24,
+    "latency_ms": 92.61,
     "guardrail_flags": [],
     "metadata": {
       "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
       "candidates_evaluated": 6,
-      "document_scope": "ALL"
+      "document_scope": "AMD_2022_10K",
+      "answer_provider": "local_deterministic",
+      "provider_error": null
     }
   },
   "warm_semantic_cache_hit": {
-    "question": "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?",
+    "question": "Did AMD report customer concentration in FY22?",
     "cache_hit": true,
     "cache_similarity": 1.0,
-    "latency_ms": 0.53
+    "latency_ms": 0.31
   },
   "guardrail_interception": {
     "http_status": 400,

@@ -1,6 +1,8 @@
-import logging
 import hashlib
+import logging
 import re
+import threading
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List
@@ -11,9 +13,76 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk
+from src.retrieval.embedding_cache import load_embeddings, save_embeddings
 from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
 
 logger = logging.getLogger(__name__)
+
+BM25_STOPWORDS = frozenset(
+    {
+        "about",
+        "according",
+        "also",
+        "and",
+        "answer",
+        "are",
+        "based",
+        "been",
+        "both",
+        "but",
+        "calculate",
+        "can",
+        "could",
+        "did",
+        "does",
+        "following",
+        "for",
+        "from",
+        "give",
+        "has",
+        "have",
+        "how",
+        "include",
+        "including",
+        "into",
+        "its",
+        "may",
+        "not",
+        "please",
+        "provided",
+        "question",
+        "rely",
+        "relying",
+        "response",
+        "should",
+        "show",
+        "shown",
+        "state",
+        "such",
+        "than",
+        "that",
+        "the",
+        "their",
+        "then",
+        "there",
+        "these",
+        "this",
+        "those",
+        "use",
+        "using",
+        "was",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "will",
+        "with",
+        "would",
+        "your",
+    }
+)
 
 _SHARED_EMBEDDER: SentenceTransformer | None = None
 _SHARED_LIGHTWEIGHT_EMBEDDER: "LightweightEmbedder | None" = None
@@ -82,6 +151,9 @@ class HybridRetriever:
       1. Dense Semantic Vector Search stored in Qdrant.
       2. Sparse Lexical BM25 Search (BM25Okapi) for exact financial ticker, date, and metric matches.
       3. Reciprocal Rank Fusion (RRF) to merge dense and lexical rankings.
+
+    Mutations are serialized and the in-process BM25/read catalog is rebuilt from
+    Qdrant, so multiple API replicas converge on a shared authoritative store.
     """
 
     def __init__(
@@ -90,30 +162,62 @@ class HybridRetriever:
         in_memory: bool = settings.QDRANT_IN_MEMORY,
         rrf_k: int = 60,
         use_lightweight_embedder: bool | None = None,
+        client: QdrantClient | None = None,
+        allow_fallback: bool = settings.ALLOW_QDRANT_FALLBACK,
     ) -> None:
-        self.collection_name = collection_name
         self.rrf_k = rrf_k
         self.use_lightweight_embedder = (
             settings.USE_LIGHTWEIGHT_MODELS
             if use_lightweight_embedder is None
             else use_lightweight_embedder
         )
+        model_tag = (
+            "lightweight"
+            if self.use_lightweight_embedder
+            else re.sub(r"[^a-z0-9]+", "_", settings.EMBEDDING_MODEL.casefold()).strip("_")
+        )
+        self.collection_name = (
+            f"{collection_name}__{model_tag}__d{settings.EMBEDDING_DIM}"[:200]
+        )
+        self.requested_backend = "memory" if in_memory else "qdrant"
+        self.shared_client = client is not None
+        self.degraded = False
+        self.last_error: str | None = None
+        self.last_sync_at = 0.0
+        self._mutation_lock = threading.RLock()
 
-        if in_memory:
+        if client is not None:
+            self.qdrant = client
+            self.backend = "shared_client"
+        elif in_memory:
             self.qdrant = QdrantClient(":memory:")
+            self.backend = "memory"
         else:
             try:
                 self.qdrant = QdrantClient(
                     host=settings.QDRANT_HOST, port=settings.QDRANT_PORT, timeout=5.0
                 )
                 self.qdrant.get_collections()
+                self.backend = "qdrant"
             except Exception as exc:
-                logger.warning("Qdrant server unreachable (%s); falling back to :memory:.", exc)
+                self.last_error = f"{type(exc).__name__}: shared Qdrant is unreachable"
+                if not allow_fallback:
+                    raise RuntimeError(
+                        "Shared Qdrant is unavailable; refusing to start with a "
+                        "process-local index. Set ALLOW_QDRANT_FALLBACK=true only for "
+                        "explicit single-process deployments."
+                    ) from exc
+                logger.warning(
+                    "Qdrant server unreachable (%s); falling back to :memory%.",
+                    type(exc).__name__,
+                )
                 self.qdrant = QdrantClient(":memory:")
+                self.backend = "memory_fallback"
+                self.degraded = True
 
-        self._ensure_collection()
         self.chunks_store: List[DocumentChunk] = []
         self.bm25: BM25Okapi | None = None
+        self._ensure_collection()
 
     def _ensure_collection(self) -> None:
         collections = [c.name for c in self.qdrant.get_collections().collections]
@@ -171,12 +275,20 @@ class HybridRetriever:
 
     @staticmethod
     def _tokenize(text: str) -> List[str]:
-        cleaned = re.sub(r"['’]s\b", "", text.lower())
-        return [
-            token
-            for token in re.findall(r"[\w$\.%]+", cleaned, flags=re.UNICODE)
-            if len(token) >= 2 or token.isdigit()
-        ]
+        cleaned = re.sub(r"['�?T]s\b", "", text.lower())
+        tokens: List[str] = []
+        for token in re.findall(r"[\w$\.%]+", cleaned, flags=re.UNICODE):
+            if len(token) < 2 and not token.isdigit():
+                continue
+            if token in BM25_STOPWORDS:
+                continue
+            tokens.append(token)
+            parts = re.findall(r"[a-z]+|\d+", token)
+            if len(parts) > 1:
+                tokens.extend(
+                    part for part in parts if len(part) >= 2 or part.isdigit()
+                )
+        return tokens
 
     @classmethod
     def _query_entities(cls, query: str) -> List[set[str]]:
@@ -196,47 +308,213 @@ class HybridRetriever:
         text_tokens = set(cls._tokenize(chunk.text))
         return any(alias in text_tokens or alias in doc_name for alias in entity_aliases)
 
-    def index_chunks(self, chunks: List[DocumentChunk]) -> int:
-        """Indexes DocumentChunks into both Qdrant (dense vectors) and BM25 (sparse lexical)."""
+    @staticmethod
+    def _point_uuid(chunk: DocumentChunk) -> str:
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
+
+    @staticmethod
+    def _chunk_sort_key(chunk: DocumentChunk) -> tuple[Any, ...]:
+        return (
+            chunk.doc_name,
+            chunk.page_number,
+            int(chunk.metadata.get("chunk_index", 0)),
+            chunk.chunk_id,
+        )
+
+    def _build_points(
+        self,
+        chunks: List[DocumentChunk],
+        vectors: np.ndarray,
+        *,
+        version: str | None = None,
+    ) -> List[qmodels.PointStruct]:
+        points: List[qmodels.PointStruct] = []
+        for idx, chunk in enumerate(chunks):
+            payload: Dict[str, Any] = {
+                "chunk_id": chunk.chunk_id,
+                "doc_name": chunk.doc_name,
+                "page_number": chunk.page_number,
+                "text": chunk.text,
+                "contains_table": chunk.contains_table,
+                "metadata": chunk.metadata,
+            }
+            if version is not None:
+                payload["version"] = version
+            points.append(
+                qmodels.PointStruct(
+                    id=self._point_uuid(chunk),
+                    vector=vectors[idx].tolist(),
+                    payload=payload,
+                )
+            )
+        return points
+
+    def _upsert_points(self, points: List[qmodels.PointStruct]) -> None:
+        """Upsert in bounded batches so large corpora stay below Qdrant's body limit."""
+        batch_size = max(1, settings.QDRANT_UPSERT_BATCH_SIZE)
+        for start in range(0, len(points), batch_size):
+            self.qdrant.upsert(
+                collection_name=self.collection_name,
+                points=points[start : start + batch_size],
+            )
+
+    def _rebuild_bm25(self) -> None:
+        if self.chunks_store:
+            tokenized_corpus = [self._tokenize(chunk.text) for chunk in self.chunks_store]
+            self.bm25 = BM25Okapi(tokenized_corpus)
+        else:
+            self.bm25 = None
+
+    def _replace_local_chunks(
+        self, doc_name: str, chunks: List[DocumentChunk]
+    ) -> None:
+        remaining = [chunk for chunk in self.chunks_store if chunk.doc_name != doc_name]
+        self.chunks_store = sorted(remaining + chunks, key=self._chunk_sort_key)
+        self._rebuild_bm25()
+
+    @staticmethod
+    def _chunk_from_payload(payload: Dict[str, Any]) -> DocumentChunk | None:
+        chunk_id = str(payload.get("chunk_id", "")).strip()
+        doc_name = str(payload.get("doc_name", "")).strip()
+        text = str(payload.get("text", ""))
+        if not chunk_id or not doc_name or not text:
+            return None
+        page_number = int(payload.get("page_number", 1))
+        contains_table = bool(payload.get("contains_table", False))
+        metadata = payload.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {
+                "source": f"{doc_name}.pdf",
+                "page": page_number,
+                "chunk_index": 0,
+                "has_financial_table": contains_table,
+            }
+        return DocumentChunk(
+            chunk_id=chunk_id,
+            doc_name=doc_name,
+            page_number=page_number,
+            text=text,
+            contains_table=contains_table,
+            metadata=metadata,
+        )
+
+    def index_chunks(
+        self,
+        chunks: List[DocumentChunk],
+        *,
+        vectors: np.ndarray | None = None,
+        use_embedding_cache: bool = True,
+        write_embedding_cache: bool = False,
+    ) -> int:
+        """Indexes DocumentChunks into both Qdrant and the in-process BM25 catalog."""
         if not chunks:
             return 0
 
-        texts = [c.text for c in chunks]
-        vectors = self._encode_texts(texts)
+        if vectors is None:
+            if use_embedding_cache and not self.use_lightweight_embedder:
+                vectors = load_embeddings(chunks)
+            if vectors is None:
+                texts = [chunk.text for chunk in chunks]
+                vectors = self._encode_texts(texts)
+                if write_embedding_cache and not self.use_lightweight_embedder:
+                    save_embeddings(chunks, vectors)
+        else:
+            vectors = np.asarray(vectors, dtype=np.float32)
+        if len(vectors) != len(chunks):
+            raise ValueError("embedding count does not match chunk count")
+        points = self._build_points(chunks, vectors)
 
-        points: List[qmodels.PointStruct] = []
-        for idx, chunk in enumerate(chunks):
-            point_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
-            points.append(
-                qmodels.PointStruct(
-                    id=point_uuid,
-                    vector=vectors[idx].tolist(),
-                    payload={
-                        "chunk_id": chunk.chunk_id,
-                        "doc_name": chunk.doc_name,
-                        "page_number": chunk.page_number,
-                        "text": chunk.text,
-                        "contains_table": chunk.contains_table,
-                    },
-                )
-            )
-
-        self.qdrant.upsert(collection_name=self.collection_name, points=points)
-
-        # Rebuild BM25 corpus across all indexed chunks
-        existing_ids = {c.chunk_id for c in self.chunks_store}
-        for c in chunks:
-            if c.chunk_id not in existing_ids:
-                self.chunks_store.append(c)
-                existing_ids.add(c.chunk_id)
-
-        tokenized_corpus = [self._tokenize(c.text) for c in self.chunks_store]
-        self.bm25 = BM25Okapi(tokenized_corpus)
+        with self._mutation_lock:
+            self._upsert_points(points)
+            existing = {chunk.chunk_id: chunk for chunk in self.chunks_store}
+            for chunk in chunks:
+                existing[chunk.chunk_id] = chunk
+            self.chunks_store = sorted(existing.values(), key=self._chunk_sort_key)
+            self._rebuild_bm25()
         return len(chunks)
+
+    def replace_document(self, doc_name: str, chunks: List[DocumentChunk]) -> int:
+        """Stage a new document version, then remove stale points for that document."""
+        if not chunks:
+            return self.delete_document(doc_name)
+
+        version = uuid.uuid4().hex
+        vectors = self._encode_texts([chunk.text for chunk in chunks])
+        points = self._build_points(chunks, vectors, version=version)
+        stale_filter = qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="doc_name", match=qmodels.MatchValue(value=doc_name)
+                )
+            ],
+            must_not=[
+                qmodels.FieldCondition(
+                    key="version", match=qmodels.MatchValue(value=version)
+                )
+            ],
+        )
+
+        with self._mutation_lock:
+            old_chunks = [c for c in self.chunks_store if c.doc_name == doc_name]
+            try:
+                self._upsert_points(points)
+                self.qdrant.delete(
+                    collection_name=self.collection_name,
+                    points_selector=stale_filter,
+                )
+            except Exception:
+                try:
+                    self.qdrant.delete(
+                        collection_name=self.collection_name,
+                        points_selector=qmodels.Filter(
+                            must=[
+                                qmodels.FieldCondition(
+                                    key="version",
+                                    match=qmodels.MatchValue(value=version),
+                                )
+                            ]
+                        ),
+                    )
+                    if old_chunks:
+                        old_vectors = self._encode_texts([c.text for c in old_chunks])
+                        self._upsert_points(
+                            self._build_points(old_chunks, old_vectors)
+                        )
+                except Exception:
+                    logger.exception("Unable to roll back failed document replacement")
+                raise
+
+            self._replace_local_chunks(doc_name, chunks)
+        return len(old_chunks)
+
+    def snapshot_document(self, doc_name: str) -> List[DocumentChunk]:
+        """Return a local copy of a document's indexed chunks for rollback."""
+        with self._mutation_lock:
+            return [
+                DocumentChunk(
+                    chunk_id=chunk.chunk_id,
+                    doc_name=chunk.doc_name,
+                    page_number=chunk.page_number,
+                    text=chunk.text,
+                    contains_table=chunk.contains_table,
+                    metadata=dict(chunk.metadata),
+                )
+                for chunk in self.chunks_store
+                if chunk.doc_name == doc_name
+            ]
+
+    def restore_document(self, doc_name: str, chunks: List[DocumentChunk]) -> None:
+        """Restore a previously snapshotted document after an API-level failure."""
+        if chunks:
+            self.replace_document(doc_name, chunks)
+        else:
+            self.delete_document(doc_name)
 
     def retrieve_dense_only(self, query: str, top_k: int = 10) -> List[RetrievedDocument]:
         """Executes standard dense-only vector search in Qdrant (used as baseline comparison)."""
-        if not self.chunks_store:
+        with self._mutation_lock:
+            has_chunks = bool(self.chunks_store)
+        if not has_chunks:
             return []
 
         q_vec = self._encode_texts([query])[0].tolist()
@@ -270,11 +548,14 @@ class HybridRetriever:
         via Reciprocal Rank Fusion (RRF):
             RRF_Score(d) = 1 / (k + rank_dense(d)) + 1 / (k + rank_bm25(d))
         """
-        if not self.chunks_store or self.bm25 is None:
+        with self._mutation_lock:
+            chunks_store = list(self.chunks_store)
+            bm25 = self.bm25
+        if not chunks_store or bm25 is None:
             return []
 
         scope = doc_name.strip() if doc_name and doc_name.strip().upper() != "ALL" else None
-        candidate_limit = max(top_k * 2, 15)
+        candidate_limit = max(top_k * 4, 40)
         q_vec = self._encode_texts([query])[0].tolist()
         dense_hits = self._search_dense(q_vec, candidate_limit, doc_name=scope)
         if scope:
@@ -286,7 +567,7 @@ class HybridRetriever:
 
         dense_ranks: Dict[str, int] = {}
         dense_scores: Dict[str, float] = {}
-        chunk_lookup: Dict[str, DocumentChunk] = {c.chunk_id: c for c in self.chunks_store}
+        chunk_lookup: Dict[str, DocumentChunk] = {c.chunk_id: c for c in chunks_store}
 
         for rank, hit in enumerate(dense_hits):
             cid = str((hit.payload or {}).get("chunk_id", ""))
@@ -294,13 +575,12 @@ class HybridRetriever:
                 dense_ranks[cid] = rank + 1
                 dense_scores[cid] = float(hit.score)
 
-        # Compute BM25 lexical scores
         query_tokens = self._tokenize(query)
-        raw_bm25_scores = self.bm25.get_scores(query_tokens)
-        candidate_indices = np.arange(len(self.chunks_store))
+        raw_bm25_scores = bm25.get_scores(query_tokens)
+        candidate_indices = np.arange(len(chunks_store))
         if scope:
             candidate_indices = np.asarray(
-                [idx for idx, chunk in enumerate(self.chunks_store) if chunk.doc_name == scope],
+                [idx for idx, chunk in enumerate(chunks_store) if chunk.doc_name == scope],
                 dtype=int,
             )
         ranked_indices = candidate_indices[np.argsort(raw_bm25_scores[candidate_indices])[::-1]]
@@ -309,11 +589,10 @@ class HybridRetriever:
         bm25_ranks: Dict[str, int] = {}
         bm25_scores: Dict[str, float] = {}
         for rank, idx in enumerate(sorted_bm25_indices):
-            cid = self.chunks_store[int(idx)].chunk_id
+            cid = chunks_store[int(idx)].chunk_id
             bm25_ranks[cid] = rank + 1
             bm25_scores[cid] = float(raw_bm25_scores[int(idx)])
 
-        # Reciprocal Rank Fusion (RRF)
         all_candidate_ids = set(dense_ranks.keys()) | set(bm25_ranks.keys())
         fused_results: List[RetrievedDocument] = []
         query_entities = self._query_entities(query) if scope is None else []
@@ -323,14 +602,16 @@ class HybridRetriever:
             if not chunk:
                 continue
 
-            d_rank = dense_ranks.get(cid, candidate_limit + 50)
-            b_rank = bm25_ranks.get(cid, candidate_limit + 50)
             table_bonus = 0.0003 if chunk.contains_table else 0.0
-            base_rrf_score = (
-                (0.45 / (self.rrf_k + d_rank))
-                + (0.55 / (self.rrf_k + b_rank))
-                + table_bonus
-            )
+            base_rrf_score = table_bonus
+            if cid in dense_ranks:
+                base_rrf_score += settings.HYBRID_DENSE_WEIGHT / (
+                    self.rrf_k + dense_ranks[cid]
+                )
+            if cid in bm25_ranks:
+                base_rrf_score += settings.HYBRID_BM25_WEIGHT / (
+                    self.rrf_k + bm25_ranks[cid]
+                )
             anchor_multiplier = (
                 1.35
                 if any(
@@ -362,26 +643,111 @@ class HybridRetriever:
 
     def clear(self) -> None:
         """Remove every indexed chunk and recreate the empty vector collection."""
-        self.qdrant.delete_collection(collection_name=self.collection_name)
-        self._ensure_collection()
-        self.chunks_store = []
-        self.bm25 = None
-
-    def delete_document(self, doc_name: str) -> int:
-        """Removes all chunks belonging to `doc_name` and rebuilds the Qdrant + BM25 index."""
-        before_count = len(self.chunks_store)
-        remaining = [c for c in self.chunks_store if c.doc_name != doc_name]
-        removed_count = before_count - len(remaining)
-
-        if removed_count > 0:
+        with self._mutation_lock:
             self.qdrant.delete_collection(collection_name=self.collection_name)
             self._ensure_collection()
             self.chunks_store = []
             self.bm25 = None
-            if remaining:
-                self.index_chunks(remaining)
+            self.last_sync_at = time.monotonic()
 
-        return removed_count
+    def delete_document(self, doc_name: str) -> int:
+        """Remove every point belonging to `doc_name` without dropping the collection."""
+        selector = qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="doc_name", match=qmodels.MatchValue(value=doc_name)
+                )
+            ]
+        )
+        with self._mutation_lock:
+            local_removed = sum(1 for c in self.chunks_store if c.doc_name == doc_name)
+            try:
+                remote_removed = self.qdrant.count(
+                    collection_name=self.collection_name,
+                    count_filter=selector,
+                    exact=True,
+                ).count
+            except Exception:
+                remote_removed = local_removed
+            if remote_removed:
+                self.qdrant.delete(
+                    collection_name=self.collection_name,
+                    points_selector=selector,
+                )
+            self.chunks_store = [
+                chunk for chunk in self.chunks_store if chunk.doc_name != doc_name
+            ]
+            self._rebuild_bm25()
+        return max(local_removed, remote_removed)
+
+    def hydrate_from_qdrant(self) -> int:
+        """Rebuild BM25 and the read catalog from the shared Qdrant payload store."""
+        records: List[Any] = []
+        offset: Any = None
+        while True:
+            page, offset = self.qdrant.scroll(
+                collection_name=self.collection_name,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            records.extend(page)
+            if offset is None:
+                break
+
+        chunks = [
+            chunk
+            for record in records
+            if (chunk := self._chunk_from_payload(record.payload or {})) is not None
+        ]
+        chunks.sort(key=self._chunk_sort_key)
+        with self._mutation_lock:
+            self.chunks_store = chunks
+            self._rebuild_bm25()
+            self.last_sync_at = time.monotonic()
+        return len(chunks)
+
+    def sync_from_qdrant(self, *, force: bool = False) -> int:
+        """Refresh the local catalog when a shared backend is in use."""
+        if self.backend == "memory" and not self.shared_client:
+            return len(self.chunks_store)
+        if (
+            not force
+            and time.monotonic() - self.last_sync_at < settings.INDEX_SYNC_SECONDS
+        ):
+            return len(self.chunks_store)
+        return self.hydrate_from_qdrant()
+
+    def count_points(self) -> int:
+        """Return the authoritative point count when the backend supports it."""
+        try:
+            return self.qdrant.count(
+                collection_name=self.collection_name, exact=True
+            ).count
+        except Exception:
+            return len(self.chunks_store)
+
+    def health(self) -> Dict[str, Any]:
+        reachable = True
+        last_error = self.last_error
+        if self.backend in {"qdrant", "shared_client"}:
+            try:
+                self.qdrant.get_collections()
+            except Exception as exc:
+                reachable = False
+                last_error = f"{type(exc).__name__}: shared Qdrant is unreachable"
+        with self._mutation_lock:
+            chunks = len(self.chunks_store)
+        return {
+            "requested_backend": self.requested_backend,
+            "backend": self.backend,
+            "reachable": reachable,
+            "degraded": self.degraded or not reachable,
+            "last_error": last_error,
+            "indexed_chunks": chunks,
+            "last_sync_at": self.last_sync_at,
+        }
 
     def list_documents(self) -> List[Dict[str, Any]]:
         """Returns summary metadata for all currently indexed documents."""

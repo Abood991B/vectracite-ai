@@ -4,6 +4,7 @@ The evaluator reads the same real PDF corpus used by the API, loads checked-in
 benchmark questions, and adds schema-derived cases for new table-bearing PDFs.
 """
 
+import hashlib
 import json
 import logging
 import math
@@ -20,6 +21,7 @@ except ModuleNotFoundError:  # Optional for local evaluation and CI environments
     mlflow = None
 
 from src.config import settings
+from src.ingestion.corpus_cache import load_corpus_chunks
 from src.ingestion.pdf_parser import DocumentChunk, MultimodalFinancialParser
 from src.retrieval.hybrid_retriever import HybridRetriever
 from src.retrieval.reranker import CrossEncoderReranker
@@ -31,14 +33,58 @@ logger = logging.getLogger(__name__)
 
 def load_corpus_chunks_from_pdfs(
     parser: MultimodalFinancialParser | None = None,
+    *,
+    skip_errors: bool = False,
 ) -> List[DocumentChunk]:
     """Parse every real PDF stored in the configured corpus directory."""
-    active_parser = parser or MultimodalFinancialParser(chunk_size=900, chunk_overlap=150)
+    active_parser = parser or MultimodalFinancialParser(
+        chunk_size=settings.PARSER_CHUNK_SIZE,
+        chunk_overlap=settings.PARSER_CHUNK_OVERLAP,
+    )
     settings.CORPUS_PDF_DIR.mkdir(parents=True, exist_ok=True)
-    all_chunks: List[DocumentChunk] = []
-    for pdf_path in sorted(settings.CORPUS_PDF_DIR.glob("*.pdf")):
-        all_chunks.extend(active_parser.parse_pdf(pdf_path))
-    return all_chunks
+    return load_corpus_chunks(
+        settings.CORPUS_PDF_DIR, active_parser, skip_errors=skip_errors
+    )
+
+
+EVALUATION_VERSION = 1
+
+
+def compute_evaluation_signature(chunks: List[DocumentChunk]) -> str:
+    """Fingerprint the indexed content so stale persisted reports are never served."""
+    digest = hashlib.sha256()
+    digest.update(str(EVALUATION_VERSION).encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(settings.EMBEDDING_MODEL.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(settings.RERANKER_MODEL.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(str(settings.PARSER_CHUNK_SIZE).encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(str(settings.PARSER_CHUNK_OVERLAP).encode("utf-8"))
+    digest.update(b"\0")
+    queries_path = settings.DATA_DIR / "benchmark_queries.json"
+    if queries_path.exists():
+        digest.update(queries_path.read_bytes())
+        digest.update(b"\0")
+    for chunk in sorted(
+        chunks,
+        key=lambda item: (
+            item.doc_name,
+            item.page_number,
+            item.chunk_id,
+            item.text,
+        ),
+    ):
+        digest.update(chunk.doc_name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(chunk.page_number).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(chunk.chunk_id.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(chunk.text.encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def build_dynamic_eval_queries(chunks: List[DocumentChunk]) -> List[Dict[str, Any]]:
@@ -80,16 +126,51 @@ def build_dynamic_eval_queries(chunks: List[DocumentChunk]) -> List[Dict[str, An
     return eval_cases
 
 
+def _expected_pages(case: Dict[str, Any]) -> List[int]:
+    pages = case.get("evidence_pages") or [case.get("page_number")]
+    return sorted({int(page) for page in pages if isinstance(page, int)})
+
+
 def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> Dict[str, Any]:
     """Run all retrieval modes against disk-backed or currently indexed chunks."""
-    parser = MultimodalFinancialParser(chunk_size=900, chunk_overlap=150)
-    all_chunks = existing_chunks if existing_chunks is not None else load_corpus_chunks_from_pdfs(parser)
+    parser = MultimodalFinancialParser(
+        chunk_size=settings.PARSER_CHUNK_SIZE,
+        chunk_overlap=settings.PARSER_CHUNK_OVERLAP,
+    )
+    all_chunks = (
+        existing_chunks
+        if existing_chunks is not None
+        else load_corpus_chunks_from_pdfs(parser, skip_errors=True)
+    )
     eval_cases = build_dynamic_eval_queries(all_chunks)
+    available_pages = {(chunk.doc_name, chunk.page_number) for chunk in all_chunks}
+    skipped_cases: List[Dict[str, Any]] = []
+    valid_cases: List[Dict[str, Any]] = []
+    for case in eval_cases:
+        expected_pages = _expected_pages(case)
+        if not expected_pages or not any(
+            (case["doc_name"], page) in available_pages for page in expected_pages
+        ):
+            skipped_cases.append(
+                {
+                    "doc_name": case.get("doc_name"),
+                    "expected_pages": expected_pages,
+                    "question": case.get("question"),
+                }
+            )
+            logger.warning(
+                "Skipping benchmark case with no indexed evidence page: %s %s",
+                case.get("doc_name"),
+                expected_pages,
+            )
+            continue
+        valid_cases.append(case)
+    eval_cases = valid_cases
 
     retriever = HybridRetriever(in_memory=True)
     reranker = CrossEncoderReranker()
     if all_chunks:
-        retriever.index_chunks(all_chunks)
+        retriever.index_chunks(all_chunks, use_embedding_cache=True)
 
     # Warm up both shared PyTorch models before the latency timer starts.
     warmup_candidates = retriever.retrieve_hybrid("warmup query", top_k=2)
@@ -100,7 +181,8 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
     per_query_breakdown: List[Dict[str, Any]] = [
         {
             "doc_name": case["doc_name"],
-            "expected_page": case["page_number"],
+            "expected_page": _expected_pages(case)[0],
+            "expected_pages": _expected_pages(case),
             "question": case["question"],
             "ranks": {},
         }
@@ -117,7 +199,7 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
         for idx, case in enumerate(eval_cases):
             query = case["question"]
             expected_doc = case["doc_name"]
-            expected_page = case["page_number"]
+            expected_pages = set(_expected_pages(case))
 
             if mode == "dense_only":
                 results = retriever.retrieve_dense_only(query, top_k=4)
@@ -131,7 +213,8 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
                 (
                     rank_idx
                     for rank_idx, result in enumerate(results, start=1)
-                    if result.doc_name == expected_doc and result.page_number == expected_page
+                    if result.doc_name == expected_doc
+                    and result.page_number in expected_pages
                 ),
                 None,
             )
@@ -158,10 +241,19 @@ def run_evaluation_suite(existing_chunks: List[DocumentChunk] | None = None) -> 
         }
 
     summary["per_query_breakdown"] = per_query_breakdown
+    summary["skipped_cases"] = skipped_cases
+    summary["evaluation_signature"] = compute_evaluation_signature(all_chunks)
 
     if mlflow is not None:
         try:
-            mlflow.set_tracking_uri("file:./mlruns")
+            tracking_uri = settings.MLFLOW_TRACKING_URI
+            if tracking_uri in {
+                "http://localhost:5000",
+                "http://127.0.0.1:5000",
+                "http://localhost:5000/",
+            }:
+                tracking_uri = "file:./mlruns"
+            mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
             for mode_name in modes:
                 with mlflow.start_run(run_name=f"eval_{mode_name}"):

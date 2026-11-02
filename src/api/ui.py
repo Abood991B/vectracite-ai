@@ -395,6 +395,8 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .settings-form { display: grid; gap: 10px; margin-top: 16px; }
     .settings-form label { display: grid; gap: 5px; color: var(--ink-soft); font-size: 11px; font-weight: 600; }
     .settings-form input { min-height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--paper-warm); }
+    .settings-form .settings-toggle { display: flex; align-items: flex-start; gap: 8px; font-weight: 400; line-height: 1.4; }
+    .settings-form .settings-toggle input { flex: 0 0 auto; width: 16px; height: 16px; min-height: 0; margin: 1px 0 0; padding: 0; }
     .settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
     .settings-status { min-height: 20px; margin-top: 10px; color: var(--muted); font-size: 11px; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -550,6 +552,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     .settings-form { gap: 12px; margin-top: 16px; }
     .settings-form label { font-weight: 500; }
     .settings-form input { min-height: 40px; border-radius: 8px; background: var(--paper); }
+    .settings-form .settings-toggle input { min-height: 0; }
     .settings-actions { margin-top: 16px; }
     .refresh-results { margin-top: 12px; }
     :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -599,6 +602,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           <div class="brand-sub">PDF evidence workspace</div>
         </div>
       </div>
+      <div class="sidebar-kicker section-spaced">API access</div>
+      <input id="apiKeyInput" class="manual-input" type="password" placeholder="Reader or admin API key" aria-label="Reader or admin API key" autocomplete="off" />
+      <div class="sidebar-actions auth-actions">
+        <button id="saveApiKey" type="button">Save key</button>
+        <button id="clearApiKey" type="button">Clear</button>
+      </div>
+      <div id="authStatus" class="sidebar-status" role="status"></div>
       <label class="upload-btn" for="pdfUploadInput">
         <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
         Upload PDF
@@ -785,20 +795,22 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       <div class="modal-header">
         <div>
           <h2 id="llmSettingsTitle">LLM &amp; API setup</h2>
-          <div class="panel-sub">Optional provider settings for Stage 5 phrasing</div>
+          <div class="panel-sub">Optional OpenAI-compatible answer synthesis</div>
         </div>
         <button id="closeLlmSettings" class="close-btn" type="button" aria-label="Close model setup"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <p class="settings-copy">
         <strong>Runs locally for free:</strong> PyMuPDF parsing, BAAI/bge-small-en-v1.5 embeddings,
         BAAI/bge-reranker-base scoring, and DeterministicNumericVerifier checks.
-        An optional OpenAI-compatible key is only for a future Stage 5 generative phrasing provider;
-        confidential PDF bytes remain local in the default deterministic path.
+        An optional OpenAI-compatible provider can synthesize answers when enabled. Only the
+        question and retrieved evidence text leave the host; raw PDF bytes stay local. The
+        deterministic path remains the default and the automatic fallback on provider failure.
       </p>
       <div class="settings-form">
         <label for="llmBaseUrl">Provider base URL<input id="llmBaseUrl" type="url" placeholder="http://localhost:8000/v1" /></label>
         <label for="llmModelName">Model name<input id="llmModelName" type="text" placeholder="meta-llama/Llama-3.1-8B-Instruct" /></label>
         <label for="llmApiKey">API key (stored in memory only)<input id="llmApiKey" type="password" placeholder="Leave blank to keep the current key" /></label>
+        <label class="settings-toggle" for="llmEnabled"><input id="llmEnabled" type="checkbox" /> Use the remote provider (local deterministic fallback remains active on failure)</label>
       </div>
       <div id="llmSettingsStatus" class="settings-status" role="status"></div>
       <div class="settings-actions">
@@ -844,6 +856,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     let pageDragging = false;
     let pageDragStartX = 0;
     let pageDragStartY = 0;
+    let pageImageObjectUrl = null;
+    let pdfObjectUrl = null;
+    let apiKey = sessionStorage.getItem("vectracite_api_key") || "";
 
     const byId = id => document.getElementById(id);
     const escapeHtml = value => String(value ?? "")
@@ -861,9 +876,18 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       if (type) element.classList.add(type);
     }
 
+    function authHeaders(options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (apiKey) headers.set("Authorization", "Bearer " + apiKey);
+      return {...options, headers};
+    }
+
     async function safeFetch(url, options = {}) {
       try {
-        const response = await fetch(url, options);
+        const response = await fetch(url, authHeaders(options));
+        if (response.status === 401 || response.status === 403) {
+          setStatus("authStatus", "A valid API key is required for this workspace.", "error");
+        }
         const raw = await response.text();
         let data = {};
         try {
@@ -877,6 +901,21 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         return {ok: true, status: response.status, data, error: null};
       } catch (_) {
         return {ok: false, status: 0, data: {}, error: "The server is offline or restarting"};
+      }
+    }
+
+    async function safeFetchBlob(url) {
+      try {
+        const response = await fetch(url, authHeaders({}));
+        if (response.status === 401 || response.status === 403) {
+          setStatus("authStatus", "A valid API key is required for this workspace.", "error");
+        }
+        if (!response.ok) {
+          return {ok: false, error: "The browser could not load the protected PDF resource."};
+        }
+        return {ok: true, blob: await response.blob(), error: null};
+      } catch (_) {
+        return {ok: false, error: "The server is offline or restarting."};
       }
     }
 
@@ -918,7 +957,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           '<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
           '</div>' +
           '<div class="doc-actions">' +
-          '<a href="/documents/' + encoded + '/pdf" target="_blank" rel="noopener">Open PDF</a>' +
+          '<button type="button" data-open-pdf="' + escapeHtml(doc.doc_name) + '">Open PDF</button>' +
           '<button type="button" data-preview="' + escapeHtml(doc.doc_name) + '">Preview pages</button>' +
           '</div></div>';
       }).join("");
@@ -946,6 +985,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       });
       list.querySelectorAll("[data-preview]").forEach(button => {
         button.addEventListener("click", () => runUiTask(() => openPreview(button.dataset.preview), "sidebarStatus"));
+      });
+      list.querySelectorAll("[data-open-pdf]").forEach(button => {
+        button.addEventListener("click", () => runUiTask(() => openPdfInNewTab(button.dataset.openPdf), "sidebarStatus"));
       });
       updateScope();
     }
@@ -1070,11 +1112,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("llmBaseUrl").value = result.data.base_url || "";
       byId("llmModelName").value = result.data.model_name || "";
       byId("llmApiKey").value = "";
+      byId("llmEnabled").checked = Boolean(result.data.enabled);
       setStatus(
         "llmSettingsStatus",
-        result.data.api_key_configured
-          ? "A provider key is configured in memory."
-          : "No optional provider key is configured.",
+        (result.data.enabled ? "Remote provider enabled. " : "Remote provider disabled. ") +
+          (result.data.api_key_configured
+            ? "A provider key is configured in memory."
+            : "No optional provider key is configured."),
         "success",
       );
     }
@@ -1087,6 +1131,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           base_url: byId("llmBaseUrl").value.trim() || null,
           model_name: byId("llmModelName").value.trim() || null,
           api_key: byId("llmApiKey").value.trim() || null,
+          enabled: byId("llmEnabled").checked,
         }),
       });
       if (!result.ok) {
@@ -1094,26 +1139,109 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         return;
       }
       byId("llmApiKey").value = "";
-      setStatus("llmSettingsStatus", "Provider settings updated in memory.", "success");
+      setStatus(
+        "llmSettingsStatus",
+        byId("llmEnabled").checked
+          ? "Remote provider enabled and saved in memory."
+          : "Provider settings saved; local deterministic answers remain active.",
+        "success",
+      );
     }
 
-    function updatePagePreview() {
+    function revokeObjectUrl(value) {
+      if (value) URL.revokeObjectURL(value);
+    }
+
+    async function openPdfInNewTab(docName) {
+      const tab = window.open("about:blank", "_blank");
+      if (tab) tab.opener = null;
+      const result = await safeFetchBlob("/documents/" + encodeURIComponent(docName) + "/pdf");
+      if (!result.ok) {
+        if (tab) tab.close();
+        setStatus("sidebarStatus", result.error, "error");
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([result.blob], {type: "application/pdf"}));
+      if (tab) {
+        tab.location.href = url;
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.click();
+      }
+      setTimeout(() => revokeObjectUrl(url), 60000);
+    }
+
+    async function loadPageImage(pdfUrl, altText) {
+      const result = await safeFetchBlob(pdfUrl);
+      if (!result.ok) {
+        byId("pageImage").alt = result.error;
+        setStatus("queryStatus", result.error, "error");
+        return;
+      }
+      revokeObjectUrl(pageImageObjectUrl);
+      pageImageObjectUrl = URL.createObjectURL(result.blob);
+      byId("pageImage").src = pageImageObjectUrl;
+      byId("pageImage").alt = altText;
+    }
+
+    async function loadPdfFrame(pdfUrl) {
+      const result = await safeFetchBlob(pdfUrl);
+      if (!result.ok) {
+        setStatus("queryStatus", result.error, "error");
+        return;
+      }
+      revokeObjectUrl(pdfObjectUrl);
+      pdfObjectUrl = URL.createObjectURL(new Blob([result.blob], {type: "application/pdf"}));
+      byId("pdfFrame").src = pdfObjectUrl;
+      byId("openPdfLink").href = pdfObjectUrl;
+    }
+
+    async function updatePagePreview() {
       if (!currentCitation || !currentPageNumbers.length) return;
       const pageNumber = currentPageNumbers[currentPageIndex];
       const pdfUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) + "/pdf";
       const imageUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) +
         "/pages/" + pageNumber + "/image?highlight=" + encodeURIComponent(lastQuestion);
-      byId("sourcePage").textContent = "Page " + pageNumber + " · SCAR score " + currentCitation.rerank_score;
+      byId("sourcePage").textContent = "Page " + pageNumber + " \u00b7 SCAR score " + currentCitation.rerank_score;
       resetPageView();
-      byId("pageImage").src = imageUrl;
-      byId("pageImage").alt = "Rendered " + currentCitation.doc_name + " PDF page " + pageNumber + " with highlighted query terms";
-      byId("pdfFrame").src = pdfUrl;
-      byId("openPdfLink").href = pdfUrl;
-      byId("openPdfLink").textContent = "Open full original PDF ↗";
+      await loadPageImage(
+        imageUrl,
+        "Rendered " + currentCitation.doc_name + " PDF page " + pageNumber + " with highlighted query terms",
+      );
+      await loadPdfFrame(pdfUrl);
+      byId("openPdfLink").textContent = "Open full original PDF";
       byId("pageCount").textContent = "Source page " + pageNumber +
-        " · document view " + (currentPageIndex + 1) + " of " + currentPageNumbers.length;
+        " \u00b7 document view " + (currentPageIndex + 1) + " of " + currentPageNumbers.length;
       byId("prevPage").disabled = currentPageIndex === 0;
       byId("nextPage").disabled = currentPageIndex === currentPageNumbers.length - 1;
+    }
+
+    async function openCitedPdf(event) {
+      if (event) event.preventDefault();
+      if (!currentCitation) return;
+      if (pdfObjectUrl) {
+        window.open(pdfObjectUrl, "_blank", "noopener");
+        return;
+      }
+      await openPdfInNewTab(currentCitation.doc_name);
+    }
+
+    function saveApiKey() {
+      apiKey = byId("apiKeyInput").value.trim();
+      if (apiKey) sessionStorage.setItem("vectracite_api_key", apiKey);
+      else sessionStorage.removeItem("vectracite_api_key");
+      setStatus("authStatus", apiKey ? "API key saved for this browser session." : "API key cleared.", "success");
+      startStudio().catch(() => setStatus("sidebarStatus", "The studio is waiting for the API server", "error"));
+    }
+
+    function clearApiKey() {
+      apiKey = "";
+      byId("apiKeyInput").value = "";
+      sessionStorage.removeItem("vectracite_api_key");
+      setStatus("authStatus", "API key cleared.", "success");
     }
 
     function renderSource(citation, cells) {
@@ -1148,6 +1276,10 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("deltaGrid").innerHTML = "";
       byId("cellSection").hidden = true;
       byId("cellTable").innerHTML = "";
+      revokeObjectUrl(pageImageObjectUrl);
+      pageImageObjectUrl = null;
+      revokeObjectUrl(pdfObjectUrl);
+      pdfObjectUrl = null;
       renderSource(null, []);
     }
 
@@ -1156,7 +1288,9 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       byId("answerBox").textContent = data.answer || "No answer was returned";
       byId("metricRow").hidden = false;
       const verification = data.verification || {};
-      byId("metricGrounding").textContent = Math.round(Number(verification.numeric_grounding_score || 0) * 100) + "%";
+      byId("metricGrounding").textContent = verification.verification_applicable === false
+        ? "N/A"
+        : Math.round(Number(verification.numeric_grounding_score || 0) * 100) + "%";
       byId("metricLatency").textContent = String(data.latency_ms ?? "-") + " ms";
       byId("metricCache").textContent = data.cache_hit ? "hit" : "miss";
       const deltas = data.computed_deltas || [];
@@ -1266,7 +1400,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
 
     async function clearDefaults() {
-      const demoNames = new Set(["AMD_2022_10K", "MSFT_2023_10K", "JPM_2022_10K", "ONCOLOGY_TRIAL_2025"]);
+      const demoNames = new Set(documents.filter(doc => doc.storage_tier !== "user_upload").map(doc => doc.doc_name));
       const selectedDemo = selectedDoc && demoNames.has(selectedDoc);
       const citationDemo = currentCitation && demoNames.has(currentCitation.doc_name);
       const result = await safeFetch("/documents/clear-demos", {method: "POST"});
@@ -1298,19 +1432,23 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     }
 
     async function openPreview(docName) {
-      const result = await safeFetch("/documents/" + encodeURIComponent(docName));
+      const result = await safeFetch("/documents/" + encodeURIComponent(docName) + "?limit=400");
       if (!result.ok) {
         setStatus("sidebarStatus", result.error, "error");
         return;
       }
       byId("previewTitle").textContent = docName;
-      byId("previewSubtitle").textContent = result.data.total_chunks + " chunks · " + result.data.table_chunks + " table-bearing chunks";
+      byId("previewSubtitle").textContent = (result.data.returned_chunks || result.data.total_chunks) + " of " +
+        result.data.total_chunks + " chunks · " + result.data.table_chunks + " table-bearing chunks" + (result.data.truncated ? " - preview truncated" : "");
       byId("previewPages").innerHTML = (result.data.chunks || []).map(chunk =>
         '<div class="preview-page"><div class="preview-page-head"><span>Page ' + chunk.page_number +
-        " · Chunk " + escapeHtml(chunk.chunk_id) + '</span><a class="open-pdf" target="_blank" rel="noopener" href="/documents/' +
-        encodeURIComponent(docName) + '/pdf">Open PDF</a></div><p>' +
+        " \u00b7 Chunk " + escapeHtml(chunk.chunk_id) + '</span><button type="button" class="open-pdf" data-preview-pdf="' +
+        escapeHtml(docName) + '">Open PDF</button></div><p>' +
         escapeHtml(chunk.text.slice(0, 900)) + "</p></div>"
       ).join("");
+      byId("previewPages").querySelectorAll("[data-preview-pdf]").forEach(button => {
+        button.addEventListener("click", () => runUiTask(() => openPdfInNewTab(button.dataset.previewPdf), "sidebarStatus"));
+      });
       byId("previewBackdrop").classList.add("open");
     }
 
@@ -1337,11 +1475,13 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       const rows = report.per_query_breakdown || [];
       byId("rankTable").innerHTML = rows.length ? '<table><thead><tr><th>Document</th><th>Question</th>' +
         modes.map(mode => "<th>" + mode.label + "</th>").join("") + "</tr></thead><tbody>" +
-        rows.map(row => "<tr><td class='mono'>" + escapeHtml(row.doc_name) + "<br>p." + row.expected_page +
+        rows.map(row => "<tr><td class='mono'>" + escapeHtml(row.doc_name) + "<br>p." +
+          escapeHtml((row.expected_pages || [row.expected_page]).join(", ")) +
           "</td><td>" + escapeHtml(row.question) + "</td>" + modes.map(mode => {
             const rank = row.ranks && row.ranks[mode.key];
-            return '<td><span class="rank-badge ' + (rank === 1 ? "found" : "missed") + '">' +
-              (rank === 1 ? "Found at rank 1" : "Missed") + "</span></td>";
+            const found = rank != null && rank <= 3;
+            return '<td><span class="rank-badge ' + (found ? "found" : "missed") + '">' +
+              (rank == null ? "Not found" : "Rank " + rank) + "</span></td>";
           }).join("") + "</tr>").join("") + "</tbody></table>" :
         '<div class="inline-status">No benchmark rows are available yet</div>';
       setStatus("benchmarkStatus", "Live evaluation loaded at " + new Date().toLocaleTimeString(), "success");
@@ -1465,6 +1605,12 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
     byId("previewBackdrop").addEventListener("click", event => {
       if (event.target === byId("previewBackdrop")) closePreview();
     });
+
+    byId("saveApiKey").addEventListener("click", saveApiKey);
+    byId("clearApiKey").addEventListener("click", clearApiKey);
+    byId("openPdfLink").addEventListener("click", event => runUiTask(() => openCitedPdf(event), "queryStatus"));
+
+    byId("apiKeyInput").value = apiKey;
 
     async function startStudio() {
       await Promise.all([loadDocuments(), loadScenarios()]);

@@ -1,0 +1,39 @@
+name: Optional GPU Import Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gpu-imports:
+    runs-on: [self-hosted, gpu]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install GPU Stack
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-gpu.txt
+
+      - name: Import GPU Components
+        run: |
+          python - <<'PY'
+          import torch
+          import peft
+          import trl
+          import bitsandbytes
+          import vllm
+          from training_and_vllm import qlora_finetune
+          from training_and_vllm import benchmark_vllm
+          print("torch", torch.__version__, "cuda", torch.cuda.is_available())
+          print("peft", peft.__version__, "trl", trl.__version__)
+          print("bitsandbytes", bitsandbytes.__version__, "vllm", vllm.__version__)
+          print("qlora formatter", qlora_finetune.format_financebench_row)
+          print("benchmark", benchmark_vllm.run_load_benchmark)
+          PY

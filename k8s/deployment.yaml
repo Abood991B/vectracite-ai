@@ -23,10 +23,34 @@ spec:
           env:
             - name: QDRANT_HOST
               value: "qdrant-service"
+            - name: QDRANT_PORT
+              value: "6333"
+            - name: QDRANT_IN_MEMORY
+              value: "false"
+            - name: ALLOW_QDRANT_FALLBACK
+              value: "false"
+            - name: INDEX_SYNC_SECONDS
+              value: "15"
             - name: REDIS_URL
               value: "redis://redis-service:6379/0"
             - name: MLFLOW_TRACKING_URI
               value: "http://mlflow-service:5000"
+            - name: REQUIRE_REDIS
+              value: "true"
+            - name: AUTH_REQUIRED
+              value: "true"
+            - name: API_READ_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vectracite-api-credentials
+                  key: read-key
+            - name: API_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vectracite-api-credentials
+                  key: admin-key
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://vectracite.example.com"
           resources:
             requests:
               cpu: "500m"
@@ -34,25 +58,50 @@ spec:
             limits:
               cpu: "2000m"
               memory: "4Gi"
-          readinessProbe:
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/data/uploads
+          startupProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 5
+            failureThreshold: 30
             periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 20
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: vectracite-uploads
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vectracite-uploads
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: vectracite-ai-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: vectracite-ai
   ports:

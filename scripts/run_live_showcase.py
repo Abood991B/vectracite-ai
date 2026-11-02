@@ -21,19 +21,51 @@ from src.config import settings
 def run_showcase() -> None:
     with TestClient(app) as client:
         # Keep the checked-in showcase deterministic without touching user uploads.
+        if api_main.retriever.backend != "memory":
+            raise SystemExit(
+                "run_live_showcase.py is a local deterministic showcase; set "
+                "QDRANT_IN_MEMORY=true so it cannot clear a shared collection."
+            )
         api_main.retriever.clear()
         api_main.semantic_cache.clear()
         demo_chunks = load_corpus_chunks_from_pdfs(api_main.parser)
-        api_main.retriever.index_chunks(demo_chunks)
+        api_main.retriever.index_chunks(
+            demo_chunks,
+            use_embedding_cache=True,
+            write_embedding_cache=True,
+        )
         health = client.get("/health").json()
 
-        q = "In AMD's Consolidated Statements of Operations table, what were total net revenue, gross profit, and operating income for FY 2022 vs FY 2021?"
+        benchmark_path = settings.DATA_DIR / "benchmark_queries.json"
+        benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        q = next(
+            item["question"]
+            for item in benchmark
+            if item["doc_name"] == "AMD_2022_10K"
+            and "customer concentration" in item["question"].lower()
+        )
 
         # 1. Cold query (full Hybrid RRF + Cross-Encoder Reranking)
-        cold_resp = client.post("/query", json={"question": q, "top_k": 2, "use_cache": True}).json()
+        cold_resp = client.post(
+            "/query",
+            json={
+                "question": q,
+                "doc_name": "AMD_2022_10K",
+                "top_k": 3,
+                "use_cache": True,
+            },
+        ).json()
 
         # 2. Warm query (Semantic Cache Hit)
-        warm_resp = client.post("/query", json={"question": q, "top_k": 2, "use_cache": True}).json()
+        warm_resp = client.post(
+            "/query",
+            json={
+                "question": q,
+                "doc_name": "AMD_2022_10K",
+                "top_k": 3,
+                "use_cache": True,
+            },
+        ).json()
 
         # 3. Malicious prompt-injection query (Blocked by Guardrails)
         blocked_resp = client.post(
