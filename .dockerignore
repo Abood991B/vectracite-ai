@@ -16,5 +16,3 @@ tests
 docs
 .env
 .env.*
-CODE_REVIEW.md
-VERIFICATION.md

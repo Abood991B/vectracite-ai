@@ -437,8 +437,6 @@ vectracite-ai/
 `-- requirements-mlops.txt
 ```
 
-Verification evidence for this worktree is recorded in [`VERIFICATION.md`](VERIFICATION.md).
-
 ---
 
 ## 9. Known limitations
