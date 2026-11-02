@@ -6,13 +6,13 @@ import logging
 import math
 import re
 import threading
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
 import pymupdf as fitz
 
 from src.config import settings
+from src.domain.documents import DocumentChunk
 from src.ingestion.ocr import OCRBackend
 
 logger = logging.getLogger(__name__)
@@ -34,21 +34,6 @@ class PDFRenderError(ValueError):
 
 class PDFRenderLimitError(PDFRenderError):
     """Raised when structured input exceeds the configured render limit."""
-
-
-@dataclass
-class DocumentChunk:
-    """A layout- and section-aware document chunk with an exact page citation."""
-
-    chunk_id: str
-    doc_name: str
-    page_number: int
-    text: str
-    contains_table: bool
-    metadata: Dict[str, Any]
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
 
 
 class MultimodalFinancialParser:

@@ -4,7 +4,6 @@ import re
 import threading
 import time
 import uuid
-from dataclasses import dataclass
 from typing import Any, Dict, List
 import numpy as np
 from qdrant_client import QdrantClient
@@ -12,7 +11,7 @@ from qdrant_client.http import models as qmodels
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 from src.config import settings
-from src.ingestion.pdf_parser import DocumentChunk
+from src.domain.documents import DocumentChunk, RetrievedDocument
 from src.retrieval.embedding_cache import load_embeddings, save_embeddings
 from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
 
@@ -158,21 +157,6 @@ def clear_embedder_cache() -> None:
     """Release cached embedding models between independent experiment runs."""
     _SHARED_EMBEDDERS.clear()
     _SHARED_LIGHTWEIGHT_EMBEDDERS.clear()
-
-
-@dataclass
-class RetrievedDocument:
-    """Represents a retrieved chunk scored by Hybrid Search (Dense + BM25 RRF) and/or Reranker."""
-
-    chunk_id: str
-    doc_name: str
-    page_number: int
-    text: str
-    contains_table: bool
-    dense_score: float
-    bm25_score: float
-    rrf_score: float
-    rerank_score: float | None = None
 
 
 class HybridRetriever:

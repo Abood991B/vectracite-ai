@@ -12,7 +12,7 @@ import httpx
 
 from src.config import settings
 from src.ingestion.pdf_parser import SECTION_HEADER_REGEX
-from src.retrieval.hybrid_retriever import RetrievedDocument
+from src.domain.documents import RetrievedDocument
 
 QUERY_STOPWORDS = {
     "a",

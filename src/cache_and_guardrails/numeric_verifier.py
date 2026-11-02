@@ -9,7 +9,7 @@ from src.retrieval.financial_numbers import (
     extract_number_tokens,
     parse_financial_number,
 )
-from src.retrieval.hybrid_retriever import RetrievedDocument
+from src.domain.documents import RetrievedDocument
 
 
 @dataclass

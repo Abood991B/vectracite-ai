@@ -16,9 +16,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from src.config import settings
+from src.domain.documents import DocumentChunk
 from src.ingestion.pdf_parser import (
     PARSER_CACHE_VERSION,
-    DocumentChunk,
     MultimodalFinancialParser,
 )
 
