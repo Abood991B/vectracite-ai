@@ -61,6 +61,7 @@ def test_index_generation_helpers_use_shared_redis_counter(monkeypatch) -> None:
             self.closed = True
 
     fake = FakeRedis()
+    index_state._BREAKER.reset()
     monkeypatch.setattr(index_state.redis, "from_url", lambda *args, **kwargs: fake)
     assert index_state.bump_index_generation() == 7
     assert index_state.read_index_generation() == 7

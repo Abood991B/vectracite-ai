@@ -9,6 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from src.config import settings
+from src.adapters.circuit_breaker import CircuitBreaker
 from src.domain.citations import parse_citations
 from src.domain.documents import RetrievedDocument
 from src.usecases.synthesis import (
@@ -56,6 +57,9 @@ class UnifiedLLMClient:
         self.remote_requests = 0
         self.remote_failures = 0
         self.local = LocalSynthesizer()
+        # A dead provider must not cost every query its connect timeout: two failures open the
+        # breaker and queries fall back locally until the recovery window elapses.
+        self._remote_breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=30.0)
 
     def configure_provider(
         self,
@@ -112,7 +116,10 @@ class UnifiedLLMClient:
         if self._http_client is None or self._http_client_loop is not loop:
             self._http_client = httpx.AsyncClient(
                 transport=self._transport,
-                timeout=self.timeout_seconds,
+                timeout=httpx.Timeout(
+                    self.timeout_seconds,
+                    connect=min(5.0, self.timeout_seconds),
+                ),
             )
             self._http_client_loop = loop
         return self._http_client
@@ -156,11 +163,13 @@ class UnifiedLLMClient:
         self.last_provider = "remote_openai_compatible"
         self.last_error = None
         self.remote_requests += 1
+        self._remote_breaker.record_success()
 
     def _mark_remote_failure(self, exc: Exception) -> None:
         self.last_provider = "local_fallback"
         self.last_error = type(exc).__name__
         self.remote_failures += 1
+        self._remote_breaker.record_failure()
         logger.warning(
             "Remote LLM request failed (%s); using deterministic fallback",
             type(exc).__name__,
@@ -190,7 +199,7 @@ class UnifiedLLMClient:
 
         if not self.remote_enabled:
             self.last_provider = "local_deterministic"
-        if self.remote_enabled:
+        if self.remote_enabled and self._remote_breaker.allow():
             try:
                 client = self._get_http_client()
                 response = await client.post(
@@ -229,7 +238,7 @@ class UnifiedLLMClient:
         """Yield answer text from the remote SSE stream, falling back locally."""
         if not self.remote_enabled:
             self.last_provider = "local_deterministic"
-        if self.remote_enabled and chunks:
+        if self.remote_enabled and chunks and self._remote_breaker.allow():
             emitted = False
             try:
                 client = self._get_http_client()
