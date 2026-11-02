@@ -238,9 +238,6 @@ an OCR call already running can continue until it returns, retaining that slot.
 `PARSER_CHUNK_OVERLAP` is currently included in cache configuration but is not
 applied by the chunker.
 
-See [the follow-up evaluation](docs/followup_evaluation.md) for the tested
-retrieval cases, OCR comparison, commands, and measurement limits.
-
 The committed `data/corpus_index.json` and `data/corpus_embeddings.npz` can reduce
 startup work when their signatures match the configuration and corpus. Startup
 time depends on the machine and whether the model is already available.

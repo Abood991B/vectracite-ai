@@ -46,7 +46,7 @@ FIXTURE_QUESTIONS = [
 ]
 
 # Deliberately generous: these catch a catastrophic regression on shared CI hardware, not a
-# percentage drift. The real budgets live in docs/PERFORMANCE.md and are watched on a known machine.
+# percentage drift. The real budgets live in the internal performance ledger and are watched on a known machine.
 GATE_CAPS_MS = {
     "query_cold": 1000.0,
     "query_cache_hit": 500.0,

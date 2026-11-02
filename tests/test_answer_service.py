@@ -140,7 +140,7 @@ async def test_execute_cites_only_pages_named_in_the_answer() -> None:
 async def test_execute_caches_an_answer_without_citations_when_chunks_were_reranked() -> None:
     """Current behavior: the cache guard is "some chunks were reranked", not "the answer cited them".
 
-    Pinned as-is rather than fixed here â€” see TECH-DEBT.md.
+    Pinned as-is rather than fixed here â€” see the internal debt ledger.
     """
     chunks = [_chunk(5, "Revenue grew.")]
     service, _, cache = _service(chunks, answer="Revenue grew without a page reference.")

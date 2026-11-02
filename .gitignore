@@ -38,6 +38,8 @@ outputs/
 Thumbs.db
 
 # AI Agent & Editor Scratchpads
+/\.agents/
+/skills-lock.json
 docs/superpowers/
 .claude/
 .cursor/
