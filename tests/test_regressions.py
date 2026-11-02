@@ -73,6 +73,66 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
     assert [chunk.chunk_id for chunk in contributors] == ["c1", "c2"]
 
 
+def test_comparison_question_answers_each_document() -> None:
+    from src.domain.documents import RetrievedDocument
+    from src.usecases.synthesis import LocalSynthesizer
+
+    def chunk(doc: str, text: str) -> RetrievedDocument:
+        return RetrievedDocument(
+            chunk_id=f"{doc}-1",
+            doc_name=doc,
+            page_number=10,
+            text=text,
+            contains_table=True,
+            dense_score=1.0,
+            bm25_score=1.0,
+            rrf_score=1.0,
+            rerank_score=0.9,
+        )
+
+    amd = chunk(
+        "AMD_2022_10K",
+        "| Metric | 2022 | 2021 |\n| --- | --- | --- |\n"
+        "| Net revenue | $23,601M | $16,434M |",
+    )
+    msft = chunk(
+        "MSFT_2023_10K",
+        "| Metric | 2023 | 2022 |\n| --- | --- | --- |\n"
+        "| Net revenue | $211,915M | $198,270M |",
+    )
+
+    answer = LocalSynthesizer().answer("compare amd and msft revenue", [amd, msft])
+
+    assert answer.startswith("Comparison across documents:")
+    assert "AMD_2022_10K" in answer
+    assert "MSFT_2023_10K" in answer
+    assert "23,601" in answer
+    assert "211,915" in answer
+
+
+def test_local_defaults_avoid_ipv6_localhost_resolution() -> None:
+    """`localhost` resolves to ::1 first on Windows; Qdrant binds IPv4, costing 2 s per search."""
+    from src.config import Settings
+
+    assert Settings.model_fields["QDRANT_HOST"].default == "127.0.0.1"
+    assert "127.0.0.1" in Settings.model_fields["REDIS_URL"].default
+
+
+def test_typo_correction_uses_the_corpus_vocabulary() -> None:
+    from src.usecases.query_normalization import correct_query_terms
+
+    vocabulary = {"revenue": 40, "competition": 12, "employees": 9}
+    assert (
+        correct_query_terms("what was the reveune?", vocabulary)
+        == "what was the revenue?"
+    )
+    # Capitalised words are treated as names and left alone.
+    assert correct_query_terms("Activision Blizzard", vocabulary) == (
+        "Activision Blizzard"
+    )
+    assert correct_query_terms("unrelatedword", vocabulary) == "unrelatedword"
+
+
 def test_semantic_cache_never_crosses_scopes() -> None:
     """A cached answer from one document must not satisfy a query scoped to another."""
     from src.cache_and_guardrails.semantic_cache import SemanticCache

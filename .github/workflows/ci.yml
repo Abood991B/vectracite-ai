@@ -91,6 +91,7 @@ jobs:
             sleep 2
           done
           python scripts/smoke_test_api.py --base-url http://localhost:18080
+          python scripts/load_test.py --base-url http://localhost:18080 --duration 10 --concurrency 2 --output /tmp/load_test_ci.json
           docker logs vectracite-ci
           docker rm -f vectracite-ci
 

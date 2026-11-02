@@ -40,13 +40,20 @@ class FakeRetriever:
     def __init__(self, chunks: List[RetrievedDocument]) -> None:
         self.chunks_store = chunks
         self.calls = 0
+        self.queries: List[str] = []
 
     def retrieve_hybrid(self, query: str, top_k: int, doc_name: str | None = None):
         self.calls += 1
+        self.queries.append(query)
         return list(self.chunks_store)
 
     def indexed_document_names(self) -> List[str]:
         return sorted({chunk.doc_name for chunk in self.chunks_store})
+
+    def corpus_vocabulary(self) -> dict[str, int]:
+        from src.usecases.query_normalization import vocabulary_from_texts
+
+        return vocabulary_from_texts(chunk.text for chunk in self.chunks_store)
 
 
 class FakeReranker:
@@ -196,6 +203,24 @@ async def test_validate_rejects_prompt_injection_before_any_retrieval() -> None:
 
     assert blocked.value.status_code == 400
     assert retriever.calls == 0
+
+
+async def test_typo_is_corrected_against_the_corpus_vocabulary() -> None:
+    chunks = [
+        _chunk(
+            1,
+            "Net revenue revenue revenue revenue revenue was $10 in 2022.",
+        )
+    ]
+    service, retriever, _ = _service(
+        chunks, answer="According to [AMD_2022_10K, Page 1]: $10."
+    )
+
+    await service.execute(QueryRequest(question="what was the reveune in 2022?"))
+
+    assert retriever.queries, "retriever was never called"
+    assert "revenue" in retriever.queries[-1]
+    assert "reveune" not in retriever.queries[-1]
 
 
 async def test_pipeline_never_cites_outside_the_requested_scope() -> None:

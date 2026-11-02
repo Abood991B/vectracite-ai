@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     OCR_PADDLE_REC_MODEL: str = "en_PP-OCRv5_mobile_rec"
 
     # Qdrant Vector Store Configuration
-    QDRANT_HOST: str = "localhost"
+    QDRANT_HOST: str = "127.0.0.1"
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION: str = "financebench_hybrid_v1"
     QDRANT_IN_MEMORY: bool = False
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     USE_LIGHTWEIGHT_MODELS: bool = False
 
     # Redis Semantic Cache Configuration
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://127.0.0.1:6379/0"
     CACHE_SIMILARITY_THRESHOLD: float = 0.92
     CACHE_TTL_SECONDS: int = 86400
 

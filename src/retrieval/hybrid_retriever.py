@@ -13,6 +13,7 @@ from src.config import settings
 from src.domain.documents import DocumentChunk, RetrievedDocument
 from src.retrieval.embedding_cache import load_embeddings, save_embeddings
 from src.retrieval.lexical_index import LexicalIndex, tokenize
+from src.usecases.query_normalization import vocabulary_from_texts
 from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
 
 logger = logging.getLogger(__name__)
@@ -179,6 +180,7 @@ class HybridRetriever:
 
         self.chunks_store: List[DocumentChunk] = []
         self._lexical = LexicalIndex()
+        self._vocab_cache: tuple[tuple[int, str], Dict[str, int]] | None = None
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:
@@ -536,7 +538,9 @@ class HybridRetriever:
 
         scope = doc_name.strip() if doc_name and doc_name.strip().upper() != "ALL" else None
         candidate_limit = max(top_k * self.candidate_multiplier, 40)
+        _t0 = time.perf_counter()
         q_vec = self._encode_texts([query])[0].tolist()
+        _t0 = time.perf_counter()
         dense_hits = self._search_dense(q_vec, candidate_limit, doc_name=scope)
         if scope:
             dense_hits = [
@@ -555,6 +559,7 @@ class HybridRetriever:
                 dense_ranks[cid] = rank + 1
                 dense_scores[cid] = float(hit.score)
 
+        _t0 = time.perf_counter()
         bm25_ranks: Dict[str, int] = {}
         bm25_scores: Dict[str, float] = {}
         for rank, (chunk, score) in enumerate(
@@ -722,6 +727,17 @@ class HybridRetriever:
     def indexed_document_names(self) -> List[str]:
         """Return the sorted document names in the local catalog."""
         return sorted({chunk.doc_name for chunk in self.chunks_store})
+
+    def corpus_vocabulary(self) -> Dict[str, int]:
+        """Term frequencies from the indexed chunks, cached per catalog generation."""
+        with self._mutation_lock:
+            chunks = list(self.chunks_store)
+        signature = (len(chunks), chunks[0].chunk_id if chunks else "")
+        if self._vocab_cache is not None and self._vocab_cache[0] == signature:
+            return self._vocab_cache[1]
+        counts = vocabulary_from_texts(chunk.text for chunk in chunks)
+        self._vocab_cache = (signature, counts)
+        return counts
 
     def list_documents(self) -> List[Dict[str, Any]]:
         """Returns summary metadata for all currently indexed documents."""

@@ -1,0 +1,17 @@
+{
+  "base_url": "http://127.0.0.1:8080",
+  "duration_seconds": 30.32,
+  "concurrency": 4,
+  "use_cache": false,
+  "requests": 307,
+  "errors": 0,
+  "error_samples": [],
+  "throughput_rps": 10.13,
+  "latency_ms": {
+    "p50": 380.4,
+    "p95": 510.7,
+    "p99": 615.5,
+    "max": 641.1,
+    "mean": 384.7
+  }
+}

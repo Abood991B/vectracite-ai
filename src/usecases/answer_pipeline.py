@@ -28,8 +28,14 @@ from src.usecases.ports import (
     RetrieverPort,
     SynthesizerPort,
 )
-from src.usecases.synthesis import expand_query
+from src.usecases.synthesis import (
+    expand_query,
+    is_comparison_question,
+    mentioned_documents,
+)
+from src.usecases.query_normalization import correct_query_terms
 from src.domain.citations import parse_citations
+from src.domain.documents import RetrievedDocument
 
 
 def answer_contributors(answer: str, chunks: List[Any]) -> List[Any]:
@@ -97,24 +103,51 @@ class AnswerPipeline:
                 )
                 return QueryResponse(**cached)
 
-        retrieval_query = expand_query(input_check.sanitized_text)
-        hybrid_candidates = self.retriever.retrieve_hybrid(
-            query=retrieval_query,
-            top_k=max(payload.top_k * 2, 6),
-            doc_name=scope,
+        vocabulary = self.retriever.corpus_vocabulary()
+        normalized_question = correct_query_terms(
+            input_check.sanitized_text, vocabulary
         )
-        reranked_chunks = self.reranker.rerank(
-            query=retrieval_query,
-            candidates=hybrid_candidates,
-            top_n=payload.top_k,
-        )
+        retrieval_query = expand_query(normalized_question)
+        comparison_mode = is_comparison_question(normalized_question) and scope is None
+        if comparison_mode:
+            targets = mentioned_documents(normalized_question, indexed_docs) or indexed_docs
+            by_doc: dict[str, list[RetrievedDocument]] = {}
+            for doc_name in targets:
+                hits = self.retriever.retrieve_hybrid(
+                    query=retrieval_query,
+                    top_k=max(payload.top_k * 2, 8),
+                    doc_name=doc_name,
+                )
+                if hits:
+                    by_doc[doc_name] = hits
+            hybrid_candidates = [chunk for hits in by_doc.values() for chunk in hits]
+            reranked_chunks = []
+            for hits in by_doc.values():
+                reranked_chunks.extend(
+                    self.reranker.rerank(
+                        query=retrieval_query,
+                        candidates=hits,
+                        top_n=6,
+                    )
+                )
+        else:
+            hybrid_candidates = self.retriever.retrieve_hybrid(
+                query=retrieval_query,
+                top_k=max(payload.top_k * 2, 6),
+                doc_name=scope,
+            )
+            reranked_chunks = self.reranker.rerank(
+                query=retrieval_query,
+                candidates=hybrid_candidates,
+                top_n=payload.top_k,
+            )
         if scope:
             reranked_chunks = [
                 chunk for chunk in reranked_chunks if chunk.doc_name == scope
             ]
 
         raw_answer = await self.llm_client.generate_answer(
-            input_check.sanitized_text,
+            normalized_question,
             reranked_chunks,
             indexed_docs=indexed_docs,
         )
@@ -238,24 +271,49 @@ class AnswerPipeline:
                 yield QueryResponse(**cached)
                 return
 
-        retrieval_query = expand_query(question)
-        hybrid_candidates = self.retriever.retrieve_hybrid(
-            query=retrieval_query,
-            top_k=max(payload.top_k * 2, 6),
-            doc_name=scope,
-        )
-        reranked_chunks = self.reranker.rerank(
-            query=retrieval_query,
-            candidates=hybrid_candidates,
-            top_n=payload.top_k,
-        )
+        vocabulary = self.retriever.corpus_vocabulary()
+        normalized_question = correct_query_terms(question, vocabulary)
+        retrieval_query = expand_query(normalized_question)
+        comparison_mode = is_comparison_question(normalized_question) and scope is None
+        if comparison_mode:
+            targets = mentioned_documents(normalized_question, indexed_docs) or indexed_docs
+            by_doc: dict[str, list[RetrievedDocument]] = {}
+            for doc_name in targets:
+                hits = self.retriever.retrieve_hybrid(
+                    query=retrieval_query,
+                    top_k=max(payload.top_k * 2, 8),
+                    doc_name=doc_name,
+                )
+                if hits:
+                    by_doc[doc_name] = hits
+            hybrid_candidates = [chunk for hits in by_doc.values() for chunk in hits]
+            reranked_chunks = []
+            for hits in by_doc.values():
+                reranked_chunks.extend(
+                    self.reranker.rerank(
+                        query=retrieval_query,
+                        candidates=hits,
+                        top_n=6,
+                    )
+                )
+        else:
+            hybrid_candidates = self.retriever.retrieve_hybrid(
+                query=retrieval_query,
+                top_k=max(payload.top_k * 2, 6),
+                doc_name=scope,
+            )
+            reranked_chunks = self.reranker.rerank(
+                query=retrieval_query,
+                candidates=hybrid_candidates,
+                top_n=payload.top_k,
+            )
         if scope:
             reranked_chunks = [
                 chunk for chunk in reranked_chunks if chunk.doc_name == scope
             ]
         redactor = self.guardrails.streaming_redactor()
         async for token in self.llm_client.stream_answer(
-            question,
+            normalized_question,
             reranked_chunks,
             indexed_docs=indexed_docs,
         ):

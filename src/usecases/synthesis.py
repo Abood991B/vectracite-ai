@@ -60,6 +60,8 @@ QUERY_TERM_SYNONYMS: Dict[str, set[str]] = {
     "netincome": {"net", "income"},
     "netsales": {"net", "sales"},
     "totalrevenue": {"total", "revenue"},
+    "revenue": {"sales"},
+    "sales": {"revenue"},
     # Casual verbs people use instead of "revenue" / "income".
     "make": {"revenue", "sales"},
     "made": {"revenue", "sales"},
@@ -113,6 +115,24 @@ META_RESPONSE = (
 )
 
 
+CANONICAL_FINANCIAL_TERMS = frozenset(
+    {
+        "revenue",
+        "sales",
+        "income",
+        "profit",
+        "margin",
+        "debt",
+        "cash",
+        "flow",
+        "assets",
+        "liabilities",
+        "expenses",
+        "employees",
+    }
+)
+
+
 def expand_query(question: str) -> str:
     """Append canonical financial terms so casual wording still retrieves the right evidence.
 
@@ -124,6 +144,8 @@ def expand_query(question: str) -> str:
     )
     additions: set[str] = set()
     for word in re.findall(r"[\w]+", folded, flags=re.UNICODE):
+        if word in CANONICAL_FINANCIAL_TERMS:
+            continue
         additions.update(QUERY_TERM_SYNONYMS.get(word, set()))
         fiscal_year = re.fullmatch(r"fy(\d{2,4})", word)
         if fiscal_year:
@@ -132,6 +154,30 @@ def expand_query(question: str) -> str:
     if not additions:
         return question
     return f"{question} {' '.join(sorted(additions))}"
+
+
+COMPARISON_RE = re.compile(
+    r"\b(compare|comparison|between|across|versus|vs\.?|both|each)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def is_comparison_question(question: str) -> bool:
+    """True when the question asks about more than one document or entity."""
+    return bool(COMPARISON_RE.search(question))
+
+
+def mentioned_documents(question: str, indexed_docs: list[str]) -> list[str]:
+    """Return indexed documents whose name or first token appears in the question."""
+    folded = question.casefold()
+    return [
+        doc_name
+        for doc_name in indexed_docs
+        if re.search(
+            rf"\b{re.escape(doc_name.split('_', maxsplit=1)[0].casefold())}\b",
+            folded,
+        )
+    ]
 
 
 class LocalSynthesizer:
@@ -145,6 +191,10 @@ class LocalSynthesizer:
     ) -> str:
         """Select evidence, then prefer sections, then tables, then narrative."""
         answer_chunks = self._select_answer_chunks(question, chunks, indexed_docs)
+        if is_comparison_question(question):
+            comparison = self._comparison_answer(question, chunks, indexed_docs)
+            if comparison:
+                return comparison
         section_answer = self._format_sections(question, answer_chunks)
         if section_answer:
             return section_answer
@@ -335,6 +385,36 @@ class LocalSynthesizer:
             for doc_name, page_number, lines in sections.get(section, []):
                 parts.append(f"[{doc_name}, Page {page_number}]\n" + "\n".join(lines))
         return "\n\n".join(parts)
+
+    def _comparison_answer(
+        self,
+        question: str,
+        chunks: List[RetrievedDocument],
+        indexed_docs: List[str] | None = None,
+    ) -> str:
+        """Answer a cross-document question with one cited block per mentioned document."""
+        grouped: Dict[str, List[RetrievedDocument]] = {}
+        for chunk in self._ordered_chunks(chunks):
+            grouped.setdefault(chunk.doc_name, []).append(chunk)
+
+        targets = mentioned_documents(question, indexed_docs or list(grouped))
+        if targets:
+            grouped = {name: grouped[name] for name in targets if name in grouped}
+        missing = [name for name in targets if name not in grouped]
+        if len(grouped) + len(missing) < 2:
+            return ""
+
+        blocks: List[str] = []
+        for doc_chunks in grouped.values():
+            table = self._table_answer(question, doc_chunks)
+            if table:
+                blocks.append("- " + table.replace("\n", "\n  "))
+        for doc_name in missing:
+            blocks.append(f"- [{doc_name}]: no matching evidence in the indexed corpus.")
+        if len(blocks) < 2:
+            return ""
+        return "Comparison across documents:\n" + "\n".join(blocks)
+
     @classmethod
     def _table_answer(
         cls, question: str, chunks: List[RetrievedDocument]

@@ -33,6 +33,8 @@ class RetrieverPort(Protocol):
 
     def get_document_chunks(self, doc_name: str) -> List[Dict[str, Any]]: ...
 
+    def corpus_vocabulary(self) -> Dict[str, int]: ...
+
 
 class RerankerPort(Protocol):
     """Optional reordering of retrieved evidence."""
