@@ -68,11 +68,11 @@ class DeterministicNumericVerifier:
             )
         if not raw_matches:
             return NumericVerificationResult(
-                is_fully_grounded=True,
-                numeric_grounding_score=1.0,
+                is_fully_grounded=False,
+                numeric_grounding_score=0.0,
                 verified_figures=[],
                 unverified_figures=[],
-                verification_applicable=True,
+                verification_applicable=False,
             )
 
         corpus_numbers = canonical_numbers_in_text(

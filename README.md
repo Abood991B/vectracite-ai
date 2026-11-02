@@ -16,7 +16,7 @@
 VectraCite-AI is a self-hostable document question-answering service built around a real SEC filing corpus. It:
 
 - Parses PDFs with PyMuPDF, preserving native and text-aligned tables as Markdown.
-- Chunks every document with exact physical page citations.
+- Chunks extracted content and records its physical PDF page for citations.
 - Retrieves with dense BGE embeddings, BM25, and weighted Reciprocal Rank Fusion.
 - Reranks with a BGE cross-encoder only when a table-AST structural signal is strong.
 - Produces citation-grounded answers through a deterministic local synthesizer or an optional OpenAI-compatible provider.
@@ -97,9 +97,9 @@ FinanceBench, indexes the five real filings, and evaluates three retrieval modes
 
 | Mode | Precision@1 | Recall@3 | MRR | nDCG@3 | Mean latency |
 |---|---:|---:|---:|---:|---:|
-| Dense-only | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 34.82 ms |
-| Hybrid RRF | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 71.23 ms |
-| Adaptive SCAR reranker | 0.2500 | 0.3125 | 0.3125 | 0.2894 | 71.62 ms |
+| Dense-only | 0.2500 | 0.3750 | 0.3177 | 0.3207 | 35.83 ms |
+| Hybrid RRF | 0.2500 | 0.3750 | 0.3177 | 0.3207 | 74.36 ms |
+| Adaptive SCAR reranker | 0.2500 | 0.3750 | 0.3177 | 0.3207 | 78.80 ms |
 
 These are honest results on a difficult 830-page, five-document corpus. Retrieval is limited by the
 small BGE bi-encoder and by FinanceBench questions that require multi-page reasoning. The adaptive
@@ -127,7 +127,8 @@ Checked-in report: [`data/domain_benchmark_report.json`](data/domain_benchmark_r
 
 Phase 2 tested fusion weights, candidate depth, embedding upgrades, page fusion, and reranker gates.
 A forced top-2 gate raised the domain-suite R@3 to 0.7647, but it reduced the original FinanceBench
-P@1 from 0.2500 to 0.1250 and MRR from 0.3125 to 0.2500. It was therefore rejected; production
+P@1 from 0.2500 to 0.1250 and MRR from 0.3125 to 0.2500 (both measured before the physical-page
+citation migration; the current baseline MRR is 0.3177). It was therefore rejected; production
 remains on `RERANKER_GATE=adaptive`. The full matrix, including the rejected variants, is in
 [`data/retrieval_experiments_baseline_gates.json`](data/retrieval_experiments_baseline_gates.json).
 
@@ -213,10 +214,41 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8080
 ```
 
 Open `http://localhost:8080/` for the workbench and `http://localhost:8080/docs` for OpenAPI.
+For local use, bind to `127.0.0.1` instead of `0.0.0.0` unless you intend to
+expose the service. Authentication is disabled by default.
 
-The committed `data/corpus_index.json` and `data/corpus_embeddings.npz` make the real corpus load in
-about 0.1 seconds; indexing the cached vectors takes about one second on CPU. The API remains
-unauthenticated only when `AUTH_REQUIRED` is not set, which is intended for local development.
+In the workbench, remove the demo documents, upload a PDF, and ask a question
+scoped to that document. Check the cited pages against the original PDF. The
+upload limit defaults to 25 MiB and 500 pages, and parsing has a 120-second
+timeout. The service processes all pages within those limits, but extracted
+text and tables can be incomplete, especially for mixed or scanned PDFs.
+Demo removal persists in the uploads directory. Citations and page images use
+physical PDF page numbers, including for PDFs generated from structured input.
+Source page labels remain visible as document text.
+OCR is disabled by default. When enabled, it applies only to image-containing
+pages with fewer than `OCR_MIN_CHARS` native characters. The default limit is
+50 OCR pages; exceeding it, an OCR error, or an empty OCR result rejects the
+upload. Exactly white image pages are reported as blank and skipped. Other blank
+or near-blank scans may require preprocessing. A page with a short text layer above the threshold may
+still contain unrecognized image content. Inspect the original pages.
+The upload response reports extraction coverage per physical page. Coverage does
+not establish that every visible word or table was extracted. Ingestion permits
+one active parser per API process. A timeout requests cancellation between pages;
+an OCR call already running can continue until it returns, retaining that slot.
+`PARSER_CHUNK_OVERLAP` is currently included in cache configuration but is not
+applied by the chunker.
+
+See [the follow-up evaluation](docs/followup_evaluation.md) for the tested
+retrieval cases, OCR comparison, commands, and measurement limits.
+
+The committed `data/corpus_index.json` and `data/corpus_embeddings.npz` can reduce
+startup work when their signatures match the configuration and corpus. Startup
+time depends on the machine and whether the model is already available.
+The physical-page citation update uses a new Qdrant collection and invalidates
+older parsed caches. The service rebuilds its index from the configured corpus
+and persisted uploads. The old Qdrant collection is not deleted automatically.
+Redis answer-cache entries also use a new namespace so old citations are not
+reused; old entries expire according to their existing TTL.
 
 ### Docker Compose
 
@@ -228,7 +260,8 @@ docker compose up -d --build
 
 Compose starts the API, Qdrant, Redis Stack, and MLflow. It builds the API with the BGE models
 preloaded, waits for dependency health checks, and uses `/ready` for the API healthcheck. Uploaded
-PDFs persist in the `api_uploads` volume.
+PDFs persist in the `api_uploads` volume. Qdrant, Redis, and MLflow host ports bind
+to `127.0.0.1`; their services remain reachable by the Compose network.
 
 ### Kubernetes
 
@@ -250,7 +283,7 @@ it to `ReadWriteOnce` if you run a single replica or provide shared object stora
 | Method | Endpoint | Notes |
 |---|---|---|
 | `GET` | `/health` | Process liveness only |
-| `GET` | `/ready` | Fails on empty index, degraded vector backend, or required Redis loss |
+| `GET` | `/ready` | Fails on a degraded vector backend or required Redis loss; an empty index can accept uploads |
 | `GET` | `/documents` | Document, chunk, table, and page summaries |
 | `GET` | `/documents/{doc_name}` | Paginated chunks (`limit`, `offset`) |
 | `GET` | `/documents/{doc_name}/pdf` | Original PDF |
@@ -258,6 +291,7 @@ it to `ReadWriteOnce` if you run a single replica or provide shared object stora
 | `POST` | `/query` | Guarded JSON answer with citations and verification |
 | `POST` | `/query/stream` | Guarded SSE answer, then a `verification` event |
 | `POST` | `/ingest/pdf` | Upload and index a PDF |
+| `POST` | `/ingest/pdf/stream` | Upload a PDF and stream page progress and the indexing result |
 | `POST` | `/ingest` | Render structured pages to PDF, then index |
 | `PUT` | `/documents/{doc_name}` | Atomic replace |
 | `DELETE` | `/documents/{doc_name}` | Delete |
@@ -271,6 +305,16 @@ it to `ReadWriteOnce` if you run a single replica or provide shared object stora
 
 Authentication uses `X-API-Key` or `Authorization: Bearer`; reader keys can query/read, admin keys
 can mutate. Set `AUTH_REQUIRED=true`, `API_READ_KEY`, and `API_ADMIN_KEY` for deployments.
+The streaming upload can be cancelled by disconnecting during parsing. OCR already
+in progress may finish first. Once indexing starts, it continues even if the client
+disconnects, to avoid interrupting the document update.
+
+The numeric verification fields compare numbers with cited chunks and supported
+table calculations. They do not check whether a number describes the right entity,
+whether a statement follows from the evidence, or whether an answer is correct.
+`is_fully_grounded` is a legacy field name for this numeric check, not a claim
+that the entire answer is grounded. When an answer contains no recognized numeric
+claims, `verification_applicable` is `false`.
 
 ### Example verified response
 
@@ -412,9 +456,9 @@ Verification evidence for this worktree is recorded in [`VERIFICATION.md`](VERIF
 - The forced top-2 reranker was rejected because it reduced FinanceBench P@1/MRR despite improving
   the domain suite. Adaptive reranking remains the default; GPU reranker execution is not yet
   validated.
-- OCR is optional and disabled by default. Native text extraction is fast and exact, but the
+- OCR is optional and disabled by default. Native text extraction can miss or misorder content, and the
   local PP-OCRv5 fallback is CPU-slow and the 2026 VLM OCR models are not interactive on the 6 GB
-  GPU. Use a remote GPU OCR service for production scanned documents. Encrypted and unreadable PDFs
+  GPU. A remote OCR service is an option for larger scanned collections, but needs workload-specific testing. Encrypted and unreadable PDFs
   still return explicit 4xx errors.
 - GPU QLoRA, vLLM serving, Kubernetes scheduling/storage, and cloud KFP execution require external
   infrastructure and were not executed here.

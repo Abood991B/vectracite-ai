@@ -92,12 +92,12 @@ def test_multimodal_table_parser_preserves_tables() -> None:
     chunks = parser.parse_raw_pages("TEST_10K", pages)
     assert len(chunks) == 1
     assert chunks[0].contains_table is True
-    assert chunks[0].page_number == 42
+    assert chunks[0].page_number == 1
     assert "$14,200" in chunks[0].text
 
     pdf_bytes = render_pages_to_pdf_bytes("SOURCE_PAGE_TEST", pages)
     parsed_pdf_chunks = parser.parse_pdf_bytes(pdf_bytes, "SOURCE_PAGE_TEST.pdf")
-    assert parsed_pdf_chunks[0].page_number == 42
+    assert parsed_pdf_chunks[0].page_number == 1
     assert parsed_pdf_chunks[0].contains_table is True
 
 
@@ -140,7 +140,7 @@ def test_vector_pdf_tables_and_visual_page_endpoint() -> None:
     assert pdf_resp.headers["content-disposition"].startswith("inline")
 
     image_resp = client.get(
-        "/documents/VECTOR_TABLE_TEST/pages/42/image",
+        "/documents/VECTOR_TABLE_TEST/pages/1/image",
         params={"highlight": "cash equivalents"},
     )
     assert image_resp.status_code == 200
@@ -221,7 +221,7 @@ def test_hybrid_retriever_and_cross_encoder_reranker() -> None:
     candidates = retriever.retrieve_hybrid("What was Data Center revenue in FY23?", top_k=2)
     reranked = reranker.rerank("What was Data Center revenue in FY23?", candidates, top_n=1)
     assert len(reranked) == 1
-    assert reranked[0].page_number == 55
+    assert reranked[0].page_number == 2
     assert reranked[0].contains_table is True
 
 
@@ -296,7 +296,7 @@ def test_fastapi_end_to_end_ingest_query_and_stream() -> None:
     assert body["computed_deltas"]
     assert body["computed_deltas"][0]["pct_change"] == "+43.61%"
     assert len(body["citations"]) >= 1
-    assert body["citations"][0]["page_number"] == 51
+    assert body["citations"][0]["page_number"] == 1
 
     # Verify prompt injection returns HTTP 400
     blocked_resp = client.post(
@@ -317,7 +317,7 @@ def test_stream_query_redacts_output_and_emits_verification_event(monkeypatch) -
 
     async def unsafe_stream(_question, _chunks, indexed_docs=None):
         del indexed_docs
-        yield "According to [AMD_2022_10K, Page 51], contact john.doe@"
+        yield "According to [AMD_2022_10K, Page 1], contact john.doe@"
         yield "example.com, SSN 123-45-6789, or use sk-1234567890"
         yield "abcdefghij. Revenue was $23,601."
 
@@ -472,7 +472,7 @@ def test_dynamic_document_crud_and_dashboard_ui() -> None:
     assert "Retrieval accuracy" in dash.text
     assert 'src="/assets/logo.svg"' in dash.text
     assert 'id="pdfUploadInput"' in dash.text
-    assert 'safeFetch("/ingest/pdf"' in dash.text
+    assert 'fetch("/ingest/pdf/stream"' in dash.text
     assert "Run benchmark" in dash.text
     assert "/documents/" in dash.text and "/pages/" in dash.text and "/image" in dash.text
     assert 'id="zoomOut"' in dash.text
@@ -591,8 +591,8 @@ def test_universal_answer_paths_are_grounded_or_explicitly_out_of_scope() -> Non
     meta_answer = asyncio.run(
         client_llm.generate_answer("What model are you?", [], indexed_docs=["AMD_2022_10K"])
     )
-    assert "BAAI/bge-small-en-v1.5" in meta_answer
-    assert "BAAI/bge-reranker-base" in meta_answer
+    assert "remote LLM" in meta_answer
+    assert "document content is sent" in meta_answer
 
     out_of_scope_answer = asyncio.run(
         client_llm.generate_answer(
@@ -691,7 +691,7 @@ def test_built_in_corpus_has_five_pdf_pages_and_chunks_per_document() -> None:
         chunk
         for chunk in all_chunks
         if chunk.doc_name == "AMD_2022_10K"
-        and chunk.page_number == 51
+        and chunk.page_number == 1
         and chunk.contains_table
     )
     amd_cells = TableASTParser.extract_cells(
@@ -814,7 +814,7 @@ def test_amd_query_not_contaminated_by_cv_or_cardiology_lab() -> None:
         assert response.status_code == 200
         body = response.json()
         assert body["citations"][0]["doc_name"] == "AMD_2022_10K"
-        assert body["citations"][0]["page_number"] == 51
+        assert body["citations"][0]["page_number"] == 1
         assert "CARDIOLOGY_LAB_2026" not in body["answer"]
         assert "CARDIOLOGY_LAB_QA" not in body["answer"]
         assert "CV" not in body["answer"]
@@ -864,7 +864,7 @@ def test_edge_case_pdfs_encrypted_corrupted_and_unicode() -> None:
     scanned_doc.close()
     scanned = upload("SCANNED_QA.pdf", scanned_bytes)
     assert scanned.status_code == 400
-    assert "scanned" in str(scanned.json()["detail"]).lower()
+    assert "blank image" in str(scanned.json()["detail"]).lower()
 
     unicode_doc = fitz.open()
     left = unicode_doc.new_page()

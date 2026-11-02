@@ -614,6 +614,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         Upload PDF
       </label>
       <input id="pdfUploadInput" class="sr-only" type="file" accept=".pdf,application/pdf" />
+      <button id="cancelUpload" class="sidebar-save" type="button" hidden>Cancel processing</button>
       <div id="sidebarStatus" class="sidebar-status" role="status"></div>
       <div class="sidebar-scroll">
         <div class="sidebar-kicker">Scope</div>
@@ -647,7 +648,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       <header class="studio-header">
         <div>
           <div class="header-title">Trace every answer to its evidence</div>
-          <div class="header-note">Verified figures remain linked to the page and table they came from</div>
+          <div class="header-note">Check each answer against its cited pages</div>
         </div>
         <div class="header-actions">
           <button id="llmSettingsButton" class="llm-settings-button button-with-icon" type="button"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08V21h-4v-.92A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04H3v-4h.92A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08V3h4v.92A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.38.34.73.6 1l.08.04H21v4h-.92a1.7 1.7 0 0 0-.68 1z"/></svg>Model setup</button>
@@ -668,7 +669,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
               <div class="question-row">
                 <label class="sr-only" for="questionInput">Question</label>
                 <input id="questionInput" class="question-input" type="text" placeholder="Ask a question about your PDFs" />
-                <button id="askButton" class="ask-btn" type="button">Verify answer</button>
+                <button id="askButton" class="ask-btn" type="button">Ask question</button>
               </div>
               <div class="scope-bar">
                 <span id="scopeBadge" class="scope-badge">Searching all documents</span>
@@ -685,11 +686,11 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
                     <h2 class="panel-title">Answer &amp; extracted data</h2>
                     <div class="panel-sub">Deterministic figures, deltas, and coordinates from the response</div>
                   </div>
-                  <div class="verified-mark" aria-label="Verified"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+                  <div class="verified-mark" aria-hidden="true"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
                 </div>
-                <div id="answerBox" class="answer-box empty">Ask a question to bring the verified answer here.</div>
+                <div id="answerBox" class="answer-box empty">Ask a question to see an answer and its cited evidence.</div>
                 <div id="metricRow" class="metric-row" hidden>
-                  <div class="metric"><div class="metric-label">Figures verified</div><div id="metricGrounding" class="metric-value">-</div></div>
+                  <div class="metric"><div class="metric-label" title="Numbers found in cited text; context and meaning are not checked">Figures found in evidence</div><div id="metricGrounding" class="metric-value">-</div></div>
                   <div class="metric"><div class="metric-label">Latency</div><div id="metricLatency" class="metric-value">-</div></div>
                   <div class="metric"><div class="metric-label">Cache</div><div id="metricCache" class="metric-value">-</div></div>
                 </div>
@@ -1338,7 +1339,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
 
     function clearEvidence() {
       byId("answerBox").className = "answer-box empty";
-      byId("answerBox").textContent = "Ask a question to bring the verified answer here.";
+      byId("answerBox").textContent = "Ask a question to see an answer and its cited evidence.";
       byId("metricRow").hidden = true;
       byId("metricGrounding").textContent = "-";
       byId("metricLatency").textContent = "-";
@@ -1388,7 +1389,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       setStatus("queryStatus", "Retrieving evidence from the active scope");
       try {
         await streamQuestion(question);
-        setStatus("queryStatus", "Answer verified against the selected evidence", "success");
+        setStatus("queryStatus", "Review the answer against its cited pages", "success");
       } catch (streamError) {
         const result = await safeFetch("/query", {
           method: "POST",
@@ -1402,10 +1403,10 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
           return;
         }
         renderAnswer(result.data);
-        setStatus("queryStatus", "Answer verified against the selected evidence", "success");
+        setStatus("queryStatus", "Review the answer against its cited pages", "success");
       } finally {
         button.disabled = false;
-        button.textContent = "Verify answer";
+        button.textContent = "Ask question";
       }
     }
 
@@ -1418,6 +1419,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       });
     }
 
+    let uploadController = null;
     async function uploadPdf() {
       const input = byId("pdfUploadInput");
       const file = input.files && input.files[0];
@@ -1426,22 +1428,69 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
         return;
       }
       setStatus("sidebarStatus", "Reading and indexing " + file.name);
-      const dataUrl = await readFileAsDataUrl(file);
-      const result = await safeFetch("/ingest/pdf", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({doc_name: file.name, pdf_base64: dataUrl.split(",")[1] || ""})
-      });
-      if (!result.ok) {
-        setStatus("sidebarStatus", result.error, "error");
+      uploadController = new AbortController();
+      input.disabled = true;
+      const cancelButton = byId("cancelUpload");
+      cancelButton.hidden = false;
+      cancelButton.disabled = false;
+      let result;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        if (uploadController.signal.aborted) throw new DOMException("Cancelled", "AbortError");
+        const response = await fetch("/ingest/pdf/stream", authHeaders({
+          method: "POST", signal: uploadController.signal,
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({doc_name: file.name, pdf_base64: dataUrl.split(",")[1] || ""})
+        }));
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.detail || "Upload failed");
+        }
+        if (!response.body) throw new Error("Streaming is not supported by this browser");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, {stream: true});
+          let boundary;
+          while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+            const event = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const line = event.split("\n").find(item => item.startsWith("data: "));
+            if (!line) continue;
+            const data = JSON.parse(line.slice(6));
+            if (data.stage === "parsing") setStatus("sidebarStatus", "Processed page " + data.page + " of " + data.total_pages);
+            if (data.stage === "indexing") {
+              cancelButton.disabled = true;
+              setStatus("sidebarStatus", "Indexing document. This step cannot be cancelled.");
+            }
+            if (data.stage === "error") throw new Error(data.detail || "Upload failed");
+            if (data.stage === "complete") result = data.result;
+          }
+        }
+        if (!result) throw new Error("The upload ended before indexing completed");
+      } catch (error) {
+        setStatus("sidebarStatus", error.name === "AbortError" ? "Cancellation requested. The current OCR page may finish; indexing may already have started." : error.message, "error");
         return;
+      } finally {
+        uploadController = null;
+        input.disabled = false;
+        cancelButton.hidden = true;
       }
-      selectedDoc = result.data.doc_name;
+      selectedDoc = result.doc_name;
       input.value = "";
       await loadDocuments();
       await loadScenarios();
       updateScope();
-      setStatus("sidebarStatus", "Indexed " + result.data.doc_name + " and set its scope", "success");
+      const missingPages = result.coverage?.pages_without_text || [];
+      const mixedPages = result.coverage?.pages_with_unrecognized_images || [];
+      const message = "Indexed " + result.doc_name + " and set its scope";
+      const warnings = [];
+      if (missingPages.length) warnings.push("No text extracted from pages: " + missingPages.join(", "));
+      if (mixedPages.length) warnings.push("Images may contain unrecognized text on pages: " + mixedPages.join(", "));
+      setStatus("sidebarStatus", [message, ...warnings].join(". "), warnings.length ? "error" : "success");
     }
 
     function loadTemplate(key) {
@@ -1613,6 +1662,7 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       setStatus("sidebarStatus", "Scope set to all documents", "success");
     }, "sidebarStatus"));
     byId("pdfUploadInput").addEventListener("change", () => runUiTask(uploadPdf, "sidebarStatus"));
+    byId("cancelUpload").addEventListener("click", () => { if (uploadController) uploadController.abort(); });
     byId("templateSla").addEventListener("click", () => loadTemplate("sla"));
     byId("templateLab").addEventListener("click", () => loadTemplate("lab"));
     byId("manualSave").addEventListener("click", () => runUiTask(saveManualDocument, "sidebarStatus"));

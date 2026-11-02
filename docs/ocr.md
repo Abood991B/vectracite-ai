@@ -1,8 +1,17 @@
 # OCR status and measurements
 
 OCR is optional and disabled by default. Digital PDFs use PyMuPDF's native text
-layer, which is fast and exact. OCR is only attempted for pages with images and
+layer. Extraction can miss or misorder content. OCR is only attempted for pages with images and
 less than `OCR_MIN_CHARS` extractable text.
+
+When OCR is enabled, a page limit, OCR error, or empty OCR result rejects the
+document. Exactly white image pages are skipped and reported as blank; other
+blank or near-blank image pages can still trigger rejection. OCR-disabled mixed PDFs
+and pages with enough native text can still contain unrecognized image content.
+Check the source pages before relying on the index.
+The 120-second ingestion timeout may be too short for local OCR, especially
+for multiple pages. Adjust `INGEST_TIMEOUT_SECONDS` after measuring your own
+documents. A timed-out OCR call may continue until the call returns.
 
 ## Measured candidates on this workstation
 

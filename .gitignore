@@ -15,6 +15,7 @@ env/
 # Data, cached PDFs & MLflow artifacts
 data/pdfs/*.pdf
 data/uploads/*.pdf
+data/uploads/.defaults-cleared
 data/retrieval_experiment_cache/
 tmp/
 mlruns/

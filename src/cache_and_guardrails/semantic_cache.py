@@ -18,10 +18,12 @@ from src.retrieval.financial_numbers import (
 
 logger = logging.getLogger(__name__)
 
-EXACT_PREFIX = "vectracite:semcache:exact:"
-ENTRY_PREFIX = "vectracite:semcache:entry:"
-LEGACY_INDEX_KEY = "vectracite:semcache:index"
-VECTOR_INDEX_NAME = "vectracite:semcache:vector"
+CACHE_NAMESPACE = "vectracite:semcache:physical-pages-v4:"
+EXACT_PREFIX = CACHE_NAMESPACE + "exact:"
+ENTRY_PREFIX = CACHE_NAMESPACE + "entry:"
+LEGACY_PREFIX = CACHE_NAMESPACE + "legacy:"
+LEGACY_INDEX_KEY = CACHE_NAMESPACE + "index"
+VECTOR_INDEX_NAME = CACHE_NAMESPACE + "vector"
 VECTOR_DIMENSION = 256
 
 
@@ -269,7 +271,7 @@ class SemanticCache:
             keys = [
                 key
                 for key in self._redis_client.scan_iter(
-                    match="vectracite:semcache:*", count=200
+                    match=f"{LEGACY_PREFIX}*", count=200
                 )
                 if not key.startswith((EXACT_PREFIX, ENTRY_PREFIX, LEGACY_INDEX_KEY))
             ]
@@ -354,7 +356,7 @@ class SemanticCache:
                     self._redis_vector_client.expire(entry_key, self.ttl_seconds)
                 else:
                     legacy_key = (
-                        "vectracite:semcache:"
+                        LEGACY_PREFIX
                         + hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
                     )
                     pipeline.set(
@@ -375,7 +377,7 @@ class SemanticCache:
                 keys = [
                     key
                     for key in self._redis_client.scan_iter(
-                        match="vectracite:semcache:*", count=200
+                        match=f"{CACHE_NAMESPACE}*", count=200
                     )
                     if key != LEGACY_INDEX_KEY
                 ]

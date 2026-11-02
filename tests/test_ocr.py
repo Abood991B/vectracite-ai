@@ -22,12 +22,14 @@ class FakeOCR:
         )
 
 
-def _image_only_pdf() -> bytes:
+def _image_only_pdf(*, blank: bool = False) -> bytes:
     document = fitz.open()
     page = document.new_page(width=400, height=400)
     pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 400, 400))
     pixmap.clear_with(255)
     page.insert_image(fitz.Rect(0, 0, 400, 400), stream=pixmap.tobytes("png"))
+    if not blank:
+        page.draw_rect(fitz.Rect(10, 10, 30, 30), fill=(0, 0, 0))
     payload = document.tobytes()
     document.close()
     return payload
@@ -75,3 +77,100 @@ def test_remote_ocr_requires_url(monkeypatch) -> None:
         assert "OCR_REMOTE_URL" in str(exc)
     else:
         raise AssertionError("remote OCR should require a URL")
+
+
+def test_ocr_page_limit_rejects_incomplete_document() -> None:
+    import pytest
+
+    image_pdf = fitz.open(stream=_image_only_pdf(), filetype="pdf")
+    document = fitz.open()
+    document.insert_pdf(image_pdf)
+    document.insert_pdf(image_pdf)
+    payload = document.tobytes()
+    document.close()
+    image_pdf.close()
+    parser = MultimodalFinancialParser(ocr_backend=FakeOCR(), ocr_max_pages=1)
+    with pytest.raises(ValueError, match="OCR.*limit.*page 2"):
+        parser.parse_pdf_bytes(payload, "SCANNED_TEST")
+
+
+def test_short_ocr_result_still_counts_toward_page_limit() -> None:
+    import pytest
+
+    class ShortOCR:
+        name = "short"
+
+        def recognize(self, image_png):
+            return OCRResult(text="123", engine=self.name)
+
+    source = fitz.open(stream=_image_only_pdf(), filetype="pdf")
+    document = fitz.open()
+    document.insert_pdf(source)
+    document.insert_pdf(source)
+    payload = document.tobytes()
+    document.close()
+    source.close()
+    with pytest.raises(ValueError, match="OCR.*limit.*page 2"):
+        MultimodalFinancialParser(ocr_backend=ShortOCR(), ocr_max_pages=1).parse_pdf_bytes(
+            payload, "SCAN"
+        )
+
+
+def test_blank_image_is_distinguished_from_ocr_failure() -> None:
+    import pytest
+
+    parser = MultimodalFinancialParser(ocr_backend=FakeOCR())
+    with pytest.raises(ValueError, match="only blank image pages"):
+        parser.parse_pdf_bytes(_image_only_pdf(blank=True), "BLANK")
+
+
+def test_nonblank_scan_requires_ocr_when_disabled() -> None:
+    import pytest
+
+    parser = MultimodalFinancialParser()
+    with pytest.raises(ValueError, match="Scanned or image-only"):
+        parser.parse_pdf_bytes(_image_only_pdf(), "SCAN")
+
+
+def test_parser_honors_cancellation_before_processing_pages() -> None:
+    import threading
+    import pytest
+
+    cancelled = threading.Event()
+    cancelled.set()
+    with pytest.raises(ValueError, match="processing cancelled"):
+        MultimodalFinancialParser().parse_pdf_bytes(
+            _image_only_pdf(), "SCAN", cancel_event=cancelled
+        )
+
+
+def test_mixed_document_reports_image_pages_without_text() -> None:
+    from fastapi.testclient import TestClient
+    import base64
+    from src.api.main import app
+
+    source = fitz.open(stream=_image_only_pdf(blank=True), filetype="pdf")
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((50, 80), "A readable page with enough native text for indexing.")
+    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 20, 20))
+    pixmap.clear_with(0)
+    page.insert_image(fitz.Rect(50, 100, 70, 120), stream=pixmap.tobytes("png"))
+    document.insert_pdf(source)
+    payload = document.tobytes()
+    document.close()
+    source.close()
+    client = TestClient(app)
+    try:
+        response = client.post("/ingest/pdf", json={
+            "doc_name": "MIXED_COVERAGE_TEST",
+            "pdf_base64": base64.b64encode(payload).decode("ascii"),
+        })
+        assert response.status_code == 200
+        pages = response.json()["coverage"]["pages"]
+        assert pages[0]["status"] == "native_text"
+        assert pages[1]["status"] == "blank_image"
+        assert response.json()["coverage"]["pages_without_text"] == []
+        assert response.json()["coverage"]["pages_with_unrecognized_images"] == [1]
+    finally:
+        client.delete("/documents/MIXED_COVERAGE_TEST")

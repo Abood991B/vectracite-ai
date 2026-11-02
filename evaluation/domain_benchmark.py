@@ -182,14 +182,14 @@ def load_domain_benchmark_spec(path: Path | str = DEFAULT_CASES_PATH) -> DomainB
 def _cache_path_for_corpus(corpus_dir: Path) -> Path:
     if corpus_dir.resolve() == settings.CORPUS_PDF_DIR.resolve():
         return settings.CORPUS_INDEX_PATH
-    return settings.DATA_DIR / f"{corpus_dir.name}_index.json"
+    return corpus_dir.parent / f"{corpus_dir.name}_index.json"
 
 
 def load_benchmark_chunks(
     corpus_dirs: Iterable[Path],
     *,
     parser: MultimodalFinancialParser | None = None,
-    write_cache: bool = False,
+    write_cache: bool = True,
 ) -> List[DocumentChunk]:
     """Load all PDFs under each corpus root, using the checked-in cache when valid."""
     active_parser = parser or MultimodalFinancialParser(

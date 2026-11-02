@@ -221,7 +221,7 @@ class HybridRetriever:
             else re.sub(r"[^a-z0-9]+", "_", self.embedding_model.casefold()).strip("_")
         )
         self.collection_name = (
-            f"{collection_name}__{model_tag}__d{self.embedding_dim}"[:200]
+            f"{collection_name}__physical_pages_v4__{model_tag}__d{self.embedding_dim}"[:200]
         )
         self.requested_backend = "memory" if in_memory else "qdrant"
         self.shared_client = client is not None

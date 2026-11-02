@@ -4,6 +4,8 @@ Measures Time-To-First-Token (TTFT), p50/p95/p99 end-to-end latency, throughput,
 """
 
 import asyncio
+import json
+import math
 import statistics
 import time
 from typing import Dict, List
@@ -13,7 +15,7 @@ import httpx
 def _percentile(sorted_values: List[float], fraction: float) -> float:
     if not sorted_values:
         return 0.0
-    index = min(len(sorted_values) - 1, max(0, int(len(sorted_values) * fraction) - 1))
+    index = min(len(sorted_values) - 1, max(0, math.ceil(len(sorted_values) * fraction) - 1))
     return sorted_values[index]
 
 
@@ -23,6 +25,9 @@ async def _send_query(
     """Return end-to-end latency and TTFT for one real SSE query."""
     start = time.perf_counter()
     first_token_at: float | None = None
+    event_name = "message"
+    verified = False
+    done = False
     async with client.stream(
         "POST",
         url,
@@ -31,13 +36,22 @@ async def _send_query(
     ) as response:
         response.raise_for_status()
         async for line in response.aiter_lines():
+            if line.startswith("event:"):
+                event_name = line[6:].strip()
+                continue
             if not line.startswith("data:"):
                 continue
             payload = line[5:].strip()
             if payload == "[DONE]":
+                done = True
                 break
-            if first_token_at is None:
+            if event_name == "verification":
+                data = json.loads(payload)
+                verified = bool(data.get("answer")) and "verification" in data
+            if event_name == "token" and json.loads(payload).get("text") and first_token_at is None:
                 first_token_at = time.perf_counter()
+    if first_token_at is None or not verified or not done:
+        raise ValueError("incomplete answer stream")
     end_to_end = (time.perf_counter() - start) * 1000.0
     ttft = None if first_token_at is None else (first_token_at - start) * 1000.0
     return end_to_end, ttft

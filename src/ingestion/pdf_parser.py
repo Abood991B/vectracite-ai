@@ -5,9 +5,10 @@ import json
 import logging
 import math
 import re
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import pymupdf as fitz
 
@@ -24,7 +25,7 @@ SECTION_HEADER_REGEX = re.compile(
 )
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
 TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
-PARSER_CACHE_VERSION = 2
+PARSER_CACHE_VERSION = 4
 
 
 class PDFRenderError(ValueError):
@@ -90,7 +91,10 @@ class MultimodalFinancialParser:
         )
 
     def parse_pdf_bytes(
-        self, pdf_bytes: bytes, doc_name: str, max_pages: int | None = None
+        self, pdf_bytes: bytes, doc_name: str, max_pages: int | None = None,
+        *, coverage: list[dict[str, Any]] | None = None,
+        cancel_event: threading.Event | None = None,
+        progress: Callable[[int, int], None] | None = None,
     ) -> List[DocumentChunk]:
         """Parse a PDF byte stream and recover native and manifest-backed tables."""
         if not pdf_bytes or len(pdf_bytes) < 8:
@@ -117,23 +121,50 @@ class MultimodalFinancialParser:
             chunks: List[DocumentChunk] = []
             total_images_seen = 0
             ocr_pages = 0
+            blank_image_pages = 0
 
             for page_index in range(total_pages):
+                if cancel_event is not None and cancel_event.is_set():
+                    raise ValueError("Document processing cancelled.")
                 page = document[page_index]
                 total_images_seen += len(page.get_images())
                 try:
-                    page_chunks = self._parse_page(
+                    blank_image = self._is_blank_image_page(page)
+                    blank_image_pages += int(blank_image)
+                    ocr_attempted = (
+                        not blank_image
+                        and self.ocr_backend is not None
+                        and len(page.get_text("text", sort=True).strip()) < self.ocr_min_chars
+                        and bool(page.get_images())
+                    )
+                    page_chunks = [] if blank_image else self._parse_page(
                         page=page,
                         doc_name=clean_name,
                         physical_page_index=page_index,
                         manifest_tables=manifest_tables,
                         allow_ocr=ocr_pages < self.ocr_max_pages,
                     )
-                    if any(
-                        chunk.metadata.get("ocr_used") for chunk in page_chunks
-                    ):
+                    if ocr_attempted:
                         ocr_pages += 1
+                    if coverage is not None:
+                        has_images = bool(page.get_images())
+                        ocr_used = any(chunk.metadata.get("ocr_used") for chunk in page_chunks)
+                        native_chars = len(page.get_text("text", sort=True).strip())
+                        status = (
+                            "blank_image" if blank_image else
+                            "ocr_text" if ocr_used else
+                            "native_text" if page_chunks else
+                            "image_without_text" if has_images else "no_text"
+                        )
+                        coverage.append({
+                            "page": page_index + 1,
+                            "status": status,
+                            "native_characters": native_chars,
+                            "contains_images": has_images,
+                        })
                     chunks.extend(page_chunks)
+                    if progress is not None:
+                        progress(page_index + 1, total_pages)
                 except ValueError:
                     raise
                 except Exception as exc:
@@ -142,6 +173,8 @@ class MultimodalFinancialParser:
             document.close()
 
         if not chunks:
+            if total_pages and blank_image_pages == total_pages:
+                raise ValueError("PDF contains only blank image pages.")
             if total_images_seen > 0:
                 raise ValueError(
                     "Scanned or image-only PDF detected (no extractable text layer found). "
@@ -149,6 +182,12 @@ class MultimodalFinancialParser:
                 )
             raise ValueError("No readable text or tables found in PDF.")
         return chunks
+
+    def _is_blank_image_page(self, page: fitz.Page) -> bool:
+        if page.get_text("text", sort=True).strip() or not page.get_images():
+            return False
+        pixmap = page.get_pixmap(dpi=self.ocr_dpi, colorspace=fitz.csGRAY, alpha=False)
+        return bool(pixmap.samples) and min(pixmap.samples) == 255
 
     @staticmethod
     def _load_manifest(document: fitz.Document) -> Dict[str, List[str]]:
@@ -172,30 +211,13 @@ class MultimodalFinancialParser:
         allow_ocr: bool = True,
     ) -> List[DocumentChunk]:
         raw_text = page.get_text("text", sort=True).strip()
-        page_match = re.search(r"SOURCE PAGE:\s*(\d+)", raw_text, flags=re.IGNORECASE)
-        page_number = int(page_match.group(1)) if page_match else physical_page_index + 1
-        raw_text = re.sub(
-            r"^.*?\(SOURCE PAGE:\s*\d+\)\s*",
-            "",
-            raw_text,
-            count=1,
-            flags=re.IGNORECASE | re.DOTALL,
-        ).strip()
-        raw_text = re.sub(
-            r"OFFICIAL FILING:.*?SOURCE PAGE:\s*\d+\s*",
-            "",
-            raw_text,
-            flags=re.IGNORECASE | re.DOTALL,
-        ).strip()
+        page_number = physical_page_index + 1
 
         ocr_used = False
         ocr_engine = None
-        if (
-            allow_ocr
-            and self.ocr_backend is not None
-            and len(raw_text) < self.ocr_min_chars
-            and page.get_images()
-        ):
+        if self.ocr_backend is not None and len(raw_text) < self.ocr_min_chars and page.get_images():
+            if not allow_ocr:
+                raise ValueError(f"OCR page limit reached at page {physical_page_index + 1}.")
             try:
                 pixmap = page.get_pixmap(dpi=self.ocr_dpi, alpha=False)
                 ocr_result = self.ocr_backend.recognize(pixmap.tobytes("png"))
@@ -206,20 +228,28 @@ class MultimodalFinancialParser:
                     page_number,
                     type(exc).__name__,
                 )
+                raise ValueError(f"OCR failed on page {physical_page_index + 1}.") from exc
             else:
                 ocr_text = ocr_result.text.strip()
-                if ocr_text:
-                    raw_text = ocr_text
-                    ocr_used = True
-                    ocr_engine = ocr_result.engine
+                if not ocr_text:
+                    raise ValueError(f"OCR returned no text on page {physical_page_index + 1}.")
+                raw_text = ocr_text
+                ocr_used = True
+                ocr_engine = ocr_result.engine
 
+        manifest_blocks = [
+            block
+            for key, blocks in (manifest_tables or {}).items()
+            if key.endswith(f":{physical_page_index}")
+            for block in blocks
+        ]
+        legacy_label = re.search(r"\(SOURCE PAGE:\s*(\d+)\)", raw_text.split("\n", 1)[0])
+        if not manifest_blocks and legacy_label:
+            manifest_blocks = (manifest_tables or {}).get(legacy_label.group(1), [])
         table_markdown_blocks = self._extract_table_blocks(
             page=page,
             raw_text=raw_text,
-            manifest_tables=(
-                (manifest_tables or {}).get(f"{page_number}:{physical_page_index}")
-                or (manifest_tables or {}).get(str(page_number), [])
-            ),
+            manifest_tables=manifest_blocks,
         )
         has_inline_markdown_table = self._has_inline_markdown_table(raw_text)
         contains_table = bool(table_markdown_blocks) or has_inline_markdown_table
@@ -274,8 +304,9 @@ class MultimodalFinancialParser:
 
         for block in cls._extract_pipe_tables(raw_text):
             add_block(block)
-        for block in cls._extract_whitespace_tables(raw_text):
-            add_block(block)
+        if not blocks:
+            for block in cls._extract_whitespace_tables(raw_text):
+                add_block(block)
         return blocks
 
     @staticmethod
@@ -312,7 +343,10 @@ class MultimodalFinancialParser:
         for line_number, raw_line in enumerate(text.splitlines()):
             line = raw_line.strip()
             cells = [cell.strip() for cell in re.split(r"\s{2,}", line) if cell.strip()]
-            if len(cells) < 2 or not any(re.search(r"\d", cell) for cell in cells[1:]):
+            if len(cells) < 2 or not any(
+                re.fullmatch(r"[$€£]?\s*[-(]?\d[\d,.\s%)]*", cell)
+                for cell in cells[1:]
+            ):
                 continue
             candidates.append((line_number, cells))
 
@@ -450,7 +484,7 @@ class MultimodalFinancialParser:
             full_text = f"{document_header}\n{chunk_body.strip()}"
             chunk_contains_table = contains_table and "|" in chunk_body and "---" in chunk_body
             chunk_id = hashlib.md5(
-                f"{doc_name}_p{page_number}_c{chunk_index}_{full_text[:100]}".encode("utf-8")
+                f"{doc_name}_p{page_number}_c{chunk_index}_{full_text}".encode("utf-8")
             ).hexdigest()[:12]
             result.append(
                 DocumentChunk(

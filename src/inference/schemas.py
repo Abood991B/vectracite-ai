@@ -81,6 +81,7 @@ class CitationItem(BaseModel):
 
 
 class NumericVerificationSchema(BaseModel):
+    """Numeric token presence only; this does not verify claim meaning or accuracy."""
     is_fully_grounded: bool
     numeric_grounding_score: float
     verified_figures: List[str] = Field(default_factory=list)

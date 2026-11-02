@@ -6,6 +6,7 @@ import logging
 import re
 from collections import defaultdict
 from typing import Any, AsyncGenerator, Dict, Iterable, List
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -67,7 +68,7 @@ TABLE_INTENT_RE = re.compile(
 )
 META_QUESTION_RE = re.compile(
     r"\b(what model|which model|who are you|what are you|how do you work|"
-    r"how does (?:this|it) work|what is this|what llm|privacy|is my data private|"
+    r"how does (?:this|it) work|what llm|privacy|is my data private|"
     r"local execution)\b",
     flags=re.IGNORECASE,
 )
@@ -93,16 +94,15 @@ REMOTE_SYSTEM_PROMPT = (
     "Prefer concise bullets and preserve table labels and units verbatim."
 )
 META_RESPONSE = (
-    "VectraCite-AI runs 100% locally on your machine for complete enterprise data privacy:\n"
-    "- Stage 1 (Semantic + Lexical Search): BAAI/bge-small-en-v1.5 (local PyTorch embeddings) + BM25Okapi.\n"
-    "- Stage 2 (2D Table & Section Reranking): BAAI/bge-reranker-base with Adaptive SCAR Table-AST coordinate verification.\n"
-    "- Stage 3 (Grounded Synthesis & Numeric Audit): extracts verified sections, table coordinates, and YoY deltas while checking numbers against source pages.\n"
-    "Zero confidential PDF bytes leave localhost."
+    "VectraCite-AI retrieves document passages using dense and lexical search, "
+    "reranks them, and produces a cited answer with numeric checks. "
+    "The default synthesizer is local. When a remote LLM or OCR service is enabled, "
+    "document content is sent to that configured service."
 )
 
 
 class UnifiedLLMClient:
-    """Structured local synthesizer; no document content is sent to a remote API."""
+    """Use deterministic synthesis or a configured remote provider."""
 
     def __init__(
         self,
@@ -149,8 +149,13 @@ class UnifiedLLMClient:
 
     def get_provider_status(self) -> Dict[str, object]:
         """Return safe provider metadata without exposing the configured secret."""
+        try:
+            parts = urlsplit(self.base_url)
+            safe_url = urlunsplit((parts.scheme, parts.netloc.rsplit("@", 1)[-1], parts.path, "", ""))
+        except ValueError:
+            safe_url = ""
         return {
-            "base_url": self.base_url,
+            "base_url": safe_url,
             "model_name": self.model_name,
             "api_key_configured": bool(self.api_key and self.api_key != "EMPTY"),
             "enabled": self.remote_enabled,
@@ -388,7 +393,7 @@ class UnifiedLLMClient:
                 for delta in TableASTParser.compute_row_deltas(matched_cells)[:4]
             ]
             answer = (
-                f"Verified from [{chunk.doc_name}, Page {chunk.page_number}]:\n"
+                f"From [{chunk.doc_name}, Page {chunk.page_number}]:\n"
                 + "\n".join(cell_lines)
             )
             if delta_lines:
@@ -526,7 +531,7 @@ class UnifiedLLMClient:
 
     def _mark_remote_failure(self, exc: Exception) -> None:
         self.last_provider = "local_fallback"
-        self.last_error = f"{type(exc).__name__}: {exc}"[:500]
+        self.last_error = type(exc).__name__
         self.remote_failures += 1
         logger.warning(
             "Remote LLM request failed (%s); using deterministic fallback",

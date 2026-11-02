@@ -2,12 +2,15 @@ from contextlib import asynccontextmanager
 import asyncio
 import base64
 import binascii
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from collections import OrderedDict
 import hashlib
 import json
 import logging
 import os
 import re
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
@@ -68,7 +71,6 @@ semantic_cache = SemanticCache()
 guardrails = EnterpriseGuardrails()
 numeric_verifier = DeterministicNumericVerifier()
 llm_client = UnifiedLLMClient()
-_DEFAULTS_CLEARED = False
 DEMO_DOCUMENT_NAMES = frozenset(
     {
         "AMD_2022_10K",
@@ -97,6 +99,8 @@ def demo_document_names() -> frozenset[str]:
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 _mutation_lock = asyncio.Lock()
+_ingestion_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pdf-ingestion")
+_ingestion_slot = threading.BoundedSemaphore(1)
 _PAGE_IMAGE_CACHE: "OrderedDict[str, tuple[str, bytes]]" = OrderedDict()
 _PAGE_IMAGE_CACHE_LIMIT = 128
 
@@ -107,13 +111,28 @@ def _cors_origins() -> list[str]:
 
 
 async def _run_ingestion_step(operation: Callable[..., T], *args: Any) -> T:
-    """Bound CPU-heavy PDF work without blocking the event loop indefinitely."""
+    """Stop timed-out parsing between pages and retain the slot until it stops."""
+    if not _ingestion_slot.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="Another document is being processed.")
+    cancelled = threading.Event()
+    try:
+        future = _ingestion_executor.submit(operation, *args, cancel_event=cancelled)
+    except BaseException:
+        _ingestion_slot.release()
+        raise
+    future.add_done_callback(lambda _future: _ingestion_slot.release())
+    wrapped = asyncio.wrap_future(future)
+    wrapped.add_done_callback(lambda done: None if done.cancelled() else done.exception())
     try:
         return await asyncio.wait_for(
-            asyncio.to_thread(operation, *args), timeout=settings.INGEST_TIMEOUT_SECONDS
+            asyncio.shield(wrapped), timeout=settings.INGEST_TIMEOUT_SECONDS
         )
     except TimeoutError as exc:
+        cancelled.set()
         raise HTTPException(status_code=408, detail="Document processing timed out.") from exc
+    except asyncio.CancelledError:
+        cancelled.set()
+        raise
 
 
 def _validate_structured_pages(pages: list[Any]) -> None:
@@ -124,11 +143,48 @@ def _validate_structured_pages(pages: list[Any]) -> None:
 
 
 def _render_and_parse_document(
-    clean_name: str, raw_pages: List[Dict[str, Any]]
+    clean_name: str, raw_pages: List[Dict[str, Any]], *, cancel_event: threading.Event
 ) -> tuple[bytes, List[Any]]:
     """Render once, then parse the exact bytes that will be persisted."""
     pdf_bytes = render_pages_to_pdf_bytes(clean_name, raw_pages)
-    return pdf_bytes, parser.parse_pdf_bytes(pdf_bytes, clean_name)
+    return pdf_bytes, parser.parse_pdf_bytes(pdf_bytes, clean_name, cancel_event=cancel_event)
+
+
+def _parse_uploaded_pdf(
+    raw_bytes: bytes, clean_name: str, *, cancel_event: threading.Event,
+    progress: Callable[[int, int], None] | None = None,
+) -> tuple[list[Any], list[dict[str, Any]]]:
+    coverage: list[dict[str, Any]] = []
+    chunks = parser.parse_pdf_bytes(
+        raw_bytes, clean_name, coverage=coverage, cancel_event=cancel_event, progress=progress
+    )
+    return chunks, coverage
+
+
+def _upload_result(clean_name: str, chunks: list[Any], coverage: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "status": "indexed_pdf",
+        "doc_name": clean_name,
+        "chunks_created": len(chunks),
+        "table_chunks": sum(1 for c in chunks if c.contains_table),
+        "coverage": {
+            "pages": coverage,
+            "pages_without_text": [p["page"] for p in coverage if p["status"] in {"image_without_text", "no_text"}],
+            "pages_with_unrecognized_images": [p["page"] for p in coverage if p["contains_images"] and p["status"] == "native_text"],
+        },
+    }
+
+
+def _decode_pdf_upload(payload: PdfUploadRequest) -> tuple[bytes, str]:
+    maximum_encoded_size = ((settings.MAX_PDF_BYTES + 2) // 3) * 4
+    if len(payload.pdf_base64) > maximum_encoded_size:
+        raise HTTPException(status_code=413, detail="PDF size limit exceeded.")
+    try:
+        raw_bytes = base64.b64decode(payload.pdf_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Failed to decode PDF.") from exc
+    _validate_pdf_limits(raw_bytes)
+    return raw_bytes, _clean_doc_name(payload.doc_name)
 
 
 def _validate_pdf_limits(raw_bytes: bytes) -> None:
@@ -147,7 +203,8 @@ def _validate_pdf_limits(raw_bytes: bytes) -> None:
 def _load_persisted_chunks(include_defaults: bool | None = None) -> List[Any]:
     """Load defaults plus user PDFs, letting a user copy override a default by name."""
     load_defaults = (
-        (not _DEFAULTS_CLEARED) if include_defaults is None else include_defaults
+        (not (settings.USER_UPLOADS_DIR / ".defaults-cleared").exists())
+        if include_defaults is None else include_defaults
     )
     baseline_chunks = load_corpus_chunks_from_pdfs(parser) if load_defaults else []
     upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
@@ -316,7 +373,7 @@ def _find_pdf_path(doc_name: str) -> Path | None:
 
 def _ensure_indexed() -> None:
     """Load or hydrate a usable catalog for clients that do not trigger lifespan."""
-    if retriever.chunks_store or _DEFAULTS_CLEARED:
+    if retriever.chunks_store:
         return
     if retriever.backend != "memory" or retriever.shared_client:
         try:
@@ -511,7 +568,7 @@ async def health_check() -> Dict[str, Any]:
 
 @app.get("/ready")
 async def readiness_check() -> Response:
-    """Readiness probe that fails when the index or required dependencies are unusable."""
+    """Readiness probe for required dependencies, including an empty catalog."""
     _ensure_indexed()
     health = retriever.health()
     semantic_cache.check_health()
@@ -519,8 +576,6 @@ async def readiness_check() -> Response:
     failures: List[str] = []
     if health["degraded"]:
         failures.append("vector_backend_degraded")
-    if not retriever.chunks_store:
-        failures.append("index_empty")
     if settings.REQUIRE_REDIS and cache["backend"] != "redis":
         failures.append("redis_unavailable")
     payload = {
@@ -626,39 +681,12 @@ async def document_page_image(
 
     document = fitz.open(pdf_path)
     try:
-        generated = bool(
-            len(document)
-            and re.search(
-                r"SOURCE PAGE:\s*\d+",
-                document[0].get_text("text", sort=True),
-                flags=re.IGNORECASE,
+        if page_number > len(document):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Page {page_number} is outside '{clean_name}' ({len(document)} pages).",
             )
-        )
-        if generated:
-            selected_page = None
-            for page in document:
-                source_text = page.get_text("text", sort=True)
-                source_match = re.search(
-                    r"SOURCE PAGE:\s*(\d+)", source_text, flags=re.IGNORECASE
-                )
-                if source_match and int(source_match.group(1)) == page_number:
-                    selected_page = page
-                    break
-            if selected_page is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Page {page_number} is not present in '{clean_name}'.",
-                )
-        else:
-            if page_number > len(document):
-                raise HTTPException(
-                    status_code=404,
-                    detail=(
-                        f"Page {page_number} is outside '{clean_name}' "
-                        f"({len(document)} pages)."
-                    ),
-                )
-            selected_page = document[page_number - 1]
+        selected_page = document[page_number - 1]
 
         stopwords = {
             "about",
@@ -707,17 +735,17 @@ async def document_page_image(
 @app.post("/documents/clear-demos", dependencies=[Depends(require_admin_access)])
 async def clear_demo_documents() -> Dict[str, Any]:
     """Remove only demo documents from the active index and preserve user uploads."""
-    global _DEFAULTS_CLEARED
     async with _mutation_lock:
         async with distributed_mutation_lock():
             user_document_names = {
                 path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")
             }
-            _DEFAULTS_CLEARED = True
             removed_chunks = 0
             for doc_name in demo_document_names() - user_document_names:
                 removed_chunks += retriever.delete_document(doc_name)
             semantic_cache.clear()
+            settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            (settings.USER_UPLOADS_DIR / ".defaults-cleared").touch()
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_demos",
@@ -731,11 +759,9 @@ async def clear_demo_documents() -> Dict[str, Any]:
 @app.post("/documents/clear-all", dependencies=[Depends(require_admin_access)])
 async def clear_all_documents() -> Dict[str, Any]:
     """Remove every indexed document, uploaded PDF, and cached answer."""
-    global _DEFAULTS_CLEARED
     async with _mutation_lock:
         async with distributed_mutation_lock():
             upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
-            _DEFAULTS_CLEARED = True
             retriever.clear()
             semantic_cache.clear()
             removed_files = 0
@@ -745,6 +771,8 @@ async def clear_all_documents() -> Dict[str, Any]:
                     removed_files += 1
                 except OSError:
                     logger.exception("Unable to remove uploaded PDF %s", path.name)
+            settings.USER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            (settings.USER_UPLOADS_DIR / ".defaults-cleared").touch()
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_all",
@@ -756,11 +784,9 @@ async def clear_all_documents() -> Dict[str, Any]:
 @app.post("/documents/restore-defaults", dependencies=[Depends(require_admin_access)])
 async def restore_default_documents() -> Dict[str, Any]:
     """Restore demos while preserving and re-indexing every user upload."""
-    global _DEFAULTS_CLEARED
     async with _mutation_lock:
         async with distributed_mutation_lock():
             persisted_chunks = _load_persisted_chunks(include_defaults=True)
-            _DEFAULTS_CLEARED = False
             retriever.clear()
             semantic_cache.clear()
             indexed_count = (
@@ -772,6 +798,7 @@ async def restore_default_documents() -> Dict[str, Any]:
                 if persisted_chunks
                 else 0
             )
+            (settings.USER_UPLOADS_DIR / ".defaults-cleared").unlink(missing_ok=True)
             await asyncio.to_thread(bump_index_generation)
     return {
         "status": "restored_defaults",
@@ -807,15 +834,10 @@ async def inspect_document(
 @app.post("/ingest/pdf", dependencies=[Depends(require_admin_access)])
 async def ingest_pdf_file(payload: PdfUploadRequest) -> Dict[str, Any]:
     """Decode, validate, persist, and atomically index an uploaded PDF."""
-    maximum_encoded_size = ((settings.MAX_PDF_BYTES + 2) // 3) * 4
-    if len(payload.pdf_base64) > maximum_encoded_size:
-        raise HTTPException(status_code=413, detail="PDF size limit exceeded.")
+    raw_bytes, clean_name = _decode_pdf_upload(payload)
     try:
-        raw_bytes = base64.b64decode(payload.pdf_base64, validate=True)
-        _validate_pdf_limits(raw_bytes)
-        clean_name = _clean_doc_name(payload.doc_name)
-        chunks = await _run_ingestion_step(
-            parser.parse_pdf_bytes, raw_bytes, clean_name
+        chunks, coverage = await _run_ingestion_step(
+            _parse_uploaded_pdf, raw_bytes, clean_name
         )
         if not chunks:
             raise ValueError("No readable text or tables found in PDF.")
@@ -824,16 +846,81 @@ async def ingest_pdf_file(payload: PdfUploadRequest) -> Dict[str, Any]:
                 await asyncio.to_thread(
                     _commit_document, clean_name, chunks, raw_bytes
                 )
-        return {
-            "status": "indexed_pdf",
-            "doc_name": clean_name,
-            "chunks_created": len(chunks),
-            "table_chunks": sum(1 for c in chunks if c.contains_table),
-        }
+        return _upload_result(clean_name, chunks, coverage)
     except HTTPException:
         raise
     except (binascii.Error, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {exc}") from exc
+
+
+@app.post("/ingest/pdf/stream", dependencies=[Depends(require_admin_access)])
+async def ingest_pdf_stream(payload: PdfUploadRequest) -> StreamingResponse:
+    """Stream page progress; disconnecting cancels parsing before indexing begins."""
+    raw_bytes, clean_name = _decode_pdf_upload(payload)
+
+    async def events() -> AsyncIterator[str]:
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        indexing = False
+
+        def progress(page: int, total: int) -> None:
+            try:
+                loop.call_soon_threadsafe(queue.put_nowait, {
+                    "stage": "parsing", "page": page, "total_pages": total,
+                })
+            except RuntimeError:
+                pass
+
+        async def process() -> None:
+            nonlocal indexing
+            try:
+                chunks, coverage = await _run_ingestion_step(
+                    partial(_parse_uploaded_pdf, progress=progress), raw_bytes, clean_name
+                )
+                if not chunks:
+                    raise ValueError("No readable text or tables found in PDF.")
+                await queue.put({"stage": "indexing"})
+                indexing = True
+                async with _mutation_lock:
+                    async with distributed_mutation_lock():
+                        await asyncio.to_thread(_commit_document, clean_name, chunks, raw_bytes)
+                await queue.put({"stage": "complete", "result": _upload_result(clean_name, chunks, coverage)})
+            except asyncio.CancelledError:
+                raise
+            except HTTPException as exc:
+                await queue.put({"stage": "error", "detail": str(exc.detail), "status": exc.status_code})
+            except ValueError as exc:
+                await queue.put({"stage": "error", "detail": str(exc), "status": 400})
+            except Exception:
+                logger.exception("Streaming document ingestion failed")
+                await queue.put({"stage": "error", "detail": "Document processing failed.", "status": 500})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(process())
+        try:
+            yield ": processing\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                except TimeoutError:
+                    yield ": processing\n\n"
+                    continue
+                if event is None:
+                    break
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            if not indexing and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+    return StreamingResponse(
+        events(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/ingest", dependencies=[Depends(require_admin_access)])

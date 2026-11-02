@@ -32,7 +32,7 @@ def _sha256(data: bytes) -> str:
 
 
 def _parser_signature(parser: MultimodalFinancialParser) -> Dict[str, object]:
-    return {
+    signature = {
         "chunk_size": parser.chunk_size,
         "chunk_overlap": parser.chunk_overlap,
         "parser_cache_version": PARSER_CACHE_VERSION,
@@ -40,6 +40,10 @@ def _parser_signature(parser: MultimodalFinancialParser) -> Dict[str, object]:
         "ocr_dpi": parser.ocr_dpi,
         "ocr_min_chars": parser.ocr_min_chars,
     }
+    if parser.ocr_backend is not None:
+        signature["ocr_max_pages"] = parser.ocr_max_pages
+        signature["ocr_completeness_version"] = 1
+    return signature
 
 
 def _atomic_write(path: Path, payload: Dict[str, Any]) -> None:
