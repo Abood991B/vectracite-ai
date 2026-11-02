@@ -74,11 +74,13 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
 
 
 def test_cross_document_detection_uses_indexed_document_names() -> None:
+    from src.usecases.synthesis import LocalSynthesizer
+
     docs = ["AMD_2022_10K", "MSFT_2023_10K"]
-    assert UnifiedLLMClient._is_cross_document_request(
+    assert LocalSynthesizer._is_cross_document_request(
         "Compare AMD and MSFT revenue.", docs
     )
-    assert not UnifiedLLMClient._is_cross_document_request(
+    assert not LocalSynthesizer._is_cross_document_request(
         "What was AMD revenue?", docs
     )
 

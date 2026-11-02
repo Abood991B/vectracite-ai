@@ -13,15 +13,10 @@ import pymupdf as fitz
 
 from src.domain.documents import DocumentChunk
 from src.domain.ocr import OCRBackend
+from src.domain.sections import SECTION_HEADER_REGEX
 
 logger = logging.getLogger(__name__)
 
-SECTION_HEADER_REGEX = re.compile(
-    r"^(?:PROFESSIONAL\s+SUMMARY|SUMMARY|EXPERIENCE|WORK\s+EXPERIENCE|"
-    r"TECHNICAL\s+SKILLS|SKILLS|PROJECTS|EDUCATION|CERTIFICATIONS|AWARDS|"
-    r"LANGUAGES|PUBLICATIONS|OBJECTIVE|PROFILE|ITEM\s+\d+[A-Z]?\.?|NOTE\s+\d+|"
-    r"PART\s+[IVX]+|[A-Z][A-Z0-9\s,&\-/]{3,45})$"
-)
 TABLE_DIVIDER_REGEX = re.compile(r"^\|[\s\-:|]+\|$")
 TABLE_MANIFEST_PREFIX = "VECTRACITE_MANIFEST:"
 PARSER_CACHE_VERSION = 4
