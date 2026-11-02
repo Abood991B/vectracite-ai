@@ -919,6 +919,77 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       }
     }
 
+    async function streamQuestion(question) {
+      const response = await fetch("/query/stream", authHeaders({
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({question, top_k: 4, use_cache: true, doc_name: selectedDoc})
+      }));
+      if (response.status === 401 || response.status === 403) {
+        setStatus("authStatus", "A valid API key is required for this workspace.", "error");
+      }
+      if (!response.ok) {
+        const raw = await response.text();
+        let detail = raw || "The query stream could not be started.";
+        try {
+          const parsed = JSON.parse(raw);
+          detail = parsed.detail || detail;
+        } catch (_) {
+        }
+        throw new Error(typeof detail === "string" ? detail : "The query stream could not be started.");
+      }
+      if (!response.body) throw new Error("Streaming is not supported by this browser.");
+
+      byId("answerBox").className = "answer-box";
+      byId("answerBox").textContent = "";
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let answerText = "";
+      let finalData = null;
+
+      function handleEvent(rawEvent) {
+        let eventName = "message";
+        const dataLines = [];
+        rawEvent.split("\n").forEach(line => {
+          if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+          else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
+        });
+        if (!dataLines.length) return;
+        const payload = dataLines.join("\n");
+        if (payload === "[DONE]") return;
+        let data = null;
+        try {
+          data = JSON.parse(payload);
+        } catch (_) {
+          return;
+        }
+        if (eventName === "token") {
+          answerText += String(data.text || "");
+          byId("answerBox").textContent = answerText;
+        } else if (eventName === "verification") {
+          finalData = {...data, answer: data.answer || answerText};
+        }
+      }
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          handleEvent(buffer.slice(0, boundary));
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf("\n\n");
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) handleEvent(buffer);
+      if (!finalData) throw new Error("The stream ended before verification completed.");
+      byId("answerBox").textContent = finalData.answer || answerText;
+      renderAnswer(finalData);
+    }
+
     async function runUiTask(task, statusId = "queryStatus") {
       try {
         await task();
@@ -1315,21 +1386,27 @@ WORKBENCH_HTML = r"""<!-- UI craft pass informed by unslop by @heydamir, CC BY 4
       button.disabled = true;
       button.textContent = "Checking";
       setStatus("queryStatus", "Retrieving evidence from the active scope");
-      const result = await safeFetch("/query", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({question, top_k: 4, use_cache: true, doc_name: selectedDoc})
-      });
-      button.disabled = false;
-      button.textContent = "Verify answer";
-      if (!result.ok) {
-        setStatus("queryStatus", result.error, "error");
-        byId("answerBox").className = "answer-box empty";
-        byId("answerBox").textContent = result.error;
-        return;
+      try {
+        await streamQuestion(question);
+        setStatus("queryStatus", "Answer verified against the selected evidence", "success");
+      } catch (streamError) {
+        const result = await safeFetch("/query", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({question, top_k: 4, use_cache: true, doc_name: selectedDoc})
+        });
+        if (!result.ok) {
+          setStatus("queryStatus", result.error || streamError.message, "error");
+          byId("answerBox").className = "answer-box empty";
+          byId("answerBox").textContent = result.error || streamError.message;
+          return;
+        }
+        renderAnswer(result.data);
+        setStatus("queryStatus", "Answer verified against the selected evidence", "success");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Verify answer";
       }
-      renderAnswer(result.data);
-      setStatus("queryStatus", "Answer verified against the selected evidence", "success");
     }
 
     function readFileAsDataUrl(file) {

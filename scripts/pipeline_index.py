@@ -6,6 +6,7 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient
 
+from src.api.index_state import bump_index_generation
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk
 from src.retrieval.hybrid_retriever import HybridRetriever
@@ -35,6 +36,7 @@ def main() -> None:
         grouped.setdefault(chunk.doc_name, []).append(chunk)
     for doc_name in sorted(grouped):
         retriever.replace_document(doc_name, grouped[doc_name])
+    bump_index_generation()
 
     report = {
         "collection": args.collection,

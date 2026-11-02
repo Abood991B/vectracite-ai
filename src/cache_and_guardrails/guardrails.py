@@ -10,6 +10,46 @@ class GuardrailCheckResult:
     triggered_rules: List[str]
 
 
+class StreamingRedactor:
+    """Redact PII across stream boundaries without delaying the whole answer."""
+
+    def __init__(self, guardrails: "EnterpriseGuardrails", tail_chars: int = 256) -> None:
+        self.guardrails = guardrails
+        self.tail_chars = tail_chars
+        self._buffer = ""
+        self._flags: List[str] = []
+        self._sanitized_parts: List[str] = []
+
+    def _record(self, result: GuardrailCheckResult) -> str:
+        for flag in result.triggered_rules:
+            if flag not in self._flags:
+                self._flags.append(flag)
+        if result.sanitized_text:
+            self._sanitized_parts.append(result.sanitized_text)
+        return result.sanitized_text
+
+    def feed(self, text: str) -> str:
+        self._buffer += text
+        if len(self._buffer) <= self.tail_chars * 2:
+            return ""
+        safe_prefix = self._buffer[: -self.tail_chars]
+        self._buffer = self._buffer[-self.tail_chars :]
+        return self._record(self.guardrails.sanitize_output(safe_prefix))
+
+    def finish(self) -> str:
+        remaining = self._record(self.guardrails.sanitize_output(self._buffer))
+        self._buffer = ""
+        return remaining
+
+    @property
+    def sanitized_text(self) -> str:
+        return "".join(self._sanitized_parts)
+
+    @property
+    def triggered_rules(self) -> List[str]:
+        return list(self._flags)
+
+
 class EnterpriseGuardrails:
     """
     Production AI Safety & Security layer enforcing:
@@ -68,3 +108,7 @@ class EnterpriseGuardrails:
             sanitized_text=sanitized,
             triggered_rules=triggered,
         )
+
+    def streaming_redactor(self, tail_chars: int = 256) -> StreamingRedactor:
+        """Create a boundary-safe redactor for token streams."""
+        return StreamingRedactor(self, tail_chars=tail_chars)

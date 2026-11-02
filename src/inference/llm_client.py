@@ -1,5 +1,6 @@
 """Local and optional OpenAI-compatible citation-grounded answer synthesis."""
 
+import asyncio
 import json
 import logging
 import re
@@ -121,6 +122,8 @@ class UnifiedLLMClient:
         )
         self.timeout_seconds = timeout_seconds or settings.LLM_TIMEOUT_SECONDS
         self._transport = transport
+        self._http_client: httpx.AsyncClient | None = None
+        self._http_client_loop: asyncio.AbstractEventLoop | None = None
         self.last_provider = "local_deterministic"
         self.last_error: str | None = None
         self.remote_requests = 0
@@ -471,6 +474,22 @@ class UnifiedLLMClient:
             question, "\n\n".join(blocks)
         )
 
+    def _get_http_client(self) -> httpx.AsyncClient:
+        loop = asyncio.get_running_loop()
+        if self._http_client is None or self._http_client_loop is not loop:
+            self._http_client = httpx.AsyncClient(
+                transport=self._transport,
+                timeout=self.timeout_seconds,
+            )
+            self._http_client_loop = loop
+        return self._http_client
+
+    async def aclose(self) -> None:
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
+            self._http_client_loop = None
+
     def _request_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.api_key and self.api_key != "EMPTY":
@@ -540,17 +559,14 @@ class UnifiedLLMClient:
             self.last_provider = "local_deterministic"
         if self.remote_enabled:
             try:
-                async with httpx.AsyncClient(
-                    transport=self._transport,
-                    timeout=self.timeout_seconds,
-                ) as client:
-                    response = await client.post(
-                        self._chat_endpoint(),
-                        headers=self._request_headers(),
-                        json=self._request_payload(question, chunks, stream=False),
-                    )
-                    response.raise_for_status()
-                    data = response.json()
+                client = self._get_http_client()
+                response = await client.post(
+                    self._chat_endpoint(),
+                    headers=self._request_headers(),
+                    json=self._request_payload(question, chunks, stream=False),
+                )
+                response.raise_for_status()
+                data = response.json()
                 content = data["choices"][0]["message"]["content"]
                 if not isinstance(content, str) or not content.strip():
                     raise ValueError("Remote provider returned an empty answer")
@@ -609,29 +625,26 @@ class UnifiedLLMClient:
         if self.remote_enabled and chunks:
             emitted = False
             try:
-                async with httpx.AsyncClient(
-                    transport=self._transport,
-                    timeout=self.timeout_seconds,
-                ) as client:
-                    async with client.stream(
-                        "POST",
-                        self._chat_endpoint(),
-                        headers=self._request_headers(),
-                        json=self._request_payload(question, chunks, stream=True),
-                    ) as response:
-                        response.raise_for_status()
-                        async for line in response.aiter_lines():
-                            if not line.startswith("data:"):
-                                continue
-                            payload = line[5:].strip()
-                            if payload == "[DONE]":
-                                break
-                            event = json.loads(payload)
-                            delta = event["choices"][0].get("delta", {})
-                            token = delta.get("content")
-                            if isinstance(token, str) and token:
-                                emitted = True
-                                yield token
+                client = self._get_http_client()
+                async with client.stream(
+                    "POST",
+                    self._chat_endpoint(),
+                    headers=self._request_headers(),
+                    json=self._request_payload(question, chunks, stream=True),
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        payload = line[5:].strip()
+                        if payload == "[DONE]":
+                            break
+                        event = json.loads(payload)
+                        delta = event["choices"][0].get("delta", {})
+                        token = delta.get("content")
+                        if isinstance(token, str) and token:
+                            emitted = True
+                            yield token
                 if not emitted:
                     raise ValueError("Remote provider streamed no content")
                 self._mark_remote_success()

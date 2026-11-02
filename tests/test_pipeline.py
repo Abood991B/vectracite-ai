@@ -315,14 +315,13 @@ def test_stream_query_redacts_output_and_emits_verification_event(monkeypatch) -
 
     from src.api.main import llm_client
 
-    async def unsafe_answer(_question, _chunks, indexed_docs=None):
+    async def unsafe_stream(_question, _chunks, indexed_docs=None):
         del indexed_docs
-        return (
-            "According to [AMD_2022_10K, Page 51], contact john.doe@example.com, "
-            "SSN 123-45-6789, or use sk-testonlytestonlytest. Revenue was $23,601."
-        )
+        yield "According to [AMD_2022_10K, Page 51], contact john.doe@"
+        yield "example.com, SSN 123-45-6789, or use sk-1234567890"
+        yield "abcdefghij. Revenue was $23,601."
 
-    monkeypatch.setattr(llm_client, "generate_answer", unsafe_answer)
+    monkeypatch.setattr(llm_client, "stream_answer", unsafe_stream)
 
     with client.stream(
         "POST",

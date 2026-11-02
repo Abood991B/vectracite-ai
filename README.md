@@ -151,6 +151,20 @@ Checked-in report: [`data/ragbench_report.json`](data/ragbench_report.json). It 
 160 passages, and per-domain results. The top-2 reranker leaves every RAGBench metric unchanged.
 This is a retrieval-only suite; page-level citation quality is measured by the PDF suite.
 
+### 3.2 Cache, sync, and streaming
+
+- `SemanticCache` now uses exact SHA256 lookup plus Redis Stack HNSW vector search, with a bounded
+  memory fallback. `/health` reports `vector_index: true` when the index is ready.
+- Index replicas refresh from Qdrant only when the shared `vectracite:index:generation` counter
+  changes; Redis-unavailable deployments fall back to a point-count check.
+- Page images are LRU-cached with ETag/304 support and `private, max-age=3600`.
+- `/query/stream` streams true model tokens through a boundary-safe redactor; the workbench consumes
+  the stream and falls back to `/query` if streaming fails.
+- The remote LLM provider reuses one `httpx.AsyncClient` per event loop.
+
+See [`docs/caching_streaming.md`](docs/caching_streaming.md) for the implementation and validation
+evidence.
+
 Supporting checks:
 
 ```bash
@@ -339,9 +353,9 @@ vectracite-ai/
 |-- src/
 |   |-- ingestion/                     # PDF parser, corpus cache, FinanceBench loader
 |   |-- retrieval/                     # Dense/BM25/RRF, table AST, reranker, embeddings
-|   |-- cache_and_guardrails/          # Redis cache, guardrails, numeric verifier
-|   |-- inference/                     # Local/remote synthesis + schemas
-|   `-- api/                           # FastAPI, auth, middleware, answer service, UI
+|   |-- cache_and_guardrails/          # Exact/HNSW cache, streaming redactor, verifier
+|   |-- inference/                     # Local/remote synthesis, shared HTTP client
+|   `-- api/                           # FastAPI, auth, index generation, answer service, UI
 |-- scripts/
 |   |-- fetch_real_pdf_corpus.py       # Download + SHA256/size/page verification
 |   |-- fetch_domain_corpus.py         # Multi-domain PDF download + verification
@@ -364,6 +378,7 @@ vectracite-ai/
 |   `-- retrieval_experiments.py       # Phase 2 controlled experiment matrix
 |-- docs/domain_benchmark.md
 |-- docs/retrieval_experiments.md
+|-- docs/caching_streaming.md
 |-- Dockerfile
 |-- docker-compose.yml
 |-- requirements.txt
@@ -391,8 +406,10 @@ Verification evidence for this worktree is recorded in [`VERIFICATION.md`](VERIF
   PDFs with explicit 4xx errors.
 - GPU QLoRA, vLLM serving, Kubernetes scheduling/storage, and cloud KFP execution require external
   infrastructure and were not executed here.
-- The browser workbench is served as a single self-contained HTML/JS asset and was validated through
-  API/SSE tests rather than a full cross-browser automation matrix.
+- The Redis Stack HNSW cache path requires the `search` module. Deployments with plain Redis fall
+  back to exact lookup plus the legacy scan, not the vector path.
+- The browser workbench was validated in Chrome through `agent-browser`, not across a full
+  cross-browser matrix.
 
 ---
 

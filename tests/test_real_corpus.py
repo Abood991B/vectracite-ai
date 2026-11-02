@@ -84,3 +84,10 @@ def test_real_pdf_and_page_image_endpoints(monkeypatch) -> None:
     assert image.status_code == 200
     assert image.headers["content-type"] == "image/png"
     assert image.content.startswith(b"\x89PNG")
+    etag = image.headers["etag"]
+    cached = client.get(
+        "/documents/AMD_2022_10K/pages/56/image?highlight=quick%20ratio",
+        headers={"If-None-Match": etag},
+    )
+    assert cached.status_code == 304
+    assert cached.content == b""

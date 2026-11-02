@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 import asyncio
 import base64
 import binascii
+from collections import OrderedDict
+import hashlib
 import json
 import logging
 import os
@@ -10,11 +12,12 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
 import fitz
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from src.api.answer_service import AnswerService
 from src.api.distributed_lock import distributed_mutation_lock
+from src.api.index_state import bump_index_generation, read_index_generation
 from src.api.middleware import BodySizeLimitMiddleware
 from src.api.security import require_admin_access, require_read_access
 from src.api.ui import WORKBENCH_HTML
@@ -92,6 +95,8 @@ def demo_document_names() -> frozenset[str]:
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 _mutation_lock = asyncio.Lock()
+_PAGE_IMAGE_CACHE: "OrderedDict[str, tuple[str, bytes]]" = OrderedDict()
+_PAGE_IMAGE_CACHE_LIMIT = 128
 
 
 def _cors_origins() -> list[str]:
@@ -152,12 +157,25 @@ def _load_persisted_chunks(include_defaults: bool | None = None) -> List[Any]:
 
 
 async def _periodic_index_sync() -> None:
-    """Refresh the local BM25/catalog view from the shared Qdrant store."""
+    """Refresh the local BM25/catalog view only when the shared index changes."""
     interval = max(1.0, settings.INDEX_SYNC_SECONDS)
+    last_generation = await asyncio.to_thread(read_index_generation)
     while True:
         await asyncio.sleep(interval)
         try:
-            await asyncio.to_thread(retriever.sync_from_qdrant)
+            generation = await asyncio.to_thread(read_index_generation)
+            if generation is not None:
+                if last_generation is None:
+                    last_generation = generation
+                    continue
+                if generation == last_generation:
+                    continue
+                await asyncio.to_thread(retriever.sync_from_qdrant, force=True)
+                last_generation = generation
+                continue
+            remote_count = await asyncio.to_thread(retriever.count_points)
+            if remote_count != len(retriever.chunks_store):
+                await asyncio.to_thread(retriever.sync_from_qdrant, force=True)
         except Exception:
             logger.exception("Periodic Qdrant catalog sync failed")
 
@@ -178,6 +196,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await sync_task
         except asyncio.CancelledError:
             pass
+        await llm_client.aclose()
 
 
 def _clean_doc_name(doc_name: str) -> str:
@@ -412,6 +431,7 @@ def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> in
             logger.exception("Unable to roll back failed document commit")
         raise
     semantic_cache.clear()
+    bump_index_generation()
     return removed
 
 
@@ -569,7 +589,10 @@ async def document_pdf(doc_name: str) -> FileResponse:
     dependencies=[Depends(require_read_access)],
 )
 async def document_page_image(
-    doc_name: str, page_number: int, highlight: str = ""
+    doc_name: str,
+    page_number: int,
+    request: Request,
+    highlight: str = "",
 ) -> Response:
     """Render one source page as a high-DPI PNG with query-term highlights."""
     clean_name = _clean_doc_name(doc_name)
@@ -578,6 +601,26 @@ async def document_page_image(
     pdf_path = _find_pdf_path(clean_name)
     if pdf_path is None:
         raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
+
+    stat = pdf_path.stat()
+    cache_key = (
+        f"{clean_name}:{page_number}:{highlight.strip().casefold()}:"
+        f"{stat.st_mtime_ns}:{stat.st_size}"
+    )
+    cached = _PAGE_IMAGE_CACHE.get(cache_key)
+    if cached is not None:
+        etag, png_bytes = cached
+        if request.headers.get("if-none-match") == etag:
+            return Response(
+                status_code=304,
+                headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
+            )
+        _PAGE_IMAGE_CACHE.move_to_end(cache_key)
+        return Response(
+            content=png_bytes,
+            media_type="image/png",
+            headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
+        )
 
     document = fitz.open(pdf_path)
     try:
@@ -645,10 +688,15 @@ async def document_page_image(
                 break
 
         png_bytes = selected_page.get_pixmap(dpi=150, alpha=False).tobytes("png")
+        etag = '"' + hashlib.sha256(png_bytes).hexdigest()[:32] + '"'
+        _PAGE_IMAGE_CACHE[cache_key] = (etag, png_bytes)
+        _PAGE_IMAGE_CACHE.move_to_end(cache_key)
+        while len(_PAGE_IMAGE_CACHE) > _PAGE_IMAGE_CACHE_LIMIT:
+            _PAGE_IMAGE_CACHE.popitem(last=False)
         return Response(
             content=png_bytes,
             media_type="image/png",
-            headers={"Cache-Control": "no-store"},
+            headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
         )
     finally:
         document.close()
@@ -668,6 +716,7 @@ async def clear_demo_documents() -> Dict[str, Any]:
             for doc_name in demo_document_names() - user_document_names:
                 removed_chunks += retriever.delete_document(doc_name)
             semantic_cache.clear()
+            await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_demos",
         "documents": len(retriever.list_documents()),
@@ -694,6 +743,7 @@ async def clear_all_documents() -> Dict[str, Any]:
                     removed_files += 1
                 except OSError:
                     logger.exception("Unable to remove uploaded PDF %s", path.name)
+            await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_all",
         "documents": len(retriever.list_documents()),
@@ -720,6 +770,7 @@ async def restore_default_documents() -> Dict[str, Any]:
                 if persisted_chunks
                 else 0
             )
+            await asyncio.to_thread(bump_index_generation)
     return {
         "status": "restored_defaults",
         "documents": len(retriever.list_documents()),
@@ -860,6 +911,7 @@ async def delete_document(doc_name: str) -> Dict[str, Any]:
                 )
             _remove_user_pdf(clean_name)
             semantic_cache.clear()
+            await asyncio.to_thread(bump_index_generation)
     return {
         "status": "deleted",
         "doc_name": clean_name,
@@ -913,32 +965,34 @@ async def query_documents(payload: QueryRequest) -> QueryResponse:
 
 @app.post("/query/stream", dependencies=[Depends(require_read_access)])
 async def stream_query_documents(payload: QueryRequest) -> StreamingResponse:
-    """Stream the fully guarded query result via Server-Sent Events (SSE).
-
-    The complete answer is produced and sanitized before the first token is
-    emitted. This deliberately trades token immediacy for a hard guarantee that
-    PII-shaped text cannot straddle event boundaries and bypass redaction.
-    """
-    result = await _execute_query(payload)
+    """Stream redacted answer tokens, then the verified citations and metadata."""
+    answer_service.validate(payload)
 
     async def event_stream() -> AsyncIterator[str]:
-        words = result.answer.split(" ")
-        for index, word in enumerate(words):
-            text = word + (" " if index < len(words) - 1 else "")
-            yield f"event: token\ndata: {json.dumps({'text': text})}\n\n"
-
-        verification_event = {
-            "question": result.question,
-            "verification": result.verification.model_dump(),
-            "citations": [citation.model_dump() for citation in result.citations],
-            "guardrail_flags": result.guardrail_flags,
-            "cache_hit": result.cache_hit,
-            "cache_similarity": result.cache_similarity,
-            "latency_ms": result.latency_ms,
-            "metadata": result.metadata,
-        }
-        yield f"event: verification\ndata: {json.dumps(verification_event)}\n\n"
-        yield "event: done\ndata: [DONE]\n\n"
+        async for item in answer_service.stream(payload):
+            if isinstance(item, QueryResponse):
+                serialized = item.model_dump()
+                verification_event = {
+                    "question": serialized["question"],
+                    "answer": serialized["answer"],
+                    "matched_cells": serialized["matched_cells"],
+                    "computed_deltas": serialized["computed_deltas"],
+                    "verification": serialized["verification"],
+                    "citations": serialized["citations"],
+                    "guardrail_flags": serialized["guardrail_flags"],
+                    "cache_hit": serialized["cache_hit"],
+                    "cache_similarity": serialized["cache_similarity"],
+                    "latency_ms": serialized["latency_ms"],
+                    "metadata": serialized["metadata"],
+                }
+                yield (
+                    "event: verification\ndata: "
+                    + json.dumps(verification_event)
+                    + "\n\n"
+                )
+                yield "event: done\ndata: [DONE]\n\n"
+                return
+            yield f"event: token\ndata: {json.dumps({'text': item})}\n\n"
 
     return StreamingResponse(
         event_stream(),
