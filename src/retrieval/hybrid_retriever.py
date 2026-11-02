@@ -793,6 +793,10 @@ class HybridRetriever:
             "last_sync_at": self.last_sync_at,
         }
 
+    def indexed_document_names(self) -> List[str]:
+        """Return the sorted document names in the local catalog."""
+        return sorted({chunk.doc_name for chunk in self.chunks_store})
+
     def list_documents(self) -> List[Dict[str, Any]]:
         """Returns summary metadata for all currently indexed documents."""
         summary: Dict[str, Dict[str, Any]] = {}
