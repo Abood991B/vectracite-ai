@@ -49,6 +49,12 @@ jobs:
       - name: Compile Python Sources
         run: python -m compileall -q src tests evaluation scripts training_and_vllm k8s
 
+      - name: Enforce Dependency Rule
+        run: python scripts/check_layers.py
+
+      - name: Check Hot-Path Budgets
+        run: python scripts/bench_hot_paths.py --mode inproc --iterations 3 --warmup 1 --gate
+
       - name: Verify Checked-In Real Corpus
         run: |
           python scripts/fetch_real_pdf_corpus.py --verify

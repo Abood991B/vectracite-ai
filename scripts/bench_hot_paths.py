@@ -45,6 +45,19 @@ FIXTURE_QUESTIONS = [
     ("How did gross margin change year over year?", None),
 ]
 
+# Deliberately generous: these catch a catastrophic regression on shared CI hardware, not a
+# percentage drift. The real budgets live in docs/PERFORMANCE.md and are watched on a known machine.
+GATE_CAPS_MS = {
+    "query_cold": 1000.0,
+    "query_cache_hit": 500.0,
+    "query_stream_ttfb": 1000.0,
+    "retrieve_hybrid": 200.0,
+    "rerank": 200.0,
+    "ingest_pdf": 20000.0,
+    "workbench_render": 500.0,
+    "evaluate_latest": 2000.0,
+}
+
 INGEST_PAGES = [
     {
         "page_number": page,
@@ -324,6 +337,7 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://127.0.0.1:8080")
     parser.add_argument("--label", default="")
     parser.add_argument("--include-evaluate", action="store_true", help="http mode: also time one full POST /evaluate")
+    parser.add_argument("--gate", action="store_true", help="exit non-zero when a scenario exceeds its CI cap")
     parser.add_argument("--output", default="")
     args = parser.parse_args()
 
@@ -355,6 +369,19 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {output}")
+
+    if args.gate:
+        breaches = [
+            f"{name}: p95 {row['p95']} ms > cap {cap} ms"
+            for name, row in results.items()
+            if (cap := GATE_CAPS_MS.get(name)) is not None and row["p95"] > cap
+        ]
+        if breaches:
+            print("\nBUDGET GATE FAILED")
+            for breach in breaches:
+                print(f"  {breach}")
+            return 1
+        print("\nbudget gate passed")
     return 0
 
 
