@@ -73,6 +73,38 @@ def test_answer_contributors_accepts_lowercase_and_page_abbreviations() -> None:
     assert [chunk.chunk_id for chunk in contributors] == ["c1", "c2"]
 
 
+def test_retriever_indexes_the_document_filter_field() -> None:
+    """Scoped search filters on doc_name; without a payload index Qdrant scans the collection."""
+    from types import SimpleNamespace
+
+    from src.retrieval.hybrid_retriever import HybridRetriever
+
+    class RecordingQdrant:
+        def __init__(self, schema):
+            self.schema = schema
+            self.created: dict | None = None
+
+        def get_collection(self, name):
+            del name
+            return SimpleNamespace(payload_schema=self.schema)
+
+        def create_payload_index(self, **kwargs):
+            self.created = kwargs
+
+    missing = RecordingQdrant({})
+    retriever = HybridRetriever.__new__(HybridRetriever)
+    retriever.qdrant = missing
+    retriever.collection_name = "test"
+    retriever._ensure_payload_index()
+    assert missing.created is not None
+    assert missing.created["field_name"] == "doc_name"
+
+    present = RecordingQdrant({"doc_name": object()})
+    retriever.qdrant = present
+    retriever._ensure_payload_index()
+    assert present.created is None
+
+
 def test_tokenizer_strips_possessives_without_corrupting_words() -> None:
     """The possessive rule must not eat unrelated letters (a corrupted class once did)."""
     from src.retrieval.hybrid_retriever import HybridRetriever

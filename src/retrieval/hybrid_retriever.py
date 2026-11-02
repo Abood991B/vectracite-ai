@@ -191,6 +191,26 @@ class HybridRetriever:
                     distance=qmodels.Distance.COSINE,
                 ),
             )
+        if self.backend in {"qdrant", "shared_client"}:
+            self._ensure_payload_index()
+
+    def _ensure_payload_index(self) -> None:
+        """Index the field every scoped search filters on; without it Qdrant scans the collection."""
+        try:
+            info = self.qdrant.get_collection(self.collection_name)
+            if "doc_name" in (info.payload_schema or {}):
+                return
+            self.qdrant.create_payload_index(
+                collection_name=self.collection_name,
+                field_name="doc_name",
+                field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                wait=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "doc_name payload index unavailable (%s); scoped search will scan",
+                type(exc).__name__,
+            )
 
     def _search_dense(
         self,
