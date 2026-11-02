@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 from typing import Any, Dict, List, Set
 
 import numpy as np
@@ -39,6 +40,8 @@ class SemanticCache:
     ) -> None:
         self.similarity_threshold = similarity_threshold
         self.ttl_seconds = ttl_seconds
+        self.redis_url = redis_url
+        self._last_reconnect_attempt = 0.0
         self._memory_cache: List[Dict[str, Any]] = []
         self._redis_client: redis.Redis | None = None
         self._redis_vector_client: redis.Redis | None = None
@@ -51,23 +54,29 @@ class SemanticCache:
         self.semantic_hits = 0
 
         try:
-            client = build_redis_client(redis_url, timeout=CACHE_TIMEOUT_SECONDS)
-            client.ping()
-            self._redis_client = client
-            try:
-                vector_client = build_redis_client(
-                    redis_url,
-                    timeout=CACHE_TIMEOUT_SECONDS,
-                    decode_responses=False,
-                )
-                vector_client.ping()
-                self._redis_vector_client = vector_client
-                self._ensure_vector_index()
-            except Exception as exc:
-                logger.info("Redis vector cache unavailable: %s", type(exc).__name__)
-                self._redis_vector_client = None
+            self._connect_clients()
         except Exception as exc:
             self._mark_redis_unavailable(exc)
+
+    def _connect_clients(self) -> None:
+        """Open the cache and vector connections and rebuild the vector index."""
+        client = build_redis_client(self.redis_url, timeout=CACHE_TIMEOUT_SECONDS)
+        client.ping()
+        self._redis_client = client
+        self._degraded = False
+        self._last_error = None
+        try:
+            vector_client = build_redis_client(
+                self.redis_url,
+                timeout=CACHE_TIMEOUT_SECONDS,
+                decode_responses=False,
+            )
+            vector_client.ping()
+            self._redis_vector_client = vector_client
+            self._ensure_vector_index()
+        except Exception as exc:
+            logger.info("Redis vector cache unavailable: %s", type(exc).__name__)
+            self._redis_vector_client = None
 
     def _mark_redis_unavailable(self, exc: Exception) -> None:
         """Disable Redis after an outage so readiness exposes the degraded state."""
@@ -114,15 +123,31 @@ class SemanticCache:
             self._vector_index_ready = False
 
     def check_health(self) -> bool:
-        """Probe Redis before readiness decisions, without hiding an outage."""
+        """Probe Redis before readiness decisions, and re-establish a lost connection."""
         if self._redis_client is None:
-            return False
+            return self._try_reconnect()
         try:
             self._redis_client.ping()
+            self._degraded = False
+            self._last_error = None
             return True
         except Exception as exc:
             self._mark_redis_unavailable(exc)
             return False
+
+    def _try_reconnect(self) -> bool:
+        """Retry a lost Redis connection at most once every five seconds."""
+        now = time.monotonic()
+        if now - self._last_reconnect_attempt < 5.0:
+            return False
+        self._last_reconnect_attempt = now
+        try:
+            self._connect_clients()
+        except Exception as exc:
+            self._mark_redis_unavailable(exc)
+            return False
+        logger.info("Semantic cache Redis backend reconnected")
+        return self._redis_client is not None
 
     @staticmethod
     def _embed_query_fast(query: str, dim: int = VECTOR_DIMENSION) -> np.ndarray:

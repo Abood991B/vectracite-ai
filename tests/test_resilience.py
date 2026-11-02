@@ -45,6 +45,31 @@ def test_breaker_reopens_when_the_probe_fails() -> None:
     assert breaker.allow() is False
 
 
+def test_semantic_cache_reconnects_after_redis_returns(monkeypatch) -> None:
+    """A Redis blip must not degrade the cache until the API restarts."""
+    from src.cache_and_guardrails import semantic_cache as module
+
+    class FakeRedis:
+        def ping(self):
+            return True
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(
+        module, "build_redis_client", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down"))
+    )
+    cache = module.SemanticCache(redis_url="redis://127.0.0.1:6399/0")
+    assert cache._redis_client is None
+    assert cache._degraded is True
+
+    monkeypatch.setattr(module, "build_redis_client", lambda *a, **k: FakeRedis())
+    cache._last_reconnect_attempt = 0.0
+    assert cache.check_health() is True
+    assert cache._redis_client is not None
+    assert cache._degraded is False
+
+
 def test_index_counter_fails_fast_while_redis_is_down(monkeypatch) -> None:
     from src.api import index_state
 

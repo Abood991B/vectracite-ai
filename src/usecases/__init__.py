@@ -1,6 +1,6 @@
-"""Application use cases that orchestrate domain objects without framework or vendor details."""
+"""Application use cases that orchestrate domain objects without framework or vendor details.
 
-from src.usecases.answer_pipeline import AnswerPipeline, answer_contributors
-from src.usecases.ports import QueryBlockedError
-
-__all__ = ["AnswerPipeline", "QueryBlockedError", "answer_contributors"]
+Import submodules directly (``from src.usecases.answer_pipeline import ...``). This package
+intentionally re-exports nothing: eager imports here create a cycle because adapters import the
+query-normalization helpers while the use-case modules import those adapters' ports.
+"""
