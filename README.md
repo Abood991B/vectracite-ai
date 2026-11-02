@@ -119,15 +119,25 @@ python -m evaluation.domain_benchmark --output data/domain_benchmark_report.json
 
 Checked-in report: [`data/domain_benchmark_report.json`](data/domain_benchmark_report.json).
 
-| Mode | P@1 | R@3 | MRR | nDCG@3 | Mean latency |
-|---|---:|---:|---:|---:|---:|
-| Dense-only | 0.4118 | **0.5882** | **0.5431** | **0.5154** | 35.42 ms |
-| Hybrid RRF | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 57.16 ms |
-| Hybrid + reranker | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 57.86 ms |
+| Mode | P@1 | R@3 | MRR | nDCG@3 | Mean latency | p95 latency |
+|---|---:|---:|---:|---:|---:|---:|
+| Dense-only | 0.4118 | 0.5882 | 0.5431 | 0.5154 | 39.69 ms | 54.27 ms |
+| Hybrid RRF | 0.4118 | 0.5294 | 0.5284 | 0.4783 | 62.79 ms | 85.10 ms |
+| Hybrid + adopted top-2 reranker | **0.4118** | **0.7647** | **0.5804** | **0.6190** | 315.63 ms | 560.05 ms |
 
-The baseline exposes a real problem: dense-only currently beats hybrid RRF on this mixed corpus,
-and legal retrieval is weakest. Phase 2 will test embedding, fusion, and reranker changes against
-this suite rather than assuming the current hybrid design is better.
+Phase 2 tested fusion weights, candidate depth, embedding upgrades, page fusion, and reranker gates.
+The adopted change is a forced cross-encoder pass over the top two candidates (`RERANKER_GATE=always_top2`).
+It raises R@3 from 0.5294 to 0.7647 with a paired-bootstrap 95% CI of `[0.0588, 0.4706]`; RAGBench
+metrics are unchanged. The cost is CPU latency: mean 316 ms and p95 560 ms on this 5,055-chunk corpus.
+The full matrix and per-domain tradeoffs are in
+[`data/retrieval_experiments_baseline_gates.json`](data/retrieval_experiments_baseline_gates.json).
+To reproduce the historical adaptive baseline, pass `--reranker-gate adaptive`.
+
+The baseline also exposed a real problem: adaptive reranking did not beat dense-only, and legal
+retrieval was weakest. Aggressive BM25 weighting helped short RAGBench passages but hurt the long
+PDF corpus, so it was not adopted. BGE-base, E5-base, and GTE-base did not produce a clear win over
+BGE-small on the RAGBench screen; see
+[`data/retrieval_experiments_ragbench_embeddings.json`](data/retrieval_experiments_ragbench_embeddings.json).
 
 A passage-level RAGBench suite adds five public datasets (`covidqa`, `cuad`, `emanual`, `finqa`,
 `expertqa`) with bootstrap confidence intervals and paired comparisons:
@@ -138,8 +148,8 @@ python -m evaluation.domain_benchmark --source ragbench \
 ```
 
 Checked-in report: [`data/ragbench_report.json`](data/ragbench_report.json). It contains 60 cases,
-160 passages, and per-domain results. This is a retrieval-only suite; page-level citation quality is
-measured by the PDF suite.
+160 passages, and per-domain results. The top-2 reranker leaves every RAGBench metric unchanged.
+This is a retrieval-only suite; page-level citation quality is measured by the PDF suite.
 
 Supporting checks:
 
@@ -320,8 +330,10 @@ vectracite-ai/
 |   |-- corpus_embeddings.npz          # Cached BGE vectors
 |   |-- benchmark_queries.json         # 16 calibrated FinanceBench questions
 |   |-- domain_benchmark_cases.json    # 17 page-level multi-domain cases
-|   |-- domain_benchmark_report.json   # Page-level baseline report
-|   |-- ragbench_report.json           # Passage-level RAGBench baseline
+|   |-- domain_benchmark_report.json   # Adopted page-level report
+|   |-- ragbench_report.json           # RAGBench report
+|   |-- retrieval_experiments_baseline_gates.json # Phase 2 matrix
+|   |-- retrieval_experiments_ragbench_embeddings.json # Embedding screen
 |   |-- financebench_ground_truth.json # Filtered ground truth for the demo corpus
 |   `-- latest_evaluation_report.json  # Real-corpus evaluation report
 |-- src/
@@ -348,7 +360,10 @@ vectracite-ai/
 |   `-- secret.example.yaml
 |-- evaluation/
 |   |-- run_ablation_benchmark.py      # FinanceBench regression suite
-|   `-- domain_benchmark.py            # Multi-domain PDF + RAGBench harness
+|   |-- domain_benchmark.py            # Multi-domain PDF + RAGBench harness
+|   `-- retrieval_experiments.py       # Phase 2 controlled experiment matrix
+|-- docs/domain_benchmark.md
+|-- docs/retrieval_experiments.md
 |-- Dockerfile
 |-- docker-compose.yml
 |-- requirements.txt
@@ -369,6 +384,9 @@ Verification evidence for this worktree is recorded in [`VERIFICATION.md`](VERIF
 - The multi-domain PDF suite has only 17 cases and one reference answer per case. It is a foundation
   for Phase 2 experiments, not a full external leaderboard. RAGBench is retrieval-only and does not
   test page-level citations.
+- The adopted top-2 reranker raises R@3 substantially but costs roughly 5x CPU latency and can
+  change top-1 ordering within a correct top-3 evidence set. GPU reranker execution is not yet
+  validated.
 - OCR for image-only/scanned PDFs is not implemented. The parser rejects encrypted and unreadable
   PDFs with explicit 4xx errors.
 - GPU QLoRA, vLLM serving, Kubernetes scheduling/storage, and cloud KFP execution require external

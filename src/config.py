@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
     RERANKER_MODEL: str = "BAAI/bge-reranker-base"
+    RERANKER_GATE: str = "always_top2"
+    RERANKER_CONFIDENCE_THRESHOLD: float = 0.5
     USE_LIGHTWEIGHT_MODELS: bool = False
 
     # Redis Semantic Cache Configuration

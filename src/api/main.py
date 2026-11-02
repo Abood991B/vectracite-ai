@@ -56,6 +56,8 @@ retriever = HybridRetriever(
 )
 reranker = CrossEncoderReranker(
     use_lightweight_scorer=settings.USE_LIGHTWEIGHT_MODELS,
+    cross_encoder_gate=settings.RERANKER_GATE,
+    confidence_threshold=settings.RERANKER_CONFIDENCE_THRESHOLD,
 )
 semantic_cache = SemanticCache()
 guardrails = EnterpriseGuardrails()

@@ -50,7 +50,9 @@ dataset and 2,000 bootstrap samples.
 - Do not compare the page-level and passage-level aggregate scores directly.
 - Treat a change as a candidate only when the paired confidence interval and per-domain breakdown
   support it. A single aggregate improvement is not enough.
-- Legal retrieval is an observed weakness in the first baseline. It remains a target for Phase 2.
+- Legal retrieval is an observed weakness in the first baseline. Phase 2 improved it with the
+  adopted top-2 reranker; see `docs/retrieval_experiments.md`.
+- Use `--reranker-gate adaptive` to reproduce the historical Phase 1 baseline.
 
 ## Sources and licenses
 
@@ -59,7 +61,7 @@ government works. The LLaMA paper is CC BY 4.0 with attribution in the manifest.
 
 ## Extension points
 
-- Add BEIR retrieval subsets when the Phase 2 embedding/fusion experiments begin.
+- Add BEIR retrieval subsets before making broad retrieval-generalization claims.
 - Add more domains and multi-page questions before making broad accuracy claims.
 - Add answer-level faithfulness and refusal metrics after the retrieval baseline is stable.
 - Keep the FinanceBench suite as a regression suite; do not replace it with the domain suite.

@@ -16,6 +16,8 @@ from evaluation.domain_benchmark import (
 )
 from src.config import settings
 from src.ingestion.pdf_parser import DocumentChunk
+from src.retrieval.hybrid_retriever import HybridRetriever, RetrievedDocument
+from src.retrieval.reranker import CrossEncoderReranker
 
 
 def _chunk(chunk_id: str, doc_name: str, page: int, text: str) -> DocumentChunk:
@@ -83,6 +85,109 @@ def test_run_domain_benchmark_produces_summary_and_paired_comparisons(tmp_path) 
     assert report["per_query"][0]["ranks"]["dense_only"] == 1
     assert (tmp_path / "report.json").exists()
     assert len(report["signature"]) == 64
+
+
+def test_custom_retrieval_knobs_change_collection_and_fusion() -> None:
+    retriever = HybridRetriever(
+        in_memory=True,
+        use_lightweight_embedder=True,
+        embedding_dim=512,
+        dense_weight=0.5,
+        bm25_weight=0.5,
+        candidate_multiplier=2,
+    )
+    retriever.index_chunks(
+        [
+            _chunk("a1", "ALPHA", 1, "alpha revenue"),
+            _chunk("b1", "BETA", 2, "beta safety"),
+        ]
+    )
+    assert retriever.collection_name.endswith("__lightweight__d512")
+    assert retriever.embedding_dim == 512
+    assert retriever.dense_weight == 0.5
+    assert retriever.bm25_weight == 0.5
+    results = retriever.retrieve_hybrid("alpha revenue", top_k=2)
+    assert {result.doc_name for result in results} == {"ALPHA", "BETA"}
+
+
+def test_page_fusion_mode_executes_and_reports_custom_modes() -> None:
+    chunks = [
+        _chunk("a1", "ALPHA", 1, "alpha revenue first passage"),
+        _chunk("a2", "ALPHA", 1, "alpha revenue second passage"),
+        _chunk("b1", "BETA", 2, "beta safety review"),
+    ]
+    cases = (
+        _synthetic_case("case_alpha", "finance", "ALPHA", 1, "alpha revenue"),
+        _synthetic_case("case_beta", "public_health", "BETA", 2, "beta safety"),
+    )
+    report = run_domain_benchmark(
+        cases=cases,
+        chunks=chunks,
+        spec=DomainBenchmarkSpec(cases=cases),
+        corpus_dirs=(),
+        modes=("hybrid_rrf", "hybrid_rrf_page_fusion"),
+        top_k=3,
+        bootstrap_samples=20,
+        seed=7,
+        lightweight=True,
+    )
+    assert report["modes"] == ["hybrid_rrf", "hybrid_rrf_page_fusion"]
+    assert set(report["summary"]) == {"hybrid_rrf", "hybrid_rrf_page_fusion"}
+    assert report["pairwise"] == {}
+    assert report["per_query"][0]["ranks"]["hybrid_rrf_page_fusion"] == 1
+
+
+def test_forced_cross_encoder_scores_every_candidate(monkeypatch) -> None:
+    calls: list[list[tuple[str, str]]] = []
+
+    class FakeEncoder:
+        def predict(self, pairs, show_progress_bar=False):
+            del show_progress_bar
+            calls.append(list(pairs))
+            return [1.0 for _ in pairs]
+
+    import src.retrieval.reranker as reranker_module
+
+    monkeypatch.setattr(
+        reranker_module,
+        "get_shared_cross_encoder",
+        lambda *args, **kwargs: FakeEncoder(),
+    )
+    candidates = [
+        RetrievedDocument(
+            chunk_id=f"c{index}",
+            doc_name="ALPHA",
+            page_number=index,
+            text=f"plain evidence {index}",
+            contains_table=False,
+            dense_score=0.1,
+            bm25_score=0.1,
+            rrf_score=1.0 / index,
+        )
+        for index in range(1, 4)
+    ]
+    adaptive = CrossEncoderReranker(
+        use_lightweight_scorer=True,
+        cross_encoder_gate="adaptive",
+    )
+    adaptive.rerank("query", list(candidates), top_n=3)
+    assert calls == []
+
+    top2 = CrossEncoderReranker(
+        use_lightweight_scorer=True,
+        cross_encoder_gate="always_top2",
+    )
+    top2.rerank("query", list(candidates), top_n=3)
+    assert len(calls) == 1
+    assert len(calls[0]) == 2
+
+    forced = CrossEncoderReranker(
+        use_lightweight_scorer=True,
+        force_cross_encoder=True,
+    )
+    forced.rerank("query", list(candidates), top_n=3)
+    assert len(calls) == 2
+    assert len(calls[1]) == 3
 
 
 def test_load_domain_spec_rejects_duplicate_case_ids(tmp_path) -> None:

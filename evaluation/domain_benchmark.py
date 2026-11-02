@@ -22,6 +22,11 @@ from src.retrieval.reranker import CrossEncoderReranker, get_shared_cross_encode
 
 DOMAIN_BENCHMARK_VERSION = 1
 MODES = ("dense_only", "hybrid_rrf", "hybrid_plus_reranker")
+PAGE_FUSION_MODES = (
+    "hybrid_rrf_page_fusion",
+    "hybrid_plus_reranker_page_fusion",
+)
+ALL_MODES = MODES + PAGE_FUSION_MODES
 DEFAULT_CORPUS_DIRS = ("data/corpus_pdfs", "data/domain_corpus_pdfs")
 DEFAULT_CASES_PATH = "data/domain_benchmark_cases.json"
 DEFAULT_OUTPUT_PATH = "data/domain_benchmark_report.json"
@@ -254,6 +259,29 @@ def _retrieval_result_payload(result: RetrievedDocument) -> Dict[str, Any]:
     }
 
 
+def _page_fused_results(
+    results: Sequence[RetrievedDocument],
+    top_k: int,
+) -> List[RetrievedDocument]:
+    grouped: Dict[Tuple[str, int], Tuple[float, RetrievedDocument]] = {}
+    for result in results:
+        score = (
+            float(result.rerank_score)
+            if result.rerank_score is not None
+            else float(result.rrf_score)
+        )
+        key = (result.doc_name, result.page_number)
+        current = grouped.get(key)
+        if current is None or score > current[0]:
+            grouped[key] = (score, result)
+    ordered = sorted(
+        grouped.values(),
+        key=lambda item: (item[0], item[1].contains_table),
+        reverse=True,
+    )
+    return [item[1] for item in ordered[:top_k]]
+
+
 def _run_mode(
     *,
     mode: str,
@@ -271,6 +299,21 @@ def _run_mode(
             case.question, top_k=max(top_k * 2, 6)
         )
         return reranker.rerank(case.question, candidates, top_n=top_k)
+    if mode == "hybrid_rrf_page_fusion":
+        candidates = retriever.retrieve_hybrid(
+            case.question, top_k=max(top_k * 4, 20)
+        )
+        return _page_fused_results(candidates, top_k)
+    if mode == "hybrid_plus_reranker_page_fusion":
+        candidates = retriever.retrieve_hybrid(
+            case.question, top_k=max(top_k * 4, 20)
+        )
+        reranked = reranker.rerank(
+            case.question,
+            candidates,
+            top_n=max(top_k * 4, 20),
+        )
+        return _page_fused_results(reranked, top_k)
     raise ValueError(f"unsupported benchmark mode: {mode}")
 
 
@@ -284,8 +327,8 @@ def _warmup(
     if candidates:
         reranker.rerank("warmup query", candidates, top_n=1)
     encoder = get_shared_cross_encoder(
-        settings.RERANKER_MODEL,
-        use_lightweight=retriever.use_lightweight_embedder,
+        reranker.model_name,
+        use_lightweight=reranker.use_lightweight_scorer,
     )
     encoder.predict(
         [
@@ -435,6 +478,7 @@ def _summary_for_mode(
 
 def _per_domain_summary(
     runs: Sequence[CaseRun],
+    modes: Sequence[str],
     *,
     bootstrap_samples: int,
     rng: np.random.Generator,
@@ -450,17 +494,19 @@ def _per_domain_summary(
                 bootstrap_samples=bootstrap_samples,
                 rng=rng,
             )
-            for mode in MODES
+            for mode in modes
         }
     return output
 
 
 def _pairwise_summary(
     runs: Sequence[CaseRun],
+    modes: Sequence[str],
     *,
     bootstrap_samples: int,
     rng: np.random.Generator,
 ) -> Dict[str, Any]:
+    active_modes = set(modes)
     comparisons = (
         ("hybrid_rrf_vs_dense_only", "hybrid_rrf", "dense_only"),
         ("hybrid_plus_reranker_vs_hybrid_rrf", "hybrid_plus_reranker", "hybrid_rrf"),
@@ -472,6 +518,8 @@ def _pairwise_summary(
     )
     output: Dict[str, Any] = {}
     for name, left_mode, right_mode in comparisons:
+        if left_mode not in active_modes or right_mode not in active_modes:
+            continue
         left_values = _case_metric_values(runs, left_mode)
         right_values = _case_metric_values(runs, right_mode)
         output[name] = {
@@ -498,19 +546,27 @@ def compute_domain_signature(
     chunks: Sequence[DocumentChunk],
     cases: Sequence[DomainCase],
     corpus_dirs: Iterable[Path],
+    retrieval_config: Dict[str, Any] | None = None,
 ) -> str:
-    """Fingerprint the exact corpus, models, parser settings, and cases."""
+    """Fingerprint the exact corpus, retrieval configuration, parser, and cases."""
+    config = {
+        "embedding_model": settings.EMBEDDING_MODEL,
+        "embedding_dim": settings.EMBEDDING_DIM,
+        "reranker_model": settings.RERANKER_MODEL,
+        "reranker_gate": settings.RERANKER_GATE,
+        "reranker_confidence_threshold": settings.RERANKER_CONFIDENCE_THRESHOLD,
+        "dense_weight": settings.HYBRID_DENSE_WEIGHT,
+        "bm25_weight": settings.HYBRID_BM25_WEIGHT,
+        "parser_chunk_size": settings.PARSER_CHUNK_SIZE,
+        "parser_chunk_overlap": settings.PARSER_CHUNK_OVERLAP,
+    }
+    if retrieval_config:
+        config.update(retrieval_config)
     digest = hashlib.sha256()
     digest.update(str(DOMAIN_BENCHMARK_VERSION).encode("utf-8"))
     digest.update(b"\0")
-    for value in (
-        settings.EMBEDDING_MODEL,
-        settings.RERANKER_MODEL,
-        str(settings.EMBEDDING_DIM),
-        str(settings.PARSER_CHUNK_SIZE),
-        str(settings.PARSER_CHUNK_OVERLAP),
-    ):
-        digest.update(value.encode("utf-8"))
+    for value in config.values():
+        digest.update(str(value).encode("utf-8"))
         digest.update(b"\0")
     for path in _corpus_files(corpus_dirs):
         digest.update(path.name.encode("utf-8"))
@@ -552,16 +608,29 @@ def run_domain_benchmark(
     chunks: Sequence[DocumentChunk] | None = None,
     spec: DomainBenchmarkSpec | None = None,
     corpus_dirs: Iterable[Path] | None = None,
+    modes: Sequence[str] = MODES,
     top_k: int = 5,
     bootstrap_samples: int = 2000,
     seed: int = 42,
     lightweight: bool = False,
+    retriever_override: HybridRetriever | None = None,
+    reranker_override: CrossEncoderReranker | None = None,
+    reranker_gate: str | None = None,
+    reranker_confidence_threshold: float | None = None,
     output_path: Path | str | None = None,
 ) -> Dict[str, Any]:
     """Run dense, hybrid, and reranked retrieval over a domain benchmark."""
     active_spec = spec or load_domain_benchmark_spec()
     active_cases = tuple(cases if cases is not None else active_spec.cases)
     active_dirs = tuple(corpus_dirs if corpus_dirs is not None else active_spec.corpus_dirs)
+    active_modes = tuple(modes)
+    if not active_modes:
+        raise ValueError("benchmark requires at least one mode")
+    unknown_modes = sorted(set(active_modes) - set(ALL_MODES))
+    if unknown_modes:
+        raise ValueError(f"unsupported benchmark modes: {unknown_modes}")
+    if len(active_modes) != len(set(active_modes)):
+        raise ValueError("benchmark modes must be unique")
     if not active_cases:
         raise ValueError("benchmark requires at least one case")
     case_ids = [case.case_id for case in active_cases]
@@ -602,19 +671,39 @@ def run_domain_benchmark(
             f"chunks={missing_chunks[:5]} pages={missing_pages[:5]}"
         )
 
-    retriever = HybridRetriever(
+    retriever = retriever_override or HybridRetriever(
         in_memory=True,
         use_lightweight_embedder=lightweight,
     )
-    retriever.index_chunks(active_chunks, use_embedding_cache=False)
-    reranker = CrossEncoderReranker(use_lightweight_scorer=lightweight)
+    if not retriever.chunks_store:
+        retriever.index_chunks(active_chunks, use_embedding_cache=False)
+    reranker = reranker_override or CrossEncoderReranker(
+        use_lightweight_scorer=lightweight,
+        cross_encoder_gate=reranker_gate or settings.RERANKER_GATE,
+        confidence_threshold=(
+            settings.RERANKER_CONFIDENCE_THRESHOLD
+            if reranker_confidence_threshold is None
+            else reranker_confidence_threshold
+        ),
+    )
     _warmup(retriever, reranker, top_k=top_k)
+    retrieval_config = {
+        "embedding_model": retriever.embedding_model,
+        "embedding_dim": retriever.embedding_dim,
+        "reranker_model": reranker.model_name,
+        "reranker_gate": reranker.cross_encoder_gate,
+        "reranker_confidence_threshold": reranker.confidence_threshold,
+        "dense_weight": retriever.dense_weight,
+        "bm25_weight": retriever.bm25_weight,
+        "parser_chunk_size": settings.PARSER_CHUNK_SIZE,
+        "parser_chunk_overlap": settings.PARSER_CHUNK_OVERLAP,
+    }
 
     rng = np.random.default_rng(seed)
     runs: List[CaseRun] = []
     for case in active_cases:
         run = CaseRun(case=case)
-        for mode in MODES:
+        for mode in active_modes:
             started_at = time.perf_counter()
             results = _run_mode(
                 mode=mode,
@@ -639,13 +728,19 @@ def run_domain_benchmark(
             bootstrap_samples=bootstrap_samples,
             rng=rng,
         )
-        for mode in MODES
+        for mode in active_modes
     }
     report: Dict[str, Any] = {
         "schema_version": 1,
         "benchmark_version": DOMAIN_BENCHMARK_VERSION,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "signature": compute_domain_signature(active_chunks, active_cases, active_dirs),
+        "signature": compute_domain_signature(
+            active_chunks,
+            active_cases,
+            active_dirs,
+            retrieval_config=retrieval_config,
+        ),
+        "retrieval_config": retrieval_config,
         "corpus": _corpus_summary(active_chunks, active_dirs),
         "case_count": len(active_cases),
         "domains": sorted({case.domain for case in active_cases}),
@@ -653,14 +748,17 @@ def run_domain_benchmark(
         "top_k": top_k,
         "bootstrap_samples": bootstrap_samples,
         "seed": seed,
+        "modes": list(active_modes),
         "summary": summary,
         "per_domain": _per_domain_summary(
             runs,
+            active_modes,
             bootstrap_samples=bootstrap_samples,
             rng=rng,
         ),
         "pairwise": _pairwise_summary(
             runs,
+            active_modes,
             bootstrap_samples=bootstrap_samples,
             rng=rng,
         ),
@@ -806,6 +904,12 @@ def main() -> None:
     parser.add_argument("--bootstrap-samples", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lightweight", action="store_true")
+    parser.add_argument("--reranker-gate", default=settings.RERANKER_GATE)
+    parser.add_argument(
+        "--reranker-confidence-threshold",
+        type=float,
+        default=settings.RERANKER_CONFIDENCE_THRESHOLD,
+    )
     parser.add_argument("--source", choices=("pdf", "ragbench"), default="pdf")
     parser.add_argument("--ragbench-configs", nargs="+", default=list(RAGBENCH_CONFIGS))
     parser.add_argument("--max-cases-per-config", type=int, default=12)
@@ -826,6 +930,8 @@ def main() -> None:
             bootstrap_samples=args.bootstrap_samples,
             seed=args.seed,
             lightweight=args.lightweight,
+            reranker_gate=args.reranker_gate,
+            reranker_confidence_threshold=args.reranker_confidence_threshold,
             output_path=args.output,
         )
     else:
@@ -836,6 +942,8 @@ def main() -> None:
             bootstrap_samples=args.bootstrap_samples,
             seed=args.seed,
             lightweight=args.lightweight,
+            reranker_gate=args.reranker_gate,
+            reranker_confidence_threshold=args.reranker_confidence_threshold,
             output_path=args.output,
         )
     print(json.dumps({"summary": report["summary"], "signature": report["signature"]}, indent=2))

@@ -53,13 +53,13 @@ def get_shared_cross_encoder(
 
 class CrossEncoderReranker:
     """
-    Adaptive SCAR™ (Speculative Cell-Coordinate AST Reranker):
-      1. Computes 2D Table-AST Schema Alignment over (RowKey, ColHeader) coordinates.
-      2. Adaptive Margin Gate: When the top candidate achieves a structural AST margin
-         advantage (delta_ast >= 0.35 and ast_align >= 0.50) over all competing chunks,
-         gates neural Cross-Encoder verification to 1 micro-compressed pass (<45 tokens),
-         cutting CPU reranking latency while preserving table precision.
-      3. Fuses calibrated Cross-Encoder probability with 2D AST alignment and RRF prior.
+    SCAR™ (Speculative Cell-Coordinate AST Reranker).
+
+    The reranker computes 2D Table-AST alignment, then applies a configurable
+    Cross-Encoder gate. The default always_top2 gate scores the two strongest
+    fast-prior candidates; adaptive and top-1/all gates remain available for
+    ablation. Final scores fuse calibrated Cross-Encoder probability with AST
+    alignment and the RRF prior.
     """
 
     def __init__(
@@ -68,10 +68,30 @@ class CrossEncoderReranker:
         speculative_top_m: int = 2,
         margin_threshold: float = 0.35,
         use_lightweight_scorer: bool | None = None,
+        force_cross_encoder: bool = False,
+        cross_encoder_gate: str = settings.RERANKER_GATE,
+        confidence_threshold: float = settings.RERANKER_CONFIDENCE_THRESHOLD,
     ) -> None:
+        if cross_encoder_gate not in {
+            "adaptive",
+            "adaptive_top2",
+            "always_top1",
+            "always_top2",
+            "always_all",
+            "top1_then_top2",
+        }:
+            raise ValueError(
+                "cross_encoder_gate must be adaptive, adaptive_top2, "
+                "always_top1, always_top2, always_all, or top1_then_top2"
+            )
+        self.confidence_threshold = confidence_threshold
         self.model_name = model_name
         self.speculative_top_m = speculative_top_m
         self.margin_threshold = margin_threshold
+        self.force_cross_encoder = force_cross_encoder or cross_encoder_gate == "always_all"
+        self.cross_encoder_gate = (
+            "always_all" if self.force_cross_encoder else cross_encoder_gate
+        )
         self.use_lightweight_scorer = (
             settings.USE_LIGHTWEIGHT_MODELS
             if use_lightweight_scorer is None
@@ -94,7 +114,10 @@ class CrossEncoderReranker:
         ordered_ast = sorted(ast_scores, reverse=True)
         top_ast = ordered_ast[0] if ordered_ast else 0.0
         second_ast = ordered_ast[1] if len(ordered_ast) > 1 else 0.0
-        if top_ast < 0.50 or (top_ast - second_ast) < self.margin_threshold:
+        if (
+            self.cross_encoder_gate == "adaptive"
+            and (top_ast < 0.50 or (top_ast - second_ast) < self.margin_threshold)
+        ):
             for doc in candidates:
                 doc.rerank_score = doc.rrf_score
             return candidates[:top_n]
@@ -117,26 +140,68 @@ class CrossEncoderReranker:
         top_ast = preliminary[0][1]
         second_ast = preliminary[1][1] if len(preliminary) > 1 else 0.0
         ast_margin = top_ast - second_ast
-        active_m = (
-            1
-            if top_ast >= 0.50 and ast_margin >= self.margin_threshold
-            else min(self.speculative_top_m, len(preliminary))
-        )
-
-        top_slice = preliminary[:active_m]
-        compressed_pairs = [
-            (query, TableASTParser.compress_for_cross_encoder(query, item[3].text))
-            for item in top_slice
-        ]
-        raw_logits = cross_encoder.predict(compressed_pairs, show_progress_bar=False)
+        if self.cross_encoder_gate == "top1_then_top2":
+            top_pair = (
+                query,
+                TableASTParser.compress_for_cross_encoder(
+                    query, preliminary[0][3].text
+                ),
+            )
+            raw_logits = list(
+                cross_encoder.predict([top_pair], show_progress_bar=False)
+            )
+            active_m = 1
+            if (
+                len(preliminary) > 1
+                and self._sigmoid(float(raw_logits[0]))
+                < self.confidence_threshold
+            ):
+                second_pair = (
+                    query,
+                    TableASTParser.compress_for_cross_encoder(
+                        query, preliminary[1][3].text
+                    ),
+                )
+                raw_logits.extend(
+                    cross_encoder.predict([second_pair], show_progress_bar=False)
+                )
+                active_m = 2
+        else:
+            if self.cross_encoder_gate == "always_all":
+                active_m = len(preliminary)
+            elif self.cross_encoder_gate == "always_top1":
+                active_m = 1
+            elif self.cross_encoder_gate in {"always_top2", "adaptive_top2"}:
+                active_m = (
+                    1
+                    if (
+                        self.cross_encoder_gate == "adaptive_top2"
+                        and top_ast >= 0.50
+                        and ast_margin >= self.margin_threshold
+                    )
+                    else min(self.speculative_top_m, len(preliminary))
+                )
+            else:
+                active_m = (
+                    1
+                    if top_ast >= 0.50 and ast_margin >= self.margin_threshold
+                    else min(self.speculative_top_m, len(preliminary))
+                )
+            top_slice = preliminary[:active_m]
+            compressed_pairs = [
+                (
+                    query,
+                    TableASTParser.compress_for_cross_encoder(query, item[3].text),
+                )
+                for item in top_slice
+            ]
+            raw_logits = list(
+                cross_encoder.predict(compressed_pairs, show_progress_bar=False)
+            )
 
         for idx, (fast_prior, ast_align, rrf_norm, doc) in enumerate(preliminary):
             if idx < active_m:
-                logit_val = (
-                    float(raw_logits[idx])
-                    if hasattr(raw_logits, "__len__")
-                    else float(raw_logits)
-                )
+                logit_val = float(raw_logits[idx])
                 ce_prob = self._sigmoid(logit_val)
                 doc.rerank_score = round(
                     (0.40 * ce_prob) + (0.40 * ast_align) + (0.20 * rrf_norm), 6

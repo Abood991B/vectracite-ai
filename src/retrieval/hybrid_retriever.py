@@ -84,14 +84,15 @@ BM25_STOPWORDS = frozenset(
     }
 )
 
-_SHARED_EMBEDDER: SentenceTransformer | None = None
-_SHARED_LIGHTWEIGHT_EMBEDDER: "LightweightEmbedder | None" = None
+_SHARED_EMBEDDERS: dict[tuple[str, int], SentenceTransformer] = {}
+_SHARED_LIGHTWEIGHT_EMBEDDERS: dict[int, "LightweightEmbedder"] = {}
 
 
 class LightweightEmbedder:
     """Deterministic hashing embedder used only for fast tests and local CI."""
 
-    dimension = settings.EMBEDDING_DIM
+    def __init__(self, dimension: int = settings.EMBEDDING_DIM) -> None:
+        self.dimension = dimension
 
     def encode(
         self,
@@ -117,17 +118,43 @@ class LightweightEmbedder:
         return matrix
 
 
-def get_shared_embedder(use_lightweight: bool | None = None) -> Any:
-    """Load either the production BGE embedder or the isolated CI substitute."""
-    global _SHARED_EMBEDDER, _SHARED_LIGHTWEIGHT_EMBEDDER
+def get_embedder(
+    model_name: str,
+    dimension: int,
+    use_lightweight: bool | None = None,
+) -> Any:
+    """Load and cache one embedder per model/dimension pair."""
     lightweight = settings.USE_LIGHTWEIGHT_MODELS if use_lightweight is None else use_lightweight
     if lightweight:
-        if _SHARED_LIGHTWEIGHT_EMBEDDER is None:
-            _SHARED_LIGHTWEIGHT_EMBEDDER = LightweightEmbedder()
-        return _SHARED_LIGHTWEIGHT_EMBEDDER
-    if _SHARED_EMBEDDER is None:
-        _SHARED_EMBEDDER = SentenceTransformer(settings.EMBEDDING_MODEL)
-    return _SHARED_EMBEDDER
+        if dimension not in _SHARED_LIGHTWEIGHT_EMBEDDERS:
+            _SHARED_LIGHTWEIGHT_EMBEDDERS[dimension] = LightweightEmbedder(dimension)
+        return _SHARED_LIGHTWEIGHT_EMBEDDERS[dimension]
+    key = (model_name, dimension)
+    if key not in _SHARED_EMBEDDERS:
+        model = SentenceTransformer(model_name)
+        actual_dimension = model.get_sentence_embedding_dimension()
+        if actual_dimension is not None and int(actual_dimension) != dimension:
+            raise ValueError(
+                f"embedding model {model_name} produces {actual_dimension} dimensions, "
+                f"not {dimension}"
+            )
+        _SHARED_EMBEDDERS[key] = model
+    return _SHARED_EMBEDDERS[key]
+
+
+def get_shared_embedder(use_lightweight: bool | None = None) -> Any:
+    """Load either the production BGE embedder or the isolated CI substitute."""
+    return get_embedder(
+        settings.EMBEDDING_MODEL,
+        settings.EMBEDDING_DIM,
+        use_lightweight=use_lightweight,
+    )
+
+
+def clear_embedder_cache() -> None:
+    """Release cached embedding models between independent experiment runs."""
+    _SHARED_EMBEDDERS.clear()
+    _SHARED_LIGHTWEIGHT_EMBEDDERS.clear()
 
 
 @dataclass
@@ -164,6 +191,11 @@ class HybridRetriever:
         use_lightweight_embedder: bool | None = None,
         client: QdrantClient | None = None,
         allow_fallback: bool = settings.ALLOW_QDRANT_FALLBACK,
+        embedding_model: str | None = None,
+        embedding_dim: int | None = None,
+        dense_weight: float | None = None,
+        bm25_weight: float | None = None,
+        candidate_multiplier: int = 4,
     ) -> None:
         self.rrf_k = rrf_k
         self.use_lightweight_embedder = (
@@ -171,13 +203,22 @@ class HybridRetriever:
             if use_lightweight_embedder is None
             else use_lightweight_embedder
         )
+        self.embedding_model = embedding_model or settings.EMBEDDING_MODEL
+        self.embedding_dim = embedding_dim or settings.EMBEDDING_DIM
+        self.dense_weight = (
+            settings.HYBRID_DENSE_WEIGHT if dense_weight is None else dense_weight
+        )
+        self.bm25_weight = (
+            settings.HYBRID_BM25_WEIGHT if bm25_weight is None else bm25_weight
+        )
+        self.candidate_multiplier = max(1, candidate_multiplier)
         model_tag = (
             "lightweight"
             if self.use_lightweight_embedder
-            else re.sub(r"[^a-z0-9]+", "_", settings.EMBEDDING_MODEL.casefold()).strip("_")
+            else re.sub(r"[^a-z0-9]+", "_", self.embedding_model.casefold()).strip("_")
         )
         self.collection_name = (
-            f"{collection_name}__{model_tag}__d{settings.EMBEDDING_DIM}"[:200]
+            f"{collection_name}__{model_tag}__d{self.embedding_dim}"[:200]
         )
         self.requested_backend = "memory" if in_memory else "qdrant"
         self.shared_client = client is not None
@@ -225,7 +266,7 @@ class HybridRetriever:
             self.qdrant.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=qmodels.VectorParams(
-                    size=settings.EMBEDDING_DIM,
+                    size=self.embedding_dim,
                     distance=qmodels.Distance.COSINE,
                 ),
             )
@@ -265,7 +306,11 @@ class HybridRetriever:
 
     def _encode_texts(self, texts: List[str]) -> np.ndarray:
         """Encode text with the configured production or test-only embedder."""
-        embedder = get_shared_embedder(self.use_lightweight_embedder)
+        embedder = get_embedder(
+            self.embedding_model,
+            self.embedding_dim,
+            use_lightweight=self.use_lightweight_embedder,
+        )
         embeddings = embedder.encode(
             texts,
             normalize_embeddings=True,
@@ -411,12 +456,24 @@ class HybridRetriever:
             return 0
 
         if vectors is None:
-            if use_embedding_cache and not self.use_lightweight_embedder:
+            uses_default_embedder = (
+                self.embedding_model == settings.EMBEDDING_MODEL
+                and self.embedding_dim == settings.EMBEDDING_DIM
+            )
+            if (
+                use_embedding_cache
+                and not self.use_lightweight_embedder
+                and uses_default_embedder
+            ):
                 vectors = load_embeddings(chunks)
             if vectors is None:
                 texts = [chunk.text for chunk in chunks]
                 vectors = self._encode_texts(texts)
-                if write_embedding_cache and not self.use_lightweight_embedder:
+                if (
+                    write_embedding_cache
+                    and not self.use_lightweight_embedder
+                    and uses_default_embedder
+                ):
                     save_embeddings(chunks, vectors)
         else:
             vectors = np.asarray(vectors, dtype=np.float32)
@@ -555,7 +612,7 @@ class HybridRetriever:
             return []
 
         scope = doc_name.strip() if doc_name and doc_name.strip().upper() != "ALL" else None
-        candidate_limit = max(top_k * 4, 40)
+        candidate_limit = max(top_k * self.candidate_multiplier, 40)
         q_vec = self._encode_texts([query])[0].tolist()
         dense_hits = self._search_dense(q_vec, candidate_limit, doc_name=scope)
         if scope:
@@ -605,11 +662,11 @@ class HybridRetriever:
             table_bonus = 0.0003 if chunk.contains_table else 0.0
             base_rrf_score = table_bonus
             if cid in dense_ranks:
-                base_rrf_score += settings.HYBRID_DENSE_WEIGHT / (
+                base_rrf_score += self.dense_weight / (
                     self.rrf_k + dense_ranks[cid]
                 )
             if cid in bm25_ranks:
-                base_rrf_score += settings.HYBRID_BM25_WEIGHT / (
+                base_rrf_score += self.bm25_weight / (
                     self.rrf_k + bm25_ranks[cid]
                 )
             anchor_multiplier = (

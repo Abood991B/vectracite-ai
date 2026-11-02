@@ -15,6 +15,7 @@ env/
 # Data, cached PDFs & MLflow artifacts
 data/pdfs/*.pdf
 data/uploads/*.pdf
+data/retrieval_experiment_cache/
 mlruns/
 mlartifacts/
 qdrant_storage/

@@ -1,8 +1,19 @@
 {
   "schema_version": 1,
   "benchmark_version": 1,
-  "generated_at": "2026-11-02T01:58:18Z",
-  "signature": "b052405339577d8e0e85a78a7bb0bb45f4e1d3269c70a3e5c956c449651a14d0",
+  "generated_at": "2026-11-02T03:40:56Z",
+  "signature": "95eea337cfb3fc5b5d44c29f2519e467f8b3ca2e74e62d3d1fb7c6de86cbb564",
+  "retrieval_config": {
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "embedding_dim": 384,
+    "reranker_model": "BAAI/bge-reranker-base",
+    "reranker_gate": "always_top2",
+    "reranker_confidence_threshold": 0.5,
+    "dense_weight": 0.95,
+    "bm25_weight": 0.05,
+    "parser_chunk_size": 1200,
+    "parser_chunk_overlap": 200
+  },
   "corpus": {
     "corpus_dirs": [
       "data\\corpus_pdfs",
@@ -37,14 +48,19 @@
   "top_k": 5,
   "bootstrap_samples": 2000,
   "seed": 42,
+  "modes": [
+    "dense_only",
+    "hybrid_rrf",
+    "hybrid_plus_reranker"
+  ],
   "summary": {
     "dense_only": {
       "precision_at_1": 0.4118,
       "recall_at_3": 0.5882,
       "mrr": 0.5431,
       "ndcg_at_3": 0.5154,
-      "avg_latency_ms": 35.42,
-      "p95_latency_ms": 38.79,
+      "avg_latency_ms": 39.69,
+      "p95_latency_ms": 54.27,
       "queries_evaluated": 17,
       "confidence_intervals": {
         "precision_at_1": [
@@ -70,8 +86,8 @@
       "recall_at_3": 0.5294,
       "mrr": 0.5284,
       "ndcg_at_3": 0.4783,
-      "avg_latency_ms": 57.16,
-      "p95_latency_ms": 80.55,
+      "avg_latency_ms": 62.79,
+      "p95_latency_ms": 85.1,
       "queries_evaluated": 17,
       "confidence_intervals": {
         "precision_at_1": [
@@ -94,11 +110,11 @@
     },
     "hybrid_plus_reranker": {
       "precision_at_1": 0.4118,
-      "recall_at_3": 0.5294,
-      "mrr": 0.5284,
-      "ndcg_at_3": 0.4783,
-      "avg_latency_ms": 57.86,
-      "p95_latency_ms": 79.46,
+      "recall_at_3": 0.7647,
+      "mrr": 0.5804,
+      "ndcg_at_3": 0.619,
+      "avg_latency_ms": 315.63,
+      "p95_latency_ms": 560.05,
       "queries_evaluated": 17,
       "confidence_intervals": {
         "precision_at_1": [
@@ -106,16 +122,16 @@
           0.6471
         ],
         "recall_at_3": [
-          0.2941,
-          0.7647
+          0.5294,
+          0.9412
         ],
         "mrr": [
-          0.3392,
-          0.7206
+          0.3961,
+          0.7667
         ],
         "ndcg_at_3": [
-          0.2647,
-          0.6996
+          0.4272,
+          0.7878
         ]
       }
     }
@@ -127,8 +143,8 @@
         "recall_at_3": 0.6667,
         "mrr": 0.5,
         "ndcg_at_3": 0.5436,
-        "avg_latency_ms": 35.6,
-        "p95_latency_ms": 38.02,
+        "avg_latency_ms": 42.1,
+        "p95_latency_ms": 57.46,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -154,8 +170,8 @@
         "recall_at_3": 0.6667,
         "mrr": 0.4444,
         "ndcg_at_3": 0.5,
-        "avg_latency_ms": 49.34,
-        "p95_latency_ms": 57.7,
+        "avg_latency_ms": 57.84,
+        "p95_latency_ms": 72.45,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -179,10 +195,10 @@
       "hybrid_plus_reranker": {
         "precision_at_1": 0.3333,
         "recall_at_3": 0.6667,
-        "mrr": 0.4444,
-        "ndcg_at_3": 0.5,
-        "avg_latency_ms": 50.59,
-        "p95_latency_ms": 54.33,
+        "mrr": 0.5,
+        "ndcg_at_3": 0.5436,
+        "avg_latency_ms": 269.07,
+        "p95_latency_ms": 312.32,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -210,8 +226,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.8333,
         "ndcg_at_3": 0.877,
-        "avg_latency_ms": 34.77,
-        "p95_latency_ms": 34.99,
+        "avg_latency_ms": 44.91,
+        "p95_latency_ms": 51.74,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -237,8 +253,8 @@
         "recall_at_3": 1.0,
         "mrr": 0.8333,
         "ndcg_at_3": 0.877,
-        "avg_latency_ms": 48.0,
-        "p95_latency_ms": 50.96,
+        "avg_latency_ms": 56.13,
+        "p95_latency_ms": 59.86,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -260,29 +276,29 @@
         }
       },
       "hybrid_plus_reranker": {
-        "precision_at_1": 0.6667,
+        "precision_at_1": 0.0,
         "recall_at_3": 1.0,
-        "mrr": 0.8333,
-        "ndcg_at_3": 0.877,
-        "avg_latency_ms": 49.52,
-        "p95_latency_ms": 51.37,
+        "mrr": 0.4444,
+        "ndcg_at_3": 0.5873,
+        "avg_latency_ms": 246.2,
+        "p95_latency_ms": 279.41,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
             0.0,
-            1.0
+            0.0
           ],
           "recall_at_3": [
             1.0,
             1.0
           ],
           "mrr": [
-            0.5,
-            1.0
+            0.3333,
+            0.5
           ],
           "ndcg_at_3": [
-            0.6309,
-            1.0
+            0.5,
+            0.6309
           ]
         }
       }
@@ -293,8 +309,8 @@
         "recall_at_3": 0.4,
         "mrr": 0.5,
         "ndcg_at_3": 0.4,
-        "avg_latency_ms": 37.24,
-        "p95_latency_ms": 39.77,
+        "avg_latency_ms": 37.01,
+        "p95_latency_ms": 44.39,
         "queries_evaluated": 5,
         "confidence_intervals": {
           "precision_at_1": [
@@ -320,8 +336,8 @@
         "recall_at_3": 0.4,
         "mrr": 0.5,
         "ndcg_at_3": 0.4,
-        "avg_latency_ms": 69.81,
-        "p95_latency_ms": 93.85,
+        "avg_latency_ms": 68.54,
+        "p95_latency_ms": 91.07,
         "queries_evaluated": 5,
         "confidence_intervals": {
           "precision_at_1": [
@@ -344,11 +360,11 @@
       },
       "hybrid_plus_reranker": {
         "precision_at_1": 0.4,
-        "recall_at_3": 0.4,
-        "mrr": 0.5,
-        "ndcg_at_3": 0.4,
-        "avg_latency_ms": 69.47,
-        "p95_latency_ms": 89.95,
+        "recall_at_3": 0.6,
+        "mrr": 0.54,
+        "ndcg_at_3": 0.5262,
+        "avg_latency_ms": 249.89,
+        "p95_latency_ms": 305.8,
         "queries_evaluated": 5,
         "confidence_intervals": {
           "precision_at_1": [
@@ -356,16 +372,16 @@
             0.8
           ],
           "recall_at_3": [
-            0.0,
-            0.8
+            0.2,
+            1.0
           ],
           "mrr": [
-            0.15,
-            0.85
+            0.18,
+            0.9
           ],
           "ndcg_at_3": [
-            0.0,
-            0.8
+            0.1262,
+            0.9262
           ]
         }
       }
@@ -376,8 +392,8 @@
         "recall_at_3": 0.3333,
         "mrr": 0.4,
         "ndcg_at_3": 0.3333,
-        "avg_latency_ms": 33.33,
-        "p95_latency_ms": 34.84,
+        "avg_latency_ms": 39.5,
+        "p95_latency_ms": 46.22,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -403,8 +419,8 @@
         "recall_at_3": 0.3333,
         "mrr": 0.4,
         "ndcg_at_3": 0.3333,
-        "avg_latency_ms": 49.58,
-        "p95_latency_ms": 50.9,
+        "avg_latency_ms": 64.29,
+        "p95_latency_ms": 80.23,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -426,12 +442,12 @@
         }
       },
       "hybrid_plus_reranker": {
-        "precision_at_1": 0.3333,
-        "recall_at_3": 0.3333,
-        "mrr": 0.4,
-        "ndcg_at_3": 0.3333,
-        "avg_latency_ms": 51.25,
-        "p95_latency_ms": 53.56,
+        "precision_at_1": 0.6667,
+        "recall_at_3": 0.6667,
+        "mrr": 0.6667,
+        "ndcg_at_3": 0.6667,
+        "avg_latency_ms": 234.98,
+        "p95_latency_ms": 255.21,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -459,8 +475,8 @@
         "recall_at_3": 0.6667,
         "mrr": 0.5111,
         "ndcg_at_3": 0.5,
-        "avg_latency_ms": 34.96,
-        "p95_latency_ms": 36.39,
+        "avg_latency_ms": 36.7,
+        "p95_latency_ms": 43.57,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -486,8 +502,8 @@
         "recall_at_3": 0.3333,
         "mrr": 0.4833,
         "ndcg_at_3": 0.3333,
-        "avg_latency_ms": 60.64,
-        "p95_latency_ms": 67.18,
+        "avg_latency_ms": 63.31,
+        "p95_latency_ms": 70.69,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -509,12 +525,12 @@
         }
       },
       "hybrid_plus_reranker": {
-        "precision_at_1": 0.3333,
-        "recall_at_3": 0.3333,
-        "mrr": 0.4833,
-        "ndcg_at_3": 0.3333,
-        "avg_latency_ms": 60.75,
-        "p95_latency_ms": 66.93,
+        "precision_at_1": 0.6667,
+        "recall_at_3": 1.0,
+        "mrr": 0.7778,
+        "ndcg_at_3": 0.8333,
+        "avg_latency_ms": 621.84,
+        "p95_latency_ms": 942.69,
         "queries_evaluated": 3,
         "confidence_intervals": {
           "precision_at_1": [
@@ -522,15 +538,15 @@
             1.0
           ],
           "recall_at_3": [
-            0.0,
+            1.0,
             1.0
           ],
           "mrr": [
-            0.2,
+            0.3333,
             1.0
           ],
           "ndcg_at_3": [
-            0.0,
+            0.5,
             1.0
           ]
         }
@@ -579,77 +595,77 @@
     "hybrid_plus_reranker_vs_hybrid_rrf": {
       "precision_at_1": {
         "delta": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0,
+        "ci_low": -0.3529,
+        "ci_high": 0.2941,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 0,
-        "ties": 17
+        "wins": 4,
+        "losses": 4,
+        "ties": 9
       },
       "recall_at_3": {
-        "delta": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0,
+        "delta": 0.2353,
+        "ci_low": 0.0588,
+        "ci_high": 0.4118,
         "p_value": 1.0,
-        "wins": 0,
+        "wins": 4,
         "losses": 0,
-        "ties": 17
+        "ties": 13
       },
       "mrr": {
-        "delta": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0,
+        "delta": 0.052,
+        "ci_low": -0.1686,
+        "ci_high": 0.2765,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 0,
-        "ties": 17
+        "wins": 5,
+        "losses": 5,
+        "ties": 7
       },
       "ndcg_at_3": {
-        "delta": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0,
+        "delta": 0.1408,
+        "ci_low": -0.0945,
+        "ci_high": 0.3914,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 0,
-        "ties": 17
+        "wins": 5,
+        "losses": 4,
+        "ties": 8
       }
     },
     "hybrid_plus_reranker_vs_dense_only": {
       "precision_at_1": {
         "delta": 0.0,
-        "ci_low": 0.0,
-        "ci_high": 0.0,
+        "ci_low": -0.2941,
+        "ci_high": 0.2941,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 0,
-        "ties": 17
+        "wins": 4,
+        "losses": 4,
+        "ties": 9
       },
       "recall_at_3": {
-        "delta": -0.0588,
-        "ci_low": -0.1765,
-        "ci_high": 0.0,
+        "delta": 0.1765,
+        "ci_low": 0.0,
+        "ci_high": 0.3529,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 1,
-        "ties": 16
+        "wins": 3,
+        "losses": 0,
+        "ties": 14
       },
       "mrr": {
-        "delta": -0.0147,
-        "ci_low": -0.0392,
-        "ci_high": 0.0,
+        "delta": 0.0373,
+        "ci_low": -0.1785,
+        "ci_high": 0.2588,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 2,
-        "ties": 15
+        "wins": 4,
+        "losses": 5,
+        "ties": 8
       },
       "ndcg_at_3": {
-        "delta": -0.0371,
-        "ci_low": -0.1036,
-        "ci_high": 0.0,
+        "delta": 0.1036,
+        "ci_low": -0.1101,
+        "ci_high": 0.3529,
         "p_value": 1.0,
-        "wins": 0,
-        "losses": 2,
-        "ties": 15
+        "wins": 4,
+        "losses": 4,
+        "ties": 9
       }
     }
   },
@@ -669,12 +685,12 @@
       "ranks": {
         "dense_only": 4,
         "hybrid_rrf": 4,
-        "hybrid_plus_reranker": 4
+        "hybrid_plus_reranker": 5
       },
       "latencies_ms": {
-        "dense_only": 38.467,
-        "hybrid_rrf": 76.113,
-        "hybrid_plus_reranker": 75.958
+        "dense_only": 37.861,
+        "hybrid_rrf": 77.78,
+        "hybrid_plus_reranker": 295.962
       },
       "retrieved": {
         "dense_only": [
@@ -783,16 +799,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "09664eb45bca",
-            "doc_name": "3M_2022_10K",
-            "page_number": 39,
-            "contains_table": false,
-            "dense_score": 0.772052,
-            "bm25_score": 24.122775,
-            "rrf_score": 0.016123,
-            "rerank_score": 0.016123
-          },
-          {
             "chunk_id": "7275ae514833",
             "doc_name": "3M_2018_10K",
             "page_number": 49,
@@ -800,27 +806,7 @@
             "dense_score": 0.768509,
             "bm25_score": 0.0,
             "rrf_score": 0.015623,
-            "rerank_score": 0.015623
-          },
-          {
-            "chunk_id": "d13d29927bd7",
-            "doc_name": "3M_2018_10K",
-            "page_number": 44,
-            "contains_table": false,
-            "dense_score": 0.765732,
-            "bm25_score": 23.974313,
-            "rrf_score": 0.015617,
-            "rerank_score": 0.015617
-          },
-          {
-            "chunk_id": "2f9a0f48ee82",
-            "doc_name": "3M_2018_10K",
-            "page_number": 60,
-            "contains_table": false,
-            "dense_score": 0.763414,
-            "bm25_score": 0.0,
-            "rrf_score": 0.014844,
-            "rerank_score": 0.014844
+            "rerank_score": 0.465855
           },
           {
             "chunk_id": "bab200228127",
@@ -830,7 +816,37 @@
             "dense_score": 0.751741,
             "bm25_score": 26.589589,
             "rrf_score": 0.014782,
-            "rerank_score": 0.014782
+            "rerank_score": 0.451496
+          },
+          {
+            "chunk_id": "09664eb45bca",
+            "doc_name": "3M_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.772052,
+            "bm25_score": 24.122775,
+            "rrf_score": 0.016123,
+            "rerank_score": 0.245
+          },
+          {
+            "chunk_id": "d13d29927bd7",
+            "doc_name": "3M_2018_10K",
+            "page_number": 44,
+            "contains_table": false,
+            "dense_score": 0.765732,
+            "bm25_score": 23.974313,
+            "rrf_score": 0.015617,
+            "rerank_score": 0.237308
+          },
+          {
+            "chunk_id": "2f9a0f48ee82",
+            "doc_name": "3M_2018_10K",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.763414,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.225558
           }
         ]
       }
@@ -853,9 +869,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 40.096,
-        "hybrid_rrf": 57.729,
-        "hybrid_plus_reranker": 56.208
+        "dense_only": 33.303,
+        "hybrid_rrf": 50.05,
+        "hybrid_plus_reranker": 187.99
       },
       "retrieved": {
         "dense_only": [
@@ -971,7 +987,7 @@
             "dense_score": 0.765865,
             "bm25_score": 17.543821,
             "rrf_score": 0.016027,
-            "rerank_score": 0.016027
+            "rerank_score": 0.409828
           },
           {
             "chunk_id": "27a256ed6e77",
@@ -981,7 +997,7 @@
             "dense_score": 0.766452,
             "bm25_score": 0.0,
             "rrf_score": 0.015574,
-            "rerank_score": 0.015574
+            "rerank_score": 0.39547
           },
           {
             "chunk_id": "60cd56c920d2",
@@ -991,7 +1007,7 @@
             "dense_score": 0.759124,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.015079
+            "rerank_score": 0.230517
           },
           {
             "chunk_id": "46b2e0ca3f34",
@@ -1001,7 +1017,7 @@
             "dense_score": 0.757473,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.014844
+            "rerank_score": 0.226915
           },
           {
             "chunk_id": "96a544deed43",
@@ -1011,7 +1027,7 @@
             "dense_score": 0.74906,
             "bm25_score": 19.084268,
             "rrf_score": 0.014752,
-            "rerank_score": 0.014752
+            "rerank_score": 0.22551
           }
         ]
       }
@@ -1035,9 +1051,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 38.305,
-        "hybrid_rrf": 98.286,
-        "hybrid_plus_reranker": 93.451
+        "dense_only": 34.539,
+        "hybrid_rrf": 94.392,
+        "hybrid_plus_reranker": 308.258
       },
       "retrieved": {
         "dense_only": [
@@ -1153,7 +1169,7 @@
             "dense_score": 0.776895,
             "bm25_score": 0.0,
             "rrf_score": 0.015574,
-            "rerank_score": 0.015574
+            "rerank_score": 0.400062
           },
           {
             "chunk_id": "cdd3bf0db6c4",
@@ -1163,7 +1179,7 @@
             "dense_score": 0.774906,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.015323
+            "rerank_score": 0.396809
           },
           {
             "chunk_id": "6125971b9f2b",
@@ -1173,7 +1189,7 @@
             "dense_score": 0.774539,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.015079
+            "rerank_score": 0.237222
           },
           {
             "chunk_id": "9227124a8ce8",
@@ -1183,7 +1199,7 @@
             "dense_score": 0.773536,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.014844
+            "rerank_score": 0.233516
           },
           {
             "chunk_id": "4a2f406f746f",
@@ -1193,7 +1209,7 @@
             "dense_score": 0.764241,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.014615
+            "rerank_score": 0.229923
           }
         ]
       }
@@ -1213,12 +1229,12 @@
       "ranks": {
         "dense_only": 4,
         "hybrid_rrf": 4,
-        "hybrid_plus_reranker": 4
+        "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 33.882,
-        "hybrid_rrf": 56.263,
-        "hybrid_plus_reranker": 59.783
+        "dense_only": 33.329,
+        "hybrid_rrf": 60.342,
+        "hybrid_plus_reranker": 265.85
       },
       "retrieved": {
         "dense_only": [
@@ -1327,6 +1343,16 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "18470bb50fd8",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 54,
+            "contains_table": true,
+            "dense_score": 0.712551,
+            "bm25_score": 0.0,
+            "rrf_score": 0.01368,
+            "rerank_score": 0.416407
+          },
+          {
             "chunk_id": "76a4a15c48b3",
             "doc_name": "ADOBE_2022_10K",
             "page_number": 65,
@@ -1334,7 +1360,7 @@
             "dense_score": 0.735358,
             "bm25_score": 0.0,
             "rrf_score": 0.015574,
-            "rerank_score": 0.015574
+            "rerank_score": 0.400544
           },
           {
             "chunk_id": "bb1386126305",
@@ -1344,7 +1370,7 @@
             "dense_score": 0.723,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.015323
+            "rerank_score": 0.241048
           },
           {
             "chunk_id": "06baf12cc9c1",
@@ -1354,7 +1380,7 @@
             "dense_score": 0.720506,
             "bm25_score": 0.0,
             "rrf_score": 0.015079,
-            "rerank_score": 0.015079
+            "rerank_score": 0.237222
           },
           {
             "chunk_id": "f13a24506bf5",
@@ -1364,17 +1390,7 @@
             "dense_score": 0.720417,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.014844
-          },
-          {
-            "chunk_id": "e1782e754ade",
-            "doc_name": "ADOBE_2022_10K",
-            "page_number": 53,
-            "contains_table": false,
-            "dense_score": 0.719652,
-            "bm25_score": 0.0,
-            "rrf_score": 0.014615,
-            "rerank_score": 0.014615
+            "rerank_score": 0.233516
           }
         ]
       }
@@ -1394,12 +1410,12 @@
       "ranks": {
         "dense_only": 1,
         "hybrid_rrf": 1,
-        "hybrid_plus_reranker": 1
+        "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 35.457,
-        "hybrid_rrf": 60.668,
-        "hybrid_plus_reranker": 61.957
+        "dense_only": 46.023,
+        "hybrid_rrf": 60.124,
+        "hybrid_plus_reranker": 191.393
       },
       "retrieved": {
         "dense_only": [
@@ -1508,6 +1524,16 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "a868ee9bd297",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 67,
+            "contains_table": true,
+            "dense_score": 0.713748,
+            "bm25_score": 0.0,
+            "rrf_score": 0.019265,
+            "rerank_score": 0.483282
+          },
+          {
             "chunk_id": "97d58560857f",
             "doc_name": "AMD_2022_10K",
             "page_number": 12,
@@ -1515,7 +1541,7 @@
             "dense_score": 0.748336,
             "bm25_score": 0.0,
             "rrf_score": 0.021025,
-            "rerank_score": 0.021025
+            "rerank_score": 0.400035
           },
           {
             "chunk_id": "9ffb659168c9",
@@ -1525,7 +1551,7 @@
             "dense_score": 0.744182,
             "bm25_score": 0.0,
             "rrf_score": 0.020685,
-            "rerank_score": 0.020685
+            "rerank_score": 0.241048
           },
           {
             "chunk_id": "1ca8df7de046",
@@ -1535,7 +1561,7 @@
             "dense_score": 0.7229,
             "bm25_score": 0.0,
             "rrf_score": 0.020357,
-            "rerank_score": 0.020357
+            "rerank_score": 0.237222
           },
           {
             "chunk_id": "9d69a585eacb",
@@ -1545,17 +1571,7 @@
             "dense_score": 0.721948,
             "bm25_score": 0.0,
             "rrf_score": 0.020039,
-            "rerank_score": 0.020039
-          },
-          {
-            "chunk_id": "607965559a78",
-            "doc_name": "AMD_2022_10K",
-            "page_number": 20,
-            "contains_table": false,
-            "dense_score": 0.718446,
-            "bm25_score": 0.0,
-            "rrf_score": 0.019731,
-            "rerank_score": 0.019731
+            "rerank_score": 0.233516
           }
         ]
       }
@@ -1575,12 +1591,12 @@
       "ranks": {
         "dense_only": 1,
         "hybrid_rrf": 1,
-        "hybrid_plus_reranker": 1
+        "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 35.54,
-        "hybrid_rrf": 67.724,
-        "hybrid_plus_reranker": 67.311
+        "dense_only": 32.969,
+        "hybrid_rrf": 71.253,
+        "hybrid_plus_reranker": 450.729
       },
       "retrieved": {
         "dense_only": [
@@ -1689,16 +1705,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "789d492972da",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 3,
-            "contains_table": false,
-            "dense_score": 0.888793,
-            "bm25_score": 49.619658,
-            "rrf_score": 0.016331,
-            "rerank_score": 0.016331
-          },
-          {
             "chunk_id": "fb885b47c155",
             "doc_name": "CDC_MMWR_72_42",
             "page_number": 2,
@@ -1706,7 +1712,27 @@
             "dense_score": 0.857229,
             "bm25_score": 46.041222,
             "rrf_score": 0.016126,
-            "rerank_score": 0.016126
+            "rerank_score": 0.739856
+          },
+          {
+            "chunk_id": "2ec840461bdc",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 1,
+            "contains_table": true,
+            "dense_score": 0.812551,
+            "bm25_score": 37.964743,
+            "rrf_score": 0.014566,
+            "rerank_score": 0.645272
+          },
+          {
+            "chunk_id": "789d492972da",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.888793,
+            "bm25_score": 49.619658,
+            "rrf_score": 0.016331,
+            "rerank_score": 0.245
           },
           {
             "chunk_id": "7ae8b3e32d97",
@@ -1716,7 +1742,7 @@
             "dense_score": 0.858618,
             "bm25_score": 49.729356,
             "rrf_score": 0.016092,
-            "rerank_score": 0.016092
+            "rerank_score": 0.241407
           },
           {
             "chunk_id": "d277ea4ce60b",
@@ -1726,17 +1752,7 @@
             "dense_score": 0.849992,
             "bm25_score": 45.493821,
             "rrf_score": 0.015579,
-            "rerank_score": 0.015579
-          },
-          {
-            "chunk_id": "50e431b414ae",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 5,
-            "contains_table": false,
-            "dense_score": 0.840041,
-            "bm25_score": 30.529494,
-            "rrf_score": 0.015265,
-            "rerank_score": 0.015265
+            "rerank_score": 0.233714
           }
         ]
       }
@@ -1756,12 +1772,12 @@
       "ranks": {
         "dense_only": 5,
         "hybrid_rrf": 5,
-        "hybrid_plus_reranker": 5
+        "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 32.842,
-        "hybrid_rrf": 51.861,
-        "hybrid_plus_reranker": 51.405
+        "dense_only": 32.387,
+        "hybrid_rrf": 53.026,
+        "hybrid_plus_reranker": 417.425
       },
       "retrieved": {
         "dense_only": [
@@ -1870,6 +1886,26 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "6a5facccf62e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.830685,
+            "bm25_score": 22.168765,
+            "rrf_score": 0.015573,
+            "rerank_score": 0.778526
+          },
+          {
+            "chunk_id": "2ec840461bdc",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 1,
+            "contains_table": true,
+            "dense_score": 0.818446,
+            "bm25_score": 33.090373,
+            "rrf_score": 0.01504,
+            "rerank_score": 0.771803
+          },
+          {
             "chunk_id": "fb885b47c155",
             "doc_name": "CDC_MMWR_72_42",
             "page_number": 2,
@@ -1877,7 +1913,17 @@
             "dense_score": 0.873761,
             "bm25_score": 39.68605,
             "rrf_score": 0.01668,
-            "rerank_score": 0.01668
+            "rerank_score": 0.529375
+          },
+          {
+            "chunk_id": "ab450477a60e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.824342,
+            "bm25_score": 18.383304,
+            "rrf_score": 0.015319,
+            "rerank_score": 0.39563
           },
           {
             "chunk_id": "adfdf5177939",
@@ -1887,37 +1933,7 @@
             "dense_score": 0.856303,
             "bm25_score": 34.502119,
             "rrf_score": 0.016104,
-            "rerank_score": 0.016104
-          },
-          {
-            "chunk_id": "7ae8b3e32d97",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 2,
-            "contains_table": false,
-            "dense_score": 0.838239,
-            "bm25_score": 39.941367,
-            "rrf_score": 0.015899,
-            "rerank_score": 0.015899
-          },
-          {
-            "chunk_id": "4b3aaebbb681",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 2,
-            "contains_table": false,
-            "dense_score": 0.835579,
-            "bm25_score": 38.272801,
-            "rrf_score": 0.015637,
-            "rerank_score": 0.015637
-          },
-          {
-            "chunk_id": "6a5facccf62e",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 4,
-            "contains_table": true,
-            "dense_score": 0.830685,
-            "bm25_score": 22.168765,
-            "rrf_score": 0.015573,
-            "rerank_score": 0.015573
+            "rerank_score": 0.236534
           }
         ]
       }
@@ -1937,12 +1953,12 @@
       "ranks": {
         "dense_only": 3,
         "hybrid_rrf": 4,
-        "hybrid_plus_reranker": 4
+        "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 36.485,
-        "hybrid_rrf": 62.33,
-        "hybrid_plus_reranker": 63.527
+        "dense_only": 44.753,
+        "hybrid_rrf": 65.64,
+        "hybrid_plus_reranker": 997.353
       },
       "retrieved": {
         "dense_only": [
@@ -2051,44 +2067,14 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "1c5d503a6cd1",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 3,
-            "contains_table": false,
-            "dense_score": 0.868468,
-            "bm25_score": 69.216925,
-            "rrf_score": 0.016393,
-            "rerank_score": 0.016393
-          },
-          {
-            "chunk_id": "adfdf5177939",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 3,
-            "contains_table": false,
-            "dense_score": 0.858756,
-            "bm25_score": 55.725876,
-            "rrf_score": 0.016129,
-            "rerank_score": 0.016129
-          },
-          {
-            "chunk_id": "fb885b47c155",
-            "doc_name": "CDC_MMWR_72_42",
-            "page_number": 2,
-            "contains_table": true,
-            "dense_score": 0.836435,
-            "bm25_score": 46.288938,
-            "rrf_score": 0.01589,
-            "rerank_score": 0.01589
-          },
-          {
-            "chunk_id": "1f7ed7fdf6b6",
+            "chunk_id": "338760337aa0",
             "doc_name": "CDC_MMWR_72_42",
             "page_number": 5,
-            "contains_table": false,
-            "dense_score": 0.850817,
-            "bm25_score": 51.868689,
-            "rrf_score": 0.015849,
-            "rerank_score": 0.015849
+            "contains_table": true,
+            "dense_score": 0.831025,
+            "bm25_score": 52.659315,
+            "rrf_score": 0.015475,
+            "rerank_score": 0.696535
           },
           {
             "chunk_id": "56f02af73e0a",
@@ -2098,7 +2084,37 @@
             "dense_score": 0.832439,
             "bm25_score": 50.939719,
             "rrf_score": 0.015673,
-            "rerank_score": 0.015673
+            "rerank_score": 0.668045
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.836435,
+            "bm25_score": 46.288938,
+            "rrf_score": 0.01589,
+            "rerank_score": 0.412476
+          },
+          {
+            "chunk_id": "6a5facccf62e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.816958,
+            "bm25_score": 19.122133,
+            "rrf_score": 0.014512,
+            "rerank_score": 0.286889
+          },
+          {
+            "chunk_id": "1c5d503a6cd1",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.868468,
+            "bm25_score": 69.216925,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.245
           }
         ]
       }
@@ -2121,9 +2137,9 @@
         "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 34.538,
-        "hybrid_rrf": 47.671,
-        "hybrid_plus_reranker": 48.627
+        "dense_only": 52.834,
+        "hybrid_rrf": 53.493,
+        "hybrid_plus_reranker": 216.321
       },
       "retrieved": {
         "dense_only": [
@@ -2239,7 +2255,7 @@
             "dense_score": 0.86169,
             "bm25_score": 34.886071,
             "rrf_score": 0.016393,
-            "rerank_score": 0.016393
+            "rerank_score": 0.4912
           },
           {
             "chunk_id": "02a6f714b1e9",
@@ -2249,7 +2265,7 @@
             "dense_score": 0.80916,
             "bm25_score": 31.015226,
             "rrf_score": 0.016129,
-            "rerank_score": 0.016129
+            "rerank_score": 0.415004
           },
           {
             "chunk_id": "52595bf05b95",
@@ -2259,7 +2275,7 @@
             "dense_score": 0.799801,
             "bm25_score": 27.124543,
             "rrf_score": 0.015873,
-            "rerank_score": 0.015873
+            "rerank_score": 0.237222
           },
           {
             "chunk_id": "6ff3a95a5aca",
@@ -2269,7 +2285,7 @@
             "dense_score": 0.773878,
             "bm25_score": 20.377811,
             "rrf_score": 0.015613,
-            "rerank_score": 0.015613
+            "rerank_score": 0.233336
           },
           {
             "chunk_id": "a5d6e51f3c71",
@@ -2279,7 +2295,7 @@
             "dense_score": 0.773444,
             "bm25_score": 16.25303,
             "rrf_score": 0.015248,
-            "rerank_score": 0.015248
+            "rerank_score": 0.227886
           }
         ]
       }
@@ -2299,12 +2315,12 @@
       "ranks": {
         "dense_only": 1,
         "hybrid_rrf": 1,
-        "hybrid_plus_reranker": 1
+        "hybrid_plus_reranker": 3
       },
       "latencies_ms": {
-        "dense_only": 35.015,
-        "hybrid_rrf": 45.013,
-        "hybrid_plus_reranker": 48.274
+        "dense_only": 39.989,
+        "hybrid_rrf": 54.445,
+        "hybrid_plus_reranker": 283.974
       },
       "retrieved": {
         "dense_only": [
@@ -2413,24 +2429,14 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "8f7044dc5ca1",
+            "chunk_id": "5261db6308d4",
             "doc_name": "NIST_AI_RMF_1_0",
-            "page_number": 12,
-            "contains_table": false,
-            "dense_score": 0.888051,
-            "bm25_score": 41.259867,
-            "rrf_score": 0.016393,
-            "rerank_score": 0.016393
-          },
-          {
-            "chunk_id": "85a5e29d4acc",
-            "doc_name": "NIST_AI_RMF_1_0",
-            "page_number": 12,
-            "contains_table": false,
-            "dense_score": 0.871142,
-            "bm25_score": 33.472877,
-            "rrf_score": 0.016116,
-            "rerank_score": 0.016116
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.810712,
+            "bm25_score": 21.874222,
+            "rrf_score": 0.015388,
+            "rerank_score": 0.630456
           },
           {
             "chunk_id": "4e914f03d454",
@@ -2440,7 +2446,27 @@
             "dense_score": 0.821898,
             "bm25_score": 22.830471,
             "rrf_score": 0.015868,
-            "rerank_score": 0.015868
+            "rerank_score": 0.54459
+          },
+          {
+            "chunk_id": "8f7044dc5ca1",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.888051,
+            "bm25_score": 41.259867,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.245
+          },
+          {
+            "chunk_id": "85a5e29d4acc",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.871142,
+            "bm25_score": 33.472877,
+            "rrf_score": 0.016116,
+            "rerank_score": 0.240857
           },
           {
             "chunk_id": "5cb4340a9f30",
@@ -2450,17 +2476,7 @@
             "dense_score": 0.842187,
             "bm25_score": 24.159252,
             "rrf_score": 0.015815,
-            "rerank_score": 0.015815
-          },
-          {
-            "chunk_id": "5261db6308d4",
-            "doc_name": "NIST_AI_RMF_1_0",
-            "page_number": 4,
-            "contains_table": true,
-            "dense_score": 0.810712,
-            "bm25_score": 21.874222,
-            "rrf_score": 0.015388,
-            "rerank_score": 0.015388
+            "rerank_score": 0.23635
           }
         ]
       }
@@ -2480,12 +2496,12 @@
       "ranks": {
         "dense_only": 1,
         "hybrid_rrf": 1,
-        "hybrid_plus_reranker": 1
+        "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 34.765,
-        "hybrid_rrf": 51.33,
-        "hybrid_plus_reranker": 51.673
+        "dense_only": 41.919,
+        "hybrid_rrf": 60.46,
+        "hybrid_plus_reranker": 238.306
       },
       "retrieved": {
         "dense_only": [
@@ -2594,6 +2610,16 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "75fd63ab47ed",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.799441,
+            "bm25_score": 36.196324,
+            "rrf_score": 0.01544,
+            "rerank_score": 0.509233
+          },
+          {
             "chunk_id": "502a4d4dbd00",
             "doc_name": "NIST_AI_RMF_1_0",
             "page_number": 17,
@@ -2601,7 +2627,7 @@
             "dense_score": 0.874749,
             "bm25_score": 47.361332,
             "rrf_score": 0.016393,
-            "rerank_score": 0.016393
+            "rerank_score": 0.486001
           },
           {
             "chunk_id": "d298af1caec3",
@@ -2611,7 +2637,7 @@
             "dense_score": 0.81829,
             "bm25_score": 40.080268,
             "rrf_score": 0.015873,
-            "rerank_score": 0.015873
+            "rerank_score": 0.237222
           },
           {
             "chunk_id": "470b23f380d0",
@@ -2621,17 +2647,7 @@
             "dense_score": 0.815725,
             "bm25_score": 37.736318,
             "rrf_score": 0.015625,
-            "rerank_score": 0.015625
-          },
-          {
-            "chunk_id": "75fd63ab47ed",
-            "doc_name": "NIST_AI_RMF_1_0",
-            "page_number": 5,
-            "contains_table": true,
-            "dense_score": 0.799441,
-            "bm25_score": 36.196324,
-            "rrf_score": 0.01544,
-            "rerank_score": 0.01544
+            "rerank_score": 0.233516
           },
           {
             "chunk_id": "3c9f46c0b942",
@@ -2641,7 +2657,7 @@
             "dense_score": 0.850484,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.015323
+            "rerank_score": 0.228996
           }
         ]
       }
@@ -2664,9 +2680,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 31.702,
-        "hybrid_rrf": 50.687,
-        "hybrid_plus_reranker": 53.856
+        "dense_only": 36.532,
+        "hybrid_rrf": 57.346,
+        "hybrid_plus_reranker": 227.003
       },
       "retrieved": {
         "dense_only": [
@@ -2775,16 +2791,6 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "ca2e6bf3b712",
-            "doc_name": "SCOTUS_303_Creative_v_Elenis",
-            "page_number": 56,
-            "contains_table": false,
-            "dense_score": 0.839081,
-            "bm25_score": 30.885064,
-            "rrf_score": 0.016199,
-            "rerank_score": 0.016199
-          },
-          {
             "chunk_id": "c8691d1613b7",
             "doc_name": "SCOTUS_303_Creative_v_Elenis",
             "page_number": 22,
@@ -2792,7 +2798,17 @@
             "dense_score": 0.837096,
             "bm25_score": 36.083618,
             "rrf_score": 0.016092,
-            "rerank_score": 0.016092
+            "rerank_score": 0.457392
+          },
+          {
+            "chunk_id": "ca2e6bf3b712",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 56,
+            "contains_table": false,
+            "dense_score": 0.839081,
+            "bm25_score": 30.885064,
+            "rrf_score": 0.016199,
+            "rerank_score": 0.428584
           },
           {
             "chunk_id": "3e6b24e4328d",
@@ -2802,7 +2818,7 @@
             "dense_score": 0.836721,
             "bm25_score": 30.885064,
             "rrf_score": 0.015668,
-            "rerank_score": 0.015668
+            "rerank_score": 0.236966
           },
           {
             "chunk_id": "18821aac35c2",
@@ -2812,7 +2828,7 @@
             "dense_score": 0.836308,
             "bm25_score": 36.083618,
             "rrf_score": 0.015558,
-            "rerank_score": 0.015558
+            "rerank_score": 0.235309
           },
           {
             "chunk_id": "1a17061ce574",
@@ -2822,7 +2838,7 @@
             "dense_score": 0.834962,
             "bm25_score": 36.083618,
             "rrf_score": 0.015351,
-            "rerank_score": 0.015351
+            "rerank_score": 0.232173
           }
         ]
       }
@@ -2845,9 +2861,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 33.267,
-        "hybrid_rrf": 50.929,
-        "hybrid_plus_reranker": 49.024
+        "dense_only": 47.293,
+        "hybrid_rrf": 82.777,
+        "hybrid_plus_reranker": 258.349
       },
       "retrieved": {
         "dense_only": [
@@ -2963,7 +2979,7 @@
             "dense_score": 0.76909,
             "bm25_score": 9.676427,
             "rrf_score": 0.016491,
-            "rerank_score": 0.016491
+            "rerank_score": 0.574844
           },
           {
             "chunk_id": "bade86ef2f77",
@@ -2973,7 +2989,7 @@
             "dense_score": 0.668454,
             "bm25_score": 10.478622,
             "rrf_score": 0.015764,
-            "rerank_score": 0.015764
+            "rerank_score": 0.391353
           },
           {
             "chunk_id": "433ff92cd417",
@@ -2983,7 +2999,7 @@
             "dense_score": 0.681353,
             "bm25_score": 0.0,
             "rrf_score": 0.015323,
-            "rerank_score": 0.015323
+            "rerank_score": 0.227641
           },
           {
             "chunk_id": "e9bd28d73da5",
@@ -2993,7 +3009,7 @@
             "dense_score": 0.667834,
             "bm25_score": 0.0,
             "rrf_score": 0.014844,
-            "rerank_score": 0.014844
+            "rerank_score": 0.220527
           },
           {
             "chunk_id": "ac0f1baf580f",
@@ -3003,7 +3019,7 @@
             "dense_score": 0.667523,
             "bm25_score": 0.0,
             "rrf_score": 0.014615,
-            "rerank_score": 0.014615
+            "rerank_score": 0.217134
           }
         ]
       }
@@ -3023,12 +3039,12 @@
       "ranks": {
         "dense_only": 5,
         "hybrid_rrf": 5,
-        "hybrid_plus_reranker": 5
+        "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 35.017,
-        "hybrid_rrf": 47.132,
-        "hybrid_plus_reranker": 50.866
+        "dense_only": 34.662,
+        "hybrid_rrf": 52.742,
+        "hybrid_plus_reranker": 219.59
       },
       "retrieved": {
         "dense_only": [
@@ -3137,6 +3153,16 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "d5311e181fe3",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.720151,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014271,
+            "rerank_score": 0.422111
+          },
+          {
             "chunk_id": "bade86ef2f77",
             "doc_name": "SCOTUS_303_Creative_v_Elenis",
             "page_number": 57,
@@ -3144,7 +3170,7 @@
             "dense_score": 0.757807,
             "bm25_score": 15.051823,
             "rrf_score": 0.016331,
-            "rerank_score": 0.016331
+            "rerank_score": 0.400758
           },
           {
             "chunk_id": "60c7b0bb6beb",
@@ -3154,7 +3180,7 @@
             "dense_score": 0.756579,
             "bm25_score": 11.969111,
             "rrf_score": 0.015972,
-            "rerank_score": 0.015972
+            "rerank_score": 0.239608
           },
           {
             "chunk_id": "da8511f7248c",
@@ -3164,7 +3190,7 @@
             "dense_score": 0.752642,
             "bm25_score": 17.169816,
             "rrf_score": 0.015873,
-            "rerank_score": 0.015873
+            "rerank_score": 0.238124
           },
           {
             "chunk_id": "968979213f0c",
@@ -3174,17 +3200,7 @@
             "dense_score": 0.73707,
             "bm25_score": 25.625912,
             "rrf_score": 0.015663,
-            "rerank_score": 0.015663
-          },
-          {
-            "chunk_id": "a94fd0b1b40d",
-            "doc_name": "SCOTUS_303_Creative_v_Elenis",
-            "page_number": 2,
-            "contains_table": false,
-            "dense_score": 0.733639,
-            "bm25_score": 19.219939,
-            "rrf_score": 0.015422,
-            "rerank_score": 0.015422
+            "rerank_score": 0.23498
           }
         ]
       }
@@ -3207,9 +3223,9 @@
         "hybrid_plus_reranker": null
       },
       "latencies_ms": {
-        "dense_only": 32.635,
-        "hybrid_rrf": 42.762,
-        "hybrid_plus_reranker": 44.861
+        "dense_only": 31.725,
+        "hybrid_rrf": 46.659,
+        "hybrid_plus_reranker": 209.886
       },
       "retrieved": {
         "dense_only": [
@@ -3318,6 +3334,36 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "2f72b26d2b40",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.70634,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015144,
+            "rerank_score": 0.517746
+          },
+          {
+            "chunk_id": "af6e57ee08c2",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 6,
+            "contains_table": true,
+            "dense_score": 0.702433,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014915,
+            "rerank_score": 0.448266
+          },
+          {
+            "chunk_id": "9dfd7ef8de70",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": true,
+            "dense_score": 0.685438,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014068,
+            "rerank_score": 0.285026
+          },
+          {
             "chunk_id": "4970fbf560b7",
             "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
             "page_number": 8,
@@ -3325,7 +3371,7 @@
             "dense_score": 0.719054,
             "bm25_score": 7.258326,
             "rrf_score": 0.016476,
-            "rerank_score": 0.016476
+            "rerank_score": 0.245
           },
           {
             "chunk_id": "180833803100",
@@ -3335,37 +3381,7 @@
             "dense_score": 0.714601,
             "bm25_score": 7.263504,
             "rrf_score": 0.015932,
-            "rerank_score": 0.015932
-          },
-          {
-            "chunk_id": "512f3283f454",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 8,
-            "contains_table": false,
-            "dense_score": 0.707593,
-            "bm25_score": 7.181285,
-            "rrf_score": 0.015668,
-            "rerank_score": 0.015668
-          },
-          {
-            "chunk_id": "2f72b26d2b40",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 8,
-            "contains_table": true,
-            "dense_score": 0.70634,
-            "bm25_score": 0.0,
-            "rrf_score": 0.015144,
-            "rerank_score": 0.015144
-          },
-          {
-            "chunk_id": "b4bf1cdc2b16",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 4,
-            "contains_table": false,
-            "dense_score": 0.690499,
-            "bm25_score": 10.63792,
-            "rrf_score": 0.014973,
-            "rerank_score": 0.014973
+            "rerank_score": 0.236913
           }
         ]
       }
@@ -3388,9 +3404,9 @@
         "hybrid_plus_reranker": 1
       },
       "latencies_ms": {
-        "dense_only": 38.249,
-        "hybrid_rrf": 58.97,
-        "hybrid_plus_reranker": 54.548
+        "dense_only": 59.997,
+        "hybrid_rrf": 74.706,
+        "hybrid_plus_reranker": 281.574
       },
       "retrieved": {
         "dense_only": [
@@ -3499,6 +3515,36 @@
         ],
         "hybrid_plus_reranker": [
           {
+            "chunk_id": "caa77b01343c",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.726631,
+            "bm25_score": 19.641594,
+            "rrf_score": 0.014083,
+            "rerank_score": 0.546641
+          },
+          {
+            "chunk_id": "3876419be3b5",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 3,
+            "contains_table": true,
+            "dense_score": 0.746118,
+            "bm25_score": 16.802852,
+            "rrf_score": 0.015174,
+            "rerank_score": 0.519194
+          },
+          {
+            "chunk_id": "52085801f0cf",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": true,
+            "dense_score": 0.73916,
+            "bm25_score": 18.001641,
+            "rrf_score": 0.015006,
+            "rerank_score": 0.274818
+          },
+          {
             "chunk_id": "345085aaebfc",
             "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
             "page_number": 2,
@@ -3506,7 +3552,7 @@
             "dense_score": 0.810781,
             "bm25_score": 47.861636,
             "rrf_score": 0.016393,
-            "rerank_score": 0.016393
+            "rerank_score": 0.245
           },
           {
             "chunk_id": "e2ab4093761f",
@@ -3516,37 +3562,7 @@
             "dense_score": 0.755679,
             "bm25_score": 16.039707,
             "rrf_score": 0.015746,
-            "rerank_score": 0.015746
-          },
-          {
-            "chunk_id": "83e3844c3cb6",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 7,
-            "contains_table": false,
-            "dense_score": 0.75284,
-            "bm25_score": 17.257322,
-            "rrf_score": 0.015548,
-            "rerank_score": 0.015548
-          },
-          {
-            "chunk_id": "ea4724288827",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 3,
-            "contains_table": false,
-            "dense_score": 0.750582,
-            "bm25_score": 20.582417,
-            "rrf_score": 0.015397,
-            "rerank_score": 0.015397
-          },
-          {
-            "chunk_id": "512f3283f454",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 8,
-            "contains_table": false,
-            "dense_score": 0.779434,
-            "bm25_score": 0.0,
-            "rrf_score": 0.015323,
-            "rerank_score": 0.015323
+            "rerank_score": 0.235324
           }
         ]
       }
@@ -3566,12 +3582,12 @@
       "ranks": {
         "dense_only": 2,
         "hybrid_rrf": 3,
-        "hybrid_plus_reranker": 3
+        "hybrid_plus_reranker": 2
       },
       "latencies_ms": {
-        "dense_only": 35.91,
-        "hybrid_rrf": 46.302,
-        "hybrid_plus_reranker": 52.369
+        "dense_only": 34.592,
+        "hybrid_rrf": 52.148,
+        "hybrid_plus_reranker": 315.741
       },
       "retrieved": {
         "dense_only": [
@@ -3680,14 +3696,24 @@
         ],
         "hybrid_plus_reranker": [
           {
-            "chunk_id": "4ff7a1fb0cbe",
+            "chunk_id": "887bbb2cd620",
             "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
             "page_number": 5,
-            "contains_table": false,
-            "dense_score": 0.771672,
-            "bm25_score": 35.53117,
-            "rrf_score": 0.016393,
-            "rerank_score": 0.016393
+            "contains_table": true,
+            "dense_score": 0.755644,
+            "bm25_score": 26.897611,
+            "rrf_score": 0.015673,
+            "rerank_score": 0.583005
+          },
+          {
+            "chunk_id": "945fb6864fc8",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.749334,
+            "bm25_score": 22.346877,
+            "rrf_score": 0.014975,
+            "rerank_score": 0.55949
           },
           {
             "chunk_id": "c1924556ff8f",
@@ -3697,7 +3723,17 @@
             "dense_score": 0.757296,
             "bm25_score": 18.279621,
             "rrf_score": 0.01602,
-            "rerank_score": 0.01602
+            "rerank_score": 0.369425
+          },
+          {
+            "chunk_id": "4ff7a1fb0cbe",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.771672,
+            "bm25_score": 35.53117,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.245
           },
           {
             "chunk_id": "21b49e350d2b",
@@ -3707,27 +3743,7 @@
             "dense_score": 0.757875,
             "bm25_score": 20.549698,
             "rrf_score": 0.015989,
-            "rerank_score": 0.015989
-          },
-          {
-            "chunk_id": "887bbb2cd620",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 5,
-            "contains_table": true,
-            "dense_score": 0.755644,
-            "bm25_score": 26.897611,
-            "rrf_score": 0.015673,
-            "rerank_score": 0.015673
-          },
-          {
-            "chunk_id": "e842042e98b5",
-            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
-            "page_number": 4,
-            "contains_table": false,
-            "dense_score": 0.756663,
-            "bm25_score": 14.301464,
-            "rrf_score": 0.015381,
-            "rerank_score": 0.015381
+            "rerank_score": 0.238959
           }
         ]
       }

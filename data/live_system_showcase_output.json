@@ -25,7 +25,7 @@
         "doc_name": "AMD_2022_10K",
         "page_number": 12,
         "contains_table": false,
-        "rerank_score": 0.0156,
+        "rerank_score": 0.4,
         "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 12]\nTable of Contents\n\nWe also work with our customers to create differentiated products that leverage our CPU, GPU and APU technology. Certain customers pay us non-recurring\nengineering fees for design and development services and a purchase price"
       }
     ],
@@ -42,7 +42,7 @@
     },
     "cache_hit": false,
     "cache_similarity": null,
-    "latency_ms": 92.61,
+    "latency_ms": 218.82,
     "guardrail_flags": [],
     "metadata": {
       "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
@@ -56,7 +56,7 @@
     "question": "Did AMD report customer concentration in FY22?",
     "cache_hit": true,
     "cache_similarity": 1.0,
-    "latency_ms": 0.31
+    "latency_ms": 0.32
   },
   "guardrail_interception": {
     "http_status": 400,
