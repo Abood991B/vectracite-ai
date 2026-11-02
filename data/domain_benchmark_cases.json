@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "description": "Page-level, multi-domain citation benchmark. Evidence pages are physical PDF page numbers.",
+  "corpus_dirs": [
+    "data/corpus_pdfs",
+    "data/domain_corpus_pdfs"
+  ],
+  "cases": [
+    {
+      "case_id": "finance_3m_2018_capex",
+      "domain": "finance",
+      "doc_name": "3M_2018_10K",
+      "evidence_pages": [60],
+      "question": "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response to the question by relying on the details shown in the cash flow statement.",
+      "gold_answer": "$1577.00",
+      "gold_keywords": ["1577"],
+      "source": "FinanceBench financebench_id_03029"
+    },
+    {
+      "case_id": "finance_3m_2022_operating_margin",
+      "domain": "finance",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [27],
+      "question": "What drove operating margin change as of FY2022 for 3M?",
+      "gold_answer": "Operating margin decreased by 1.7%, driven by lower gross margin and one-off charges including Combat Arms Earplugs litigation, PFAS exit impairment, Russia exit costs, and divestiture-related restructuring.",
+      "gold_keywords": ["1.7%"],
+      "source": "FinanceBench financebench_id_01226"
+    },
+    {
+      "case_id": "finance_activision_fixed_asset_turnover",
+      "domain": "finance",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [69, 70],
+      "question": "What is the FY2019 fixed asset turnover ratio for Activision Blizzard? Fixed asset turnover ratio is defined as FY2019 revenue divided by average PP&E between FY2018 and FY2019.",
+      "gold_answer": "24.26",
+      "gold_keywords": ["24.26"],
+      "source": "FinanceBench financebench_id_02987"
+    },
+    {
+      "case_id": "finance_adobe_operating_margin",
+      "domain": "finance",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "question": "Does Adobe have an improving operating margin profile as of FY2022?",
+      "gold_answer": "No. Operating margin declined from 36.8% in FY2021 to 34.6% in FY2022, a 2.2% drop.",
+      "gold_keywords": ["34.6%", "36.8%", "2.2%"],
+      "source": "FinanceBench financebench_id_00438"
+    },
+    {
+      "case_id": "finance_amd_customer_concentration",
+      "domain": "finance",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [12],
+      "question": "Did AMD report customer concentration in FY22?",
+      "gold_answer": "Yes, one customer accounted for 16% of consolidated net revenue.",
+      "gold_keywords": ["16%"],
+      "source": "FinanceBench financebench_id_00757"
+    },
+    {
+      "case_id": "public_health_hepatitis_deaths",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [3],
+      "question": "How many hepatitis A outbreak-related deaths were analyzed across 27 states during August 1, 2016 through October 31, 2022?",
+      "gold_answer": "315 deaths.",
+      "gold_keywords": ["315"],
+      "source": "CDC MMWR 2023;72(42)"
+    },
+    {
+      "case_id": "public_health_male_percentage",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [4],
+      "question": "Among the reported hepatitis A outbreak-related deaths, what percentage were male?",
+      "gold_answer": "73.0%.",
+      "gold_keywords": ["73.0%"],
+      "source": "CDC MMWR 2023;72(42), Table 1"
+    },
+    {
+      "case_id": "public_health_death_certificate_not_listed",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [5],
+      "question": "Among decedents with available death certificates, what percentage had hepatitis A not listed on the death certificate?",
+      "gold_answer": "39.7%.",
+      "gold_keywords": ["39.7%"],
+      "source": "CDC MMWR 2023;72(42), Table 2"
+    },
+    {
+      "case_id": "nist_core_functions",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [8],
+      "question": "Which four functions make up the AI RMF Core?",
+      "gold_answer": "GOVERN, MAP, MEASURE, and MANAGE.",
+      "gold_keywords": ["GOVERN", "MAP", "MEASURE", "MANAGE"],
+      "source": "NIST AI 100-1"
+    },
+    {
+      "case_id": "nist_risk_tolerance",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [12],
+      "question": "Does the AI RMF prescribe a specific risk tolerance for organizations?",
+      "gold_answer": "No. The AI RMF does not prescribe risk tolerance; tolerance is organization- and context-specific.",
+      "gold_keywords": ["does not prescribe"],
+      "source": "NIST AI 100-1, section 1.2.2"
+    },
+    {
+      "case_id": "nist_trustworthy_characteristics",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [17],
+      "question": "What characteristics of trustworthy AI systems are listed in the AI RMF?",
+      "gold_answer": "Valid and reliable, safe, secure and resilient, accountable and transparent, explainable and interpretable, privacy-enhanced, and fair with harmful bias managed.",
+      "gold_keywords": [
+        "valid and reliable",
+        "safe",
+        "secure and resilient",
+        "accountable and transparent",
+        "explainable and interpretable",
+        "privacy-enhanced",
+        "fair"
+      ],
+      "source": "NIST AI 100-1, section 3"
+    },
+    {
+      "case_id": "scotus_303_creative_holding",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [3],
+      "question": "What did the Supreme Court hold in 303 Creative LLC v. Elenis?",
+      "gold_answer": "The First Amendment prohibits Colorado from forcing a website designer to create expressive designs speaking messages with which the designer disagrees.",
+      "gold_keywords": ["First Amendment", "prohibits", "expressive designs"],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "scotus_cada_maximum_fine",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [13],
+      "question": "Under CADA, what is the maximum fine a court can order per violation?",
+      "gold_answer": "Up to $500 per violation.",
+      "gold_keywords": ["$500"],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "scotus_cada_scope",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [2],
+      "question": "What does CADA prohibit public accommodations from denying, and on what protected traits?",
+      "gold_answer": "It prohibits denying the full and equal enjoyment of goods and services based on race, creed, disability, sexual orientation, or other statutorily enumerated traits.",
+      "gold_keywords": ["full and equal enjoyment", "sexual orientation"],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "academic_ml_llama_parameter_range",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [1],
+      "question": "What parameter range does the LLaMA collection cover?",
+      "gold_answer": "7B to 65B parameters.",
+      "gold_keywords": ["7B", "65B"],
+      "source": "arXiv:2302.13971"
+    },
+    {
+      "case_id": "academic_ml_llama_commoncrawl_share",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [2],
+      "question": "What percentage of LLaMA's pre-training data mixture is English CommonCrawl?",
+      "gold_answer": "67%.",
+      "gold_keywords": ["67%"],
+      "source": "arXiv:2302.13971"
+    },
+    {
+      "case_id": "academic_ml_llama_boolq_65b",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [4],
+      "question": "What zero-shot BoolQ accuracy does LLaMA-65B report?",
+      "gold_answer": "85.3.",
+      "gold_keywords": ["85.3"],
+      "source": "arXiv:2302.13971, Table 3"
+    }
+  ]
+}

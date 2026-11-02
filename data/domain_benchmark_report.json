@@ -1,0 +1,3736 @@
+{
+  "schema_version": 1,
+  "benchmark_version": 1,
+  "generated_at": "2026-11-02T01:58:18Z",
+  "signature": "b052405339577d8e0e85a78a7bb0bb45f4e1d3269c70a3e5c956c449651a14d0",
+  "corpus": {
+    "corpus_dirs": [
+      "data\\corpus_pdfs",
+      "data\\domain_corpus_pdfs"
+    ],
+    "documents": 9,
+    "document_names": [
+      "3M_2018_10K",
+      "3M_2022_10K",
+      "ACTIVISIONBLIZZARD_2019_10K",
+      "ADOBE_2022_10K",
+      "AMD_2022_10K",
+      "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "CDC_MMWR_72_42",
+      "NIST_AI_RMF_1_0",
+      "SCOTUS_303_Creative_v_Elenis"
+    ],
+    "chunks": 5055,
+    "table_chunks": 829
+  },
+  "case_count": 17,
+  "domains": [
+    "academic_ml",
+    "ai_governance",
+    "finance",
+    "legal",
+    "public_health"
+  ],
+  "evidence_kinds": [
+    "page"
+  ],
+  "top_k": 5,
+  "bootstrap_samples": 2000,
+  "seed": 42,
+  "summary": {
+    "dense_only": {
+      "precision_at_1": 0.4118,
+      "recall_at_3": 0.5882,
+      "mrr": 0.5431,
+      "ndcg_at_3": 0.5154,
+      "avg_latency_ms": 35.42,
+      "p95_latency_ms": 38.79,
+      "queries_evaluated": 17,
+      "confidence_intervals": {
+        "precision_at_1": [
+          0.1765,
+          0.6471
+        ],
+        "recall_at_3": [
+          0.3529,
+          0.8235
+        ],
+        "mrr": [
+          0.351,
+          0.7324
+        ],
+        "ndcg_at_3": [
+          0.2941,
+          0.7291
+        ]
+      }
+    },
+    "hybrid_rrf": {
+      "precision_at_1": 0.4118,
+      "recall_at_3": 0.5294,
+      "mrr": 0.5284,
+      "ndcg_at_3": 0.4783,
+      "avg_latency_ms": 57.16,
+      "p95_latency_ms": 80.55,
+      "queries_evaluated": 17,
+      "confidence_intervals": {
+        "precision_at_1": [
+          0.1765,
+          0.6471
+        ],
+        "recall_at_3": [
+          0.2941,
+          0.7647
+        ],
+        "mrr": [
+          0.348,
+          0.7196
+        ],
+        "ndcg_at_3": [
+          0.2582,
+          0.6996
+        ]
+      }
+    },
+    "hybrid_plus_reranker": {
+      "precision_at_1": 0.4118,
+      "recall_at_3": 0.5294,
+      "mrr": 0.5284,
+      "ndcg_at_3": 0.4783,
+      "avg_latency_ms": 57.86,
+      "p95_latency_ms": 79.46,
+      "queries_evaluated": 17,
+      "confidence_intervals": {
+        "precision_at_1": [
+          0.1765,
+          0.6471
+        ],
+        "recall_at_3": [
+          0.2941,
+          0.7647
+        ],
+        "mrr": [
+          0.3392,
+          0.7206
+        ],
+        "ndcg_at_3": [
+          0.2647,
+          0.6996
+        ]
+      }
+    }
+  },
+  "per_domain": {
+    "academic_ml": {
+      "dense_only": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.6667,
+        "mrr": 0.5,
+        "ndcg_at_3": 0.5436,
+        "avg_latency_ms": 35.6,
+        "p95_latency_ms": 38.02,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_rrf": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.6667,
+        "mrr": 0.4444,
+        "ndcg_at_3": 0.5,
+        "avg_latency_ms": 49.34,
+        "p95_latency_ms": 57.7,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_plus_reranker": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.6667,
+        "mrr": 0.4444,
+        "ndcg_at_3": 0.5,
+        "avg_latency_ms": 50.59,
+        "p95_latency_ms": 54.33,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      }
+    },
+    "ai_governance": {
+      "dense_only": {
+        "precision_at_1": 0.6667,
+        "recall_at_3": 1.0,
+        "mrr": 0.8333,
+        "ndcg_at_3": 0.877,
+        "avg_latency_ms": 34.77,
+        "p95_latency_ms": 34.99,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            1.0,
+            1.0
+          ],
+          "mrr": [
+            0.5,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.6309,
+            1.0
+          ]
+        }
+      },
+      "hybrid_rrf": {
+        "precision_at_1": 0.6667,
+        "recall_at_3": 1.0,
+        "mrr": 0.8333,
+        "ndcg_at_3": 0.877,
+        "avg_latency_ms": 48.0,
+        "p95_latency_ms": 50.96,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            1.0,
+            1.0
+          ],
+          "mrr": [
+            0.5,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.6309,
+            1.0
+          ]
+        }
+      },
+      "hybrid_plus_reranker": {
+        "precision_at_1": 0.6667,
+        "recall_at_3": 1.0,
+        "mrr": 0.8333,
+        "ndcg_at_3": 0.877,
+        "avg_latency_ms": 49.52,
+        "p95_latency_ms": 51.37,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            1.0,
+            1.0
+          ],
+          "mrr": [
+            0.5,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.6309,
+            1.0
+          ]
+        }
+      }
+    },
+    "finance": {
+      "dense_only": {
+        "precision_at_1": 0.4,
+        "recall_at_3": 0.4,
+        "mrr": 0.5,
+        "ndcg_at_3": 0.4,
+        "avg_latency_ms": 37.24,
+        "p95_latency_ms": 39.77,
+        "queries_evaluated": 5,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            0.8
+          ],
+          "recall_at_3": [
+            0.0,
+            0.8
+          ],
+          "mrr": [
+            0.15,
+            0.85
+          ],
+          "ndcg_at_3": [
+            0.0,
+            0.8
+          ]
+        }
+      },
+      "hybrid_rrf": {
+        "precision_at_1": 0.4,
+        "recall_at_3": 0.4,
+        "mrr": 0.5,
+        "ndcg_at_3": 0.4,
+        "avg_latency_ms": 69.81,
+        "p95_latency_ms": 93.85,
+        "queries_evaluated": 5,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            0.8
+          ],
+          "recall_at_3": [
+            0.0,
+            0.8
+          ],
+          "mrr": [
+            0.15,
+            0.85
+          ],
+          "ndcg_at_3": [
+            0.0,
+            0.8
+          ]
+        }
+      },
+      "hybrid_plus_reranker": {
+        "precision_at_1": 0.4,
+        "recall_at_3": 0.4,
+        "mrr": 0.5,
+        "ndcg_at_3": 0.4,
+        "avg_latency_ms": 69.47,
+        "p95_latency_ms": 89.95,
+        "queries_evaluated": 5,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            0.8
+          ],
+          "recall_at_3": [
+            0.0,
+            0.8
+          ],
+          "mrr": [
+            0.15,
+            0.85
+          ],
+          "ndcg_at_3": [
+            0.0,
+            0.8
+          ]
+        }
+      }
+    },
+    "legal": {
+      "dense_only": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.3333,
+        "mrr": 0.4,
+        "ndcg_at_3": 0.3333,
+        "avg_latency_ms": 33.33,
+        "p95_latency_ms": 34.84,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_rrf": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.3333,
+        "mrr": 0.4,
+        "ndcg_at_3": 0.3333,
+        "avg_latency_ms": 49.58,
+        "p95_latency_ms": 50.9,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_plus_reranker": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.3333,
+        "mrr": 0.4,
+        "ndcg_at_3": 0.3333,
+        "avg_latency_ms": 51.25,
+        "p95_latency_ms": 53.56,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.0,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      }
+    },
+    "public_health": {
+      "dense_only": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.6667,
+        "mrr": 0.5111,
+        "ndcg_at_3": 0.5,
+        "avg_latency_ms": 34.96,
+        "p95_latency_ms": 36.39,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.2,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_rrf": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.3333,
+        "mrr": 0.4833,
+        "ndcg_at_3": 0.3333,
+        "avg_latency_ms": 60.64,
+        "p95_latency_ms": 67.18,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.2,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      },
+      "hybrid_plus_reranker": {
+        "precision_at_1": 0.3333,
+        "recall_at_3": 0.3333,
+        "mrr": 0.4833,
+        "ndcg_at_3": 0.3333,
+        "avg_latency_ms": 60.75,
+        "p95_latency_ms": 66.93,
+        "queries_evaluated": 3,
+        "confidence_intervals": {
+          "precision_at_1": [
+            0.0,
+            1.0
+          ],
+          "recall_at_3": [
+            0.0,
+            1.0
+          ],
+          "mrr": [
+            0.2,
+            1.0
+          ],
+          "ndcg_at_3": [
+            0.0,
+            1.0
+          ]
+        }
+      }
+    }
+  },
+  "pairwise": {
+    "hybrid_rrf_vs_dense_only": {
+      "precision_at_1": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      },
+      "recall_at_3": {
+        "delta": -0.0588,
+        "ci_low": -0.1765,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 1,
+        "ties": 16
+      },
+      "mrr": {
+        "delta": -0.0147,
+        "ci_low": -0.0392,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 2,
+        "ties": 15
+      },
+      "ndcg_at_3": {
+        "delta": -0.0371,
+        "ci_low": -0.1036,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 2,
+        "ties": 15
+      }
+    },
+    "hybrid_plus_reranker_vs_hybrid_rrf": {
+      "precision_at_1": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      },
+      "recall_at_3": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      },
+      "mrr": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      },
+      "ndcg_at_3": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      }
+    },
+    "hybrid_plus_reranker_vs_dense_only": {
+      "precision_at_1": {
+        "delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 17
+      },
+      "recall_at_3": {
+        "delta": -0.0588,
+        "ci_low": -0.1765,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 1,
+        "ties": 16
+      },
+      "mrr": {
+        "delta": -0.0147,
+        "ci_low": -0.0392,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 2,
+        "ties": 15
+      },
+      "ndcg_at_3": {
+        "delta": -0.0371,
+        "ci_low": -0.1036,
+        "ci_high": 0.0,
+        "p_value": 1.0,
+        "wins": 0,
+        "losses": 2,
+        "ties": 15
+      }
+    }
+  },
+  "per_query": [
+    {
+      "case_id": "finance_3m_2018_capex",
+      "domain": "finance",
+      "doc_name": "3M_2018_10K",
+      "evidence_pages": [
+        60
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response to the question by relying on the details shown in the cash flow statement.",
+      "gold_answer": "$1577.00",
+      "source": "FinanceBench financebench_id_03029",
+      "ranks": {
+        "dense_only": 4,
+        "hybrid_rrf": 4,
+        "hybrid_plus_reranker": 4
+      },
+      "latencies_ms": {
+        "dense_only": 38.467,
+        "hybrid_rrf": 76.113,
+        "hybrid_plus_reranker": 75.958
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "09664eb45bca",
+            "doc_name": "3M_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.772052,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7275ae514833",
+            "doc_name": "3M_2018_10K",
+            "page_number": 49,
+            "contains_table": true,
+            "dense_score": 0.768509,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d13d29927bd7",
+            "doc_name": "3M_2018_10K",
+            "page_number": 44,
+            "contains_table": false,
+            "dense_score": 0.765732,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "2f9a0f48ee82",
+            "doc_name": "3M_2018_10K",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.763414,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7f21c9264924",
+            "doc_name": "3M_2018_10K",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.758323,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "09664eb45bca",
+            "doc_name": "3M_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.772052,
+            "bm25_score": 24.122775,
+            "rrf_score": 0.016123,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7275ae514833",
+            "doc_name": "3M_2018_10K",
+            "page_number": 49,
+            "contains_table": true,
+            "dense_score": 0.768509,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015623,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d13d29927bd7",
+            "doc_name": "3M_2018_10K",
+            "page_number": 44,
+            "contains_table": false,
+            "dense_score": 0.765732,
+            "bm25_score": 23.974313,
+            "rrf_score": 0.015617,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "2f9a0f48ee82",
+            "doc_name": "3M_2018_10K",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.763414,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "bab200228127",
+            "doc_name": "3M_2022_10K",
+            "page_number": 41,
+            "contains_table": true,
+            "dense_score": 0.751741,
+            "bm25_score": 26.589589,
+            "rrf_score": 0.014782,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "09664eb45bca",
+            "doc_name": "3M_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.772052,
+            "bm25_score": 24.122775,
+            "rrf_score": 0.016123,
+            "rerank_score": 0.016123
+          },
+          {
+            "chunk_id": "7275ae514833",
+            "doc_name": "3M_2018_10K",
+            "page_number": 49,
+            "contains_table": true,
+            "dense_score": 0.768509,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015623,
+            "rerank_score": 0.015623
+          },
+          {
+            "chunk_id": "d13d29927bd7",
+            "doc_name": "3M_2018_10K",
+            "page_number": 44,
+            "contains_table": false,
+            "dense_score": 0.765732,
+            "bm25_score": 23.974313,
+            "rrf_score": 0.015617,
+            "rerank_score": 0.015617
+          },
+          {
+            "chunk_id": "2f9a0f48ee82",
+            "doc_name": "3M_2018_10K",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.763414,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.014844
+          },
+          {
+            "chunk_id": "bab200228127",
+            "doc_name": "3M_2022_10K",
+            "page_number": 41,
+            "contains_table": true,
+            "dense_score": 0.751741,
+            "bm25_score": 26.589589,
+            "rrf_score": 0.014782,
+            "rerank_score": 0.014782
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "finance_3m_2022_operating_margin",
+      "domain": "finance",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [
+        27
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What drove operating margin change as of FY2022 for 3M?",
+      "gold_answer": "Operating margin decreased by 1.7%, driven by lower gross margin and one-off charges including Combat Arms Earplugs litigation, PFAS exit impairment, Russia exit costs, and divestiture-related restructuring.",
+      "source": "FinanceBench financebench_id_01226",
+      "ranks": {
+        "dense_only": null,
+        "hybrid_rrf": null,
+        "hybrid_plus_reranker": null
+      },
+      "latencies_ms": {
+        "dense_only": 40.096,
+        "hybrid_rrf": 57.729,
+        "hybrid_plus_reranker": 56.208
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "27a256ed6e77",
+            "doc_name": "3M_2018_10K",
+            "page_number": 28,
+            "contains_table": false,
+            "dense_score": 0.766452,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "37d8c71bd3ab",
+            "doc_name": "3M_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.765865,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "60cd56c920d2",
+            "doc_name": "3M_2018_10K",
+            "page_number": 30,
+            "contains_table": false,
+            "dense_score": 0.759124,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "46b2e0ca3f34",
+            "doc_name": "3M_2018_10K",
+            "page_number": 29,
+            "contains_table": false,
+            "dense_score": 0.757473,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "83907883c9cc",
+            "doc_name": "3M_2022_10K",
+            "page_number": 89,
+            "contains_table": false,
+            "dense_score": 0.754617,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "37d8c71bd3ab",
+            "doc_name": "3M_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.765865,
+            "bm25_score": 17.543821,
+            "rrf_score": 0.016027,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "27a256ed6e77",
+            "doc_name": "3M_2018_10K",
+            "page_number": 28,
+            "contains_table": false,
+            "dense_score": 0.766452,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "60cd56c920d2",
+            "doc_name": "3M_2018_10K",
+            "page_number": 30,
+            "contains_table": false,
+            "dense_score": 0.759124,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "46b2e0ca3f34",
+            "doc_name": "3M_2018_10K",
+            "page_number": 29,
+            "contains_table": false,
+            "dense_score": 0.757473,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "96a544deed43",
+            "doc_name": "3M_2022_10K",
+            "page_number": 20,
+            "contains_table": false,
+            "dense_score": 0.74906,
+            "bm25_score": 19.084268,
+            "rrf_score": 0.014752,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "37d8c71bd3ab",
+            "doc_name": "3M_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.765865,
+            "bm25_score": 17.543821,
+            "rrf_score": 0.016027,
+            "rerank_score": 0.016027
+          },
+          {
+            "chunk_id": "27a256ed6e77",
+            "doc_name": "3M_2018_10K",
+            "page_number": 28,
+            "contains_table": false,
+            "dense_score": 0.766452,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": 0.015574
+          },
+          {
+            "chunk_id": "60cd56c920d2",
+            "doc_name": "3M_2018_10K",
+            "page_number": 30,
+            "contains_table": false,
+            "dense_score": 0.759124,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": 0.015079
+          },
+          {
+            "chunk_id": "46b2e0ca3f34",
+            "doc_name": "3M_2018_10K",
+            "page_number": 29,
+            "contains_table": false,
+            "dense_score": 0.757473,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.014844
+          },
+          {
+            "chunk_id": "96a544deed43",
+            "doc_name": "3M_2022_10K",
+            "page_number": 20,
+            "contains_table": false,
+            "dense_score": 0.74906,
+            "bm25_score": 19.084268,
+            "rrf_score": 0.014752,
+            "rerank_score": 0.014752
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "finance_activision_fixed_asset_turnover",
+      "domain": "finance",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [
+        69,
+        70
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What is the FY2019 fixed asset turnover ratio for Activision Blizzard? Fixed asset turnover ratio is defined as FY2019 revenue divided by average PP&E between FY2018 and FY2019.",
+      "gold_answer": "24.26",
+      "source": "FinanceBench financebench_id_02987",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 38.305,
+        "hybrid_rrf": 98.286,
+        "hybrid_plus_reranker": 93.451
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "0bc325d40ca2",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 69,
+            "contains_table": false,
+            "dense_score": 0.776895,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "cdd3bf0db6c4",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 92,
+            "contains_table": false,
+            "dense_score": 0.774906,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6125971b9f2b",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 102,
+            "contains_table": false,
+            "dense_score": 0.774539,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9227124a8ce8",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 73,
+            "contains_table": false,
+            "dense_score": 0.773536,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4a2f406f746f",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 52,
+            "contains_table": false,
+            "dense_score": 0.764241,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "0bc325d40ca2",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 69,
+            "contains_table": false,
+            "dense_score": 0.776895,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "cdd3bf0db6c4",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 92,
+            "contains_table": false,
+            "dense_score": 0.774906,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6125971b9f2b",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 102,
+            "contains_table": false,
+            "dense_score": 0.774539,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9227124a8ce8",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 73,
+            "contains_table": false,
+            "dense_score": 0.773536,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4a2f406f746f",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 52,
+            "contains_table": false,
+            "dense_score": 0.764241,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "0bc325d40ca2",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 69,
+            "contains_table": false,
+            "dense_score": 0.776895,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": 0.015574
+          },
+          {
+            "chunk_id": "cdd3bf0db6c4",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 92,
+            "contains_table": false,
+            "dense_score": 0.774906,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": 0.015323
+          },
+          {
+            "chunk_id": "6125971b9f2b",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 102,
+            "contains_table": false,
+            "dense_score": 0.774539,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": 0.015079
+          },
+          {
+            "chunk_id": "9227124a8ce8",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 73,
+            "contains_table": false,
+            "dense_score": 0.773536,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.014844
+          },
+          {
+            "chunk_id": "4a2f406f746f",
+            "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+            "page_number": 52,
+            "contains_table": false,
+            "dense_score": 0.764241,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": 0.014615
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "finance_adobe_operating_margin",
+      "domain": "finance",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [
+        54
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Does Adobe have an improving operating margin profile as of FY2022?",
+      "gold_answer": "No. Operating margin declined from 36.8% in FY2021 to 34.6% in FY2022, a 2.2% drop.",
+      "source": "FinanceBench financebench_id_00438",
+      "ranks": {
+        "dense_only": 4,
+        "hybrid_rrf": 4,
+        "hybrid_plus_reranker": 4
+      },
+      "latencies_ms": {
+        "dense_only": 33.882,
+        "hybrid_rrf": 56.263,
+        "hybrid_plus_reranker": 59.783
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "76a4a15c48b3",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 65,
+            "contains_table": false,
+            "dense_score": 0.735358,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "bb1386126305",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.723,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "06baf12cc9c1",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 43,
+            "contains_table": false,
+            "dense_score": 0.720506,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "f13a24506bf5",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 54,
+            "contains_table": false,
+            "dense_score": 0.720417,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e1782e754ade",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.719652,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "76a4a15c48b3",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 65,
+            "contains_table": false,
+            "dense_score": 0.735358,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "bb1386126305",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.723,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "06baf12cc9c1",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 43,
+            "contains_table": false,
+            "dense_score": 0.720506,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "f13a24506bf5",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 54,
+            "contains_table": false,
+            "dense_score": 0.720417,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e1782e754ade",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.719652,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "76a4a15c48b3",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 65,
+            "contains_table": false,
+            "dense_score": 0.735358,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015574,
+            "rerank_score": 0.015574
+          },
+          {
+            "chunk_id": "bb1386126305",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 39,
+            "contains_table": false,
+            "dense_score": 0.723,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": 0.015323
+          },
+          {
+            "chunk_id": "06baf12cc9c1",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 43,
+            "contains_table": false,
+            "dense_score": 0.720506,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015079,
+            "rerank_score": 0.015079
+          },
+          {
+            "chunk_id": "f13a24506bf5",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 54,
+            "contains_table": false,
+            "dense_score": 0.720417,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.014844
+          },
+          {
+            "chunk_id": "e1782e754ade",
+            "doc_name": "ADOBE_2022_10K",
+            "page_number": 53,
+            "contains_table": false,
+            "dense_score": 0.719652,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": 0.014615
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "finance_amd_customer_concentration",
+      "domain": "finance",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [
+        12
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Did AMD report customer concentration in FY22?",
+      "gold_answer": "Yes, one customer accounted for 16% of consolidated net revenue.",
+      "source": "FinanceBench financebench_id_00757",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 35.457,
+        "hybrid_rrf": 60.668,
+        "hybrid_plus_reranker": 61.957
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "97d58560857f",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.748336,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9ffb659168c9",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 112,
+            "contains_table": false,
+            "dense_score": 0.744182,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1ca8df7de046",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 70,
+            "contains_table": false,
+            "dense_score": 0.7229,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9d69a585eacb",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 67,
+            "contains_table": false,
+            "dense_score": 0.721948,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "607965559a78",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 20,
+            "contains_table": false,
+            "dense_score": 0.718446,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "97d58560857f",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.748336,
+            "bm25_score": 0.0,
+            "rrf_score": 0.021025,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9ffb659168c9",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 112,
+            "contains_table": false,
+            "dense_score": 0.744182,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020685,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1ca8df7de046",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 70,
+            "contains_table": false,
+            "dense_score": 0.7229,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020357,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "9d69a585eacb",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 67,
+            "contains_table": false,
+            "dense_score": 0.721948,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020039,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "607965559a78",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 20,
+            "contains_table": false,
+            "dense_score": 0.718446,
+            "bm25_score": 0.0,
+            "rrf_score": 0.019731,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "97d58560857f",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.748336,
+            "bm25_score": 0.0,
+            "rrf_score": 0.021025,
+            "rerank_score": 0.021025
+          },
+          {
+            "chunk_id": "9ffb659168c9",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 112,
+            "contains_table": false,
+            "dense_score": 0.744182,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020685,
+            "rerank_score": 0.020685
+          },
+          {
+            "chunk_id": "1ca8df7de046",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 70,
+            "contains_table": false,
+            "dense_score": 0.7229,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020357,
+            "rerank_score": 0.020357
+          },
+          {
+            "chunk_id": "9d69a585eacb",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 67,
+            "contains_table": false,
+            "dense_score": 0.721948,
+            "bm25_score": 0.0,
+            "rrf_score": 0.020039,
+            "rerank_score": 0.020039
+          },
+          {
+            "chunk_id": "607965559a78",
+            "doc_name": "AMD_2022_10K",
+            "page_number": 20,
+            "contains_table": false,
+            "dense_score": 0.718446,
+            "bm25_score": 0.0,
+            "rrf_score": 0.019731,
+            "rerank_score": 0.019731
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "public_health_hepatitis_deaths",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        3
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "How many hepatitis A outbreak-related deaths were analyzed across 27 states during August 1, 2016 through October 31, 2022?",
+      "gold_answer": "315 deaths.",
+      "source": "CDC MMWR 2023;72(42)",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 35.54,
+        "hybrid_rrf": 67.724,
+        "hybrid_plus_reranker": 67.311
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "789d492972da",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.888793,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.858618,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.857229,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d277ea4ce60b",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.849992,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "50e431b414ae",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.840041,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "789d492972da",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.888793,
+            "bm25_score": 49.619658,
+            "rrf_score": 0.016331,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.857229,
+            "bm25_score": 46.041222,
+            "rrf_score": 0.016126,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.858618,
+            "bm25_score": 49.729356,
+            "rrf_score": 0.016092,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d277ea4ce60b",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.849992,
+            "bm25_score": 45.493821,
+            "rrf_score": 0.015579,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "50e431b414ae",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.840041,
+            "bm25_score": 30.529494,
+            "rrf_score": 0.015265,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "789d492972da",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.888793,
+            "bm25_score": 49.619658,
+            "rrf_score": 0.016331,
+            "rerank_score": 0.016331
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.857229,
+            "bm25_score": 46.041222,
+            "rrf_score": 0.016126,
+            "rerank_score": 0.016126
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.858618,
+            "bm25_score": 49.729356,
+            "rrf_score": 0.016092,
+            "rerank_score": 0.016092
+          },
+          {
+            "chunk_id": "d277ea4ce60b",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.849992,
+            "bm25_score": 45.493821,
+            "rrf_score": 0.015579,
+            "rerank_score": 0.015579
+          },
+          {
+            "chunk_id": "50e431b414ae",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.840041,
+            "bm25_score": 30.529494,
+            "rrf_score": 0.015265,
+            "rerank_score": 0.015265
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "public_health_male_percentage",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        4
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Among the reported hepatitis A outbreak-related deaths, what percentage were male?",
+      "gold_answer": "73.0%.",
+      "source": "CDC MMWR 2023;72(42), Table 1",
+      "ranks": {
+        "dense_only": 5,
+        "hybrid_rrf": 5,
+        "hybrid_plus_reranker": 5
+      },
+      "latencies_ms": {
+        "dense_only": 32.842,
+        "hybrid_rrf": 51.861,
+        "hybrid_plus_reranker": 51.405
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.873761,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.856303,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.838239,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4b3aaebbb681",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.835579,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6a5facccf62e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.830685,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.873761,
+            "bm25_score": 39.68605,
+            "rrf_score": 0.01668,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.856303,
+            "bm25_score": 34.502119,
+            "rrf_score": 0.016104,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.838239,
+            "bm25_score": 39.941367,
+            "rrf_score": 0.015899,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4b3aaebbb681",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.835579,
+            "bm25_score": 38.272801,
+            "rrf_score": 0.015637,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6a5facccf62e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.830685,
+            "bm25_score": 22.168765,
+            "rrf_score": 0.015573,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.873761,
+            "bm25_score": 39.68605,
+            "rrf_score": 0.01668,
+            "rerank_score": 0.01668
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.856303,
+            "bm25_score": 34.502119,
+            "rrf_score": 0.016104,
+            "rerank_score": 0.016104
+          },
+          {
+            "chunk_id": "7ae8b3e32d97",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.838239,
+            "bm25_score": 39.941367,
+            "rrf_score": 0.015899,
+            "rerank_score": 0.015899
+          },
+          {
+            "chunk_id": "4b3aaebbb681",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.835579,
+            "bm25_score": 38.272801,
+            "rrf_score": 0.015637,
+            "rerank_score": 0.015637
+          },
+          {
+            "chunk_id": "6a5facccf62e",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.830685,
+            "bm25_score": 22.168765,
+            "rrf_score": 0.015573,
+            "rerank_score": 0.015573
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "public_health_death_certificate_not_listed",
+      "domain": "public_health",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        5
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Among decedents with available death certificates, what percentage had hepatitis A not listed on the death certificate?",
+      "gold_answer": "39.7%.",
+      "source": "CDC MMWR 2023;72(42), Table 2",
+      "ranks": {
+        "dense_only": 3,
+        "hybrid_rrf": 4,
+        "hybrid_plus_reranker": 4
+      },
+      "latencies_ms": {
+        "dense_only": 36.485,
+        "hybrid_rrf": 62.33,
+        "hybrid_plus_reranker": 63.527
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "1c5d503a6cd1",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.868468,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.858756,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1f7ed7fdf6b6",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.850817,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.836435,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "56f02af73e0a",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.832439,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "1c5d503a6cd1",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.868468,
+            "bm25_score": 69.216925,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.858756,
+            "bm25_score": 55.725876,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.836435,
+            "bm25_score": 46.288938,
+            "rrf_score": 0.01589,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1f7ed7fdf6b6",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.850817,
+            "bm25_score": 51.868689,
+            "rrf_score": 0.015849,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "56f02af73e0a",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.832439,
+            "bm25_score": 50.939719,
+            "rrf_score": 0.015673,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "1c5d503a6cd1",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.868468,
+            "bm25_score": 69.216925,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "adfdf5177939",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.858756,
+            "bm25_score": 55.725876,
+            "rrf_score": 0.016129,
+            "rerank_score": 0.016129
+          },
+          {
+            "chunk_id": "fb885b47c155",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 2,
+            "contains_table": true,
+            "dense_score": 0.836435,
+            "bm25_score": 46.288938,
+            "rrf_score": 0.01589,
+            "rerank_score": 0.01589
+          },
+          {
+            "chunk_id": "1f7ed7fdf6b6",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.850817,
+            "bm25_score": 51.868689,
+            "rrf_score": 0.015849,
+            "rerank_score": 0.015849
+          },
+          {
+            "chunk_id": "56f02af73e0a",
+            "doc_name": "CDC_MMWR_72_42",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.832439,
+            "bm25_score": 50.939719,
+            "rrf_score": 0.015673,
+            "rerank_score": 0.015673
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "nist_core_functions",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        8
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Which four functions make up the AI RMF Core?",
+      "gold_answer": "GOVERN, MAP, MEASURE, and MANAGE.",
+      "source": "NIST AI 100-1",
+      "ranks": {
+        "dense_only": 2,
+        "hybrid_rrf": 2,
+        "hybrid_plus_reranker": 2
+      },
+      "latencies_ms": {
+        "dense_only": 34.538,
+        "hybrid_rrf": 47.671,
+        "hybrid_plus_reranker": 48.627
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "a08602c5e458",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.86169,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "02a6f714b1e9",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.80916,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "52595bf05b95",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.799801,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6ff3a95a5aca",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.773878,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "a5d6e51f3c71",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 46,
+            "contains_table": false,
+            "dense_score": 0.773444,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "a08602c5e458",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.86169,
+            "bm25_score": 34.886071,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "02a6f714b1e9",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.80916,
+            "bm25_score": 31.015226,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "52595bf05b95",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.799801,
+            "bm25_score": 27.124543,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "6ff3a95a5aca",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.773878,
+            "bm25_score": 20.377811,
+            "rrf_score": 0.015613,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "a5d6e51f3c71",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 46,
+            "contains_table": false,
+            "dense_score": 0.773444,
+            "bm25_score": 16.25303,
+            "rrf_score": 0.015248,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "a08602c5e458",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.86169,
+            "bm25_score": 34.886071,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "02a6f714b1e9",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.80916,
+            "bm25_score": 31.015226,
+            "rrf_score": 0.016129,
+            "rerank_score": 0.016129
+          },
+          {
+            "chunk_id": "52595bf05b95",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 25,
+            "contains_table": false,
+            "dense_score": 0.799801,
+            "bm25_score": 27.124543,
+            "rrf_score": 0.015873,
+            "rerank_score": 0.015873
+          },
+          {
+            "chunk_id": "6ff3a95a5aca",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.773878,
+            "bm25_score": 20.377811,
+            "rrf_score": 0.015613,
+            "rerank_score": 0.015613
+          },
+          {
+            "chunk_id": "a5d6e51f3c71",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 46,
+            "contains_table": false,
+            "dense_score": 0.773444,
+            "bm25_score": 16.25303,
+            "rrf_score": 0.015248,
+            "rerank_score": 0.015248
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "nist_risk_tolerance",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        12
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Does the AI RMF prescribe a specific risk tolerance for organizations?",
+      "gold_answer": "No. The AI RMF does not prescribe risk tolerance; tolerance is organization- and context-specific.",
+      "source": "NIST AI 100-1, section 1.2.2",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 35.015,
+        "hybrid_rrf": 45.013,
+        "hybrid_plus_reranker": 48.274
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "8f7044dc5ca1",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.888051,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "85a5e29d4acc",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.871142,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "5cb4340a9f30",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 14,
+            "contains_table": false,
+            "dense_score": 0.842187,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4e914f03d454",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.821898,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "68ef2a71b6a8",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 47,
+            "contains_table": false,
+            "dense_score": 0.81263,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "8f7044dc5ca1",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.888051,
+            "bm25_score": 41.259867,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "85a5e29d4acc",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.871142,
+            "bm25_score": 33.472877,
+            "rrf_score": 0.016116,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "4e914f03d454",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.821898,
+            "bm25_score": 22.830471,
+            "rrf_score": 0.015868,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "5cb4340a9f30",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 14,
+            "contains_table": false,
+            "dense_score": 0.842187,
+            "bm25_score": 24.159252,
+            "rrf_score": 0.015815,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "5261db6308d4",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.810712,
+            "bm25_score": 21.874222,
+            "rrf_score": 0.015388,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "8f7044dc5ca1",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.888051,
+            "bm25_score": 41.259867,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "85a5e29d4acc",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 12,
+            "contains_table": false,
+            "dense_score": 0.871142,
+            "bm25_score": 33.472877,
+            "rrf_score": 0.016116,
+            "rerank_score": 0.016116
+          },
+          {
+            "chunk_id": "4e914f03d454",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.821898,
+            "bm25_score": 22.830471,
+            "rrf_score": 0.015868,
+            "rerank_score": 0.015868
+          },
+          {
+            "chunk_id": "5cb4340a9f30",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 14,
+            "contains_table": false,
+            "dense_score": 0.842187,
+            "bm25_score": 24.159252,
+            "rrf_score": 0.015815,
+            "rerank_score": 0.015815
+          },
+          {
+            "chunk_id": "5261db6308d4",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": true,
+            "dense_score": 0.810712,
+            "bm25_score": 21.874222,
+            "rrf_score": 0.015388,
+            "rerank_score": 0.015388
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "nist_trustworthy_characteristics",
+      "domain": "ai_governance",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        17
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What characteristics of trustworthy AI systems are listed in the AI RMF?",
+      "gold_answer": "Valid and reliable, safe, secure and resilient, accountable and transparent, explainable and interpretable, privacy-enhanced, and fair with harmful bias managed.",
+      "source": "NIST AI 100-1, section 3",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 34.765,
+        "hybrid_rrf": 51.33,
+        "hybrid_plus_reranker": 51.673
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "502a4d4dbd00",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.874749,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "3c9f46c0b942",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.850484,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d298af1caec3",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.81829,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "470b23f380d0",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.815725,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "cd6260e479cf",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 16,
+            "contains_table": false,
+            "dense_score": 0.809787,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "502a4d4dbd00",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.874749,
+            "bm25_score": 47.361332,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "d298af1caec3",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.81829,
+            "bm25_score": 40.080268,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "470b23f380d0",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.815725,
+            "bm25_score": 37.736318,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "75fd63ab47ed",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.799441,
+            "bm25_score": 36.196324,
+            "rrf_score": 0.01544,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "3c9f46c0b942",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.850484,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "502a4d4dbd00",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.874749,
+            "bm25_score": 47.361332,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "d298af1caec3",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 17,
+            "contains_table": false,
+            "dense_score": 0.81829,
+            "bm25_score": 40.080268,
+            "rrf_score": 0.015873,
+            "rerank_score": 0.015873
+          },
+          {
+            "chunk_id": "470b23f380d0",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.815725,
+            "bm25_score": 37.736318,
+            "rrf_score": 0.015625,
+            "rerank_score": 0.015625
+          },
+          {
+            "chunk_id": "75fd63ab47ed",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.799441,
+            "bm25_score": 36.196324,
+            "rrf_score": 0.01544,
+            "rerank_score": 0.01544
+          },
+          {
+            "chunk_id": "3c9f46c0b942",
+            "doc_name": "NIST_AI_RMF_1_0",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.850484,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": 0.015323
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "scotus_303_creative_holding",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        3
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What did the Supreme Court hold in 303 Creative LLC v. Elenis?",
+      "gold_answer": "The First Amendment prohibits Colorado from forcing a website designer to create expressive designs speaking messages with which the designer disagrees.",
+      "source": "600 U.S. 570 (2023)",
+      "ranks": {
+        "dense_only": null,
+        "hybrid_rrf": null,
+        "hybrid_plus_reranker": null
+      },
+      "latencies_ms": {
+        "dense_only": 31.702,
+        "hybrid_rrf": 50.687,
+        "hybrid_plus_reranker": 53.856
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "ca2e6bf3b712",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 56,
+            "contains_table": false,
+            "dense_score": 0.839081,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "c8691d1613b7",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 22,
+            "contains_table": false,
+            "dense_score": 0.837096,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "3e6b24e4328d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 58,
+            "contains_table": false,
+            "dense_score": 0.836721,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "18821aac35c2",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.836308,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1a17061ce574",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.834962,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "ca2e6bf3b712",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 56,
+            "contains_table": false,
+            "dense_score": 0.839081,
+            "bm25_score": 30.885064,
+            "rrf_score": 0.016199,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "c8691d1613b7",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 22,
+            "contains_table": false,
+            "dense_score": 0.837096,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.016092,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "3e6b24e4328d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 58,
+            "contains_table": false,
+            "dense_score": 0.836721,
+            "bm25_score": 30.885064,
+            "rrf_score": 0.015668,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "18821aac35c2",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.836308,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.015558,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "1a17061ce574",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.834962,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.015351,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "ca2e6bf3b712",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 56,
+            "contains_table": false,
+            "dense_score": 0.839081,
+            "bm25_score": 30.885064,
+            "rrf_score": 0.016199,
+            "rerank_score": 0.016199
+          },
+          {
+            "chunk_id": "c8691d1613b7",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 22,
+            "contains_table": false,
+            "dense_score": 0.837096,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.016092,
+            "rerank_score": 0.016092
+          },
+          {
+            "chunk_id": "3e6b24e4328d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 58,
+            "contains_table": false,
+            "dense_score": 0.836721,
+            "bm25_score": 30.885064,
+            "rrf_score": 0.015668,
+            "rerank_score": 0.015668
+          },
+          {
+            "chunk_id": "18821aac35c2",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 26,
+            "contains_table": false,
+            "dense_score": 0.836308,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.015558,
+            "rerank_score": 0.015558
+          },
+          {
+            "chunk_id": "1a17061ce574",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.834962,
+            "bm25_score": 36.083618,
+            "rrf_score": 0.015351,
+            "rerank_score": 0.015351
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "scotus_cada_maximum_fine",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        13
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "Under CADA, what is the maximum fine a court can order per violation?",
+      "gold_answer": "Up to $500 per violation.",
+      "source": "600 U.S. 570 (2023)",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 33.267,
+        "hybrid_rrf": 50.929,
+        "hybrid_plus_reranker": 49.024
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "9a5b4bb336f3",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": true,
+            "dense_score": 0.76909,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "433ff92cd417",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": false,
+            "dense_score": 0.681353,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.668454,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e9bd28d73da5",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 50,
+            "contains_table": false,
+            "dense_score": 0.667834,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "ac0f1baf580f",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.667523,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "9a5b4bb336f3",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": true,
+            "dense_score": 0.76909,
+            "bm25_score": 9.676427,
+            "rrf_score": 0.016491,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.668454,
+            "bm25_score": 10.478622,
+            "rrf_score": 0.015764,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "433ff92cd417",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": false,
+            "dense_score": 0.681353,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e9bd28d73da5",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 50,
+            "contains_table": false,
+            "dense_score": 0.667834,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "ac0f1baf580f",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.667523,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "9a5b4bb336f3",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": true,
+            "dense_score": 0.76909,
+            "bm25_score": 9.676427,
+            "rrf_score": 0.016491,
+            "rerank_score": 0.016491
+          },
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.668454,
+            "bm25_score": 10.478622,
+            "rrf_score": 0.015764,
+            "rerank_score": 0.015764
+          },
+          {
+            "chunk_id": "433ff92cd417",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 13,
+            "contains_table": false,
+            "dense_score": 0.681353,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": 0.015323
+          },
+          {
+            "chunk_id": "e9bd28d73da5",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 50,
+            "contains_table": false,
+            "dense_score": 0.667834,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014844,
+            "rerank_score": 0.014844
+          },
+          {
+            "chunk_id": "ac0f1baf580f",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.667523,
+            "bm25_score": 0.0,
+            "rrf_score": 0.014615,
+            "rerank_score": 0.014615
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "scotus_cada_scope",
+      "domain": "legal",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        2
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What does CADA prohibit public accommodations from denying, and on what protected traits?",
+      "gold_answer": "It prohibits denying the full and equal enjoyment of goods and services based on race, creed, disability, sexual orientation, or other statutorily enumerated traits.",
+      "source": "600 U.S. 570 (2023)",
+      "ranks": {
+        "dense_only": 5,
+        "hybrid_rrf": 5,
+        "hybrid_plus_reranker": 5
+      },
+      "latencies_ms": {
+        "dense_only": 35.017,
+        "hybrid_rrf": 47.132,
+        "hybrid_plus_reranker": 50.866
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.757807,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "60c7b0bb6beb",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.756579,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "da8511f7248c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 38,
+            "contains_table": false,
+            "dense_score": 0.752642,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "968979213f0c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.73707,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "a94fd0b1b40d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.733639,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.757807,
+            "bm25_score": 15.051823,
+            "rrf_score": 0.016331,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "60c7b0bb6beb",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.756579,
+            "bm25_score": 11.969111,
+            "rrf_score": 0.015972,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "da8511f7248c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 38,
+            "contains_table": false,
+            "dense_score": 0.752642,
+            "bm25_score": 17.169816,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "968979213f0c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.73707,
+            "bm25_score": 25.625912,
+            "rrf_score": 0.015663,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "a94fd0b1b40d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.733639,
+            "bm25_score": 19.219939,
+            "rrf_score": 0.015422,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "bade86ef2f77",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 57,
+            "contains_table": false,
+            "dense_score": 0.757807,
+            "bm25_score": 15.051823,
+            "rrf_score": 0.016331,
+            "rerank_score": 0.016331
+          },
+          {
+            "chunk_id": "60c7b0bb6beb",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 60,
+            "contains_table": false,
+            "dense_score": 0.756579,
+            "bm25_score": 11.969111,
+            "rrf_score": 0.015972,
+            "rerank_score": 0.015972
+          },
+          {
+            "chunk_id": "da8511f7248c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 38,
+            "contains_table": false,
+            "dense_score": 0.752642,
+            "bm25_score": 17.169816,
+            "rrf_score": 0.015873,
+            "rerank_score": 0.015873
+          },
+          {
+            "chunk_id": "968979213f0c",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 37,
+            "contains_table": false,
+            "dense_score": 0.73707,
+            "bm25_score": 25.625912,
+            "rrf_score": 0.015663,
+            "rerank_score": 0.015663
+          },
+          {
+            "chunk_id": "a94fd0b1b40d",
+            "doc_name": "SCOTUS_303_Creative_v_Elenis",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.733639,
+            "bm25_score": 19.219939,
+            "rrf_score": 0.015422,
+            "rerank_score": 0.015422
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "academic_ml_llama_parameter_range",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        1
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What parameter range does the LLaMA collection cover?",
+      "gold_answer": "7B to 65B parameters.",
+      "source": "arXiv:2302.13971",
+      "ranks": {
+        "dense_only": null,
+        "hybrid_rrf": null,
+        "hybrid_plus_reranker": null
+      },
+      "latencies_ms": {
+        "dense_only": 32.635,
+        "hybrid_rrf": 42.762,
+        "hybrid_plus_reranker": 44.861
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "4970fbf560b7",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.719054,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "180833803100",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.714601,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.707593,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "2f72b26d2b40",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.70634,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "af6e57ee08c2",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 6,
+            "contains_table": true,
+            "dense_score": 0.702433,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "4970fbf560b7",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.719054,
+            "bm25_score": 7.258326,
+            "rrf_score": 0.016476,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "180833803100",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.714601,
+            "bm25_score": 7.263504,
+            "rrf_score": 0.015932,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.707593,
+            "bm25_score": 7.181285,
+            "rrf_score": 0.015668,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "2f72b26d2b40",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.70634,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015144,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "b4bf1cdc2b16",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.690499,
+            "bm25_score": 10.63792,
+            "rrf_score": 0.014973,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "4970fbf560b7",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.719054,
+            "bm25_score": 7.258326,
+            "rrf_score": 0.016476,
+            "rerank_score": 0.016476
+          },
+          {
+            "chunk_id": "180833803100",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 18,
+            "contains_table": false,
+            "dense_score": 0.714601,
+            "bm25_score": 7.263504,
+            "rrf_score": 0.015932,
+            "rerank_score": 0.015932
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.707593,
+            "bm25_score": 7.181285,
+            "rrf_score": 0.015668,
+            "rerank_score": 0.015668
+          },
+          {
+            "chunk_id": "2f72b26d2b40",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": true,
+            "dense_score": 0.70634,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015144,
+            "rerank_score": 0.015144
+          },
+          {
+            "chunk_id": "b4bf1cdc2b16",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.690499,
+            "bm25_score": 10.63792,
+            "rrf_score": 0.014973,
+            "rerank_score": 0.014973
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "academic_ml_llama_commoncrawl_share",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        2
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What percentage of LLaMA's pre-training data mixture is English CommonCrawl?",
+      "gold_answer": "67%.",
+      "source": "arXiv:2302.13971",
+      "ranks": {
+        "dense_only": 1,
+        "hybrid_rrf": 1,
+        "hybrid_plus_reranker": 1
+      },
+      "latencies_ms": {
+        "dense_only": 38.249,
+        "hybrid_rrf": 58.97,
+        "hybrid_plus_reranker": 54.548
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "345085aaebfc",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.810781,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.779434,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e2ab4093761f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 1,
+            "contains_table": false,
+            "dense_score": 0.755679,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "83e3844c3cb6",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.75284,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "ea4724288827",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.750582,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "345085aaebfc",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.810781,
+            "bm25_score": 47.861636,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e2ab4093761f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 1,
+            "contains_table": false,
+            "dense_score": 0.755679,
+            "bm25_score": 16.039707,
+            "rrf_score": 0.015746,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "83e3844c3cb6",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.75284,
+            "bm25_score": 17.257322,
+            "rrf_score": 0.015548,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "ea4724288827",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.750582,
+            "bm25_score": 20.582417,
+            "rrf_score": 0.015397,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.779434,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "345085aaebfc",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 2,
+            "contains_table": false,
+            "dense_score": 0.810781,
+            "bm25_score": 47.861636,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "e2ab4093761f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 1,
+            "contains_table": false,
+            "dense_score": 0.755679,
+            "bm25_score": 16.039707,
+            "rrf_score": 0.015746,
+            "rerank_score": 0.015746
+          },
+          {
+            "chunk_id": "83e3844c3cb6",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": false,
+            "dense_score": 0.75284,
+            "bm25_score": 17.257322,
+            "rrf_score": 0.015548,
+            "rerank_score": 0.015548
+          },
+          {
+            "chunk_id": "ea4724288827",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 3,
+            "contains_table": false,
+            "dense_score": 0.750582,
+            "bm25_score": 20.582417,
+            "rrf_score": 0.015397,
+            "rerank_score": 0.015397
+          },
+          {
+            "chunk_id": "512f3283f454",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 8,
+            "contains_table": false,
+            "dense_score": 0.779434,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015323,
+            "rerank_score": 0.015323
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "academic_ml_llama_boolq_65b",
+      "domain": "academic_ml",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        4
+      ],
+      "expected_chunk_ids": [],
+      "evidence_kind": "page",
+      "question": "What zero-shot BoolQ accuracy does LLaMA-65B report?",
+      "gold_answer": "85.3.",
+      "source": "arXiv:2302.13971, Table 3",
+      "ranks": {
+        "dense_only": 2,
+        "hybrid_rrf": 3,
+        "hybrid_plus_reranker": 3
+      },
+      "latencies_ms": {
+        "dense_only": 35.91,
+        "hybrid_rrf": 46.302,
+        "hybrid_plus_reranker": 52.369
+      },
+      "retrieved": {
+        "dense_only": [
+          {
+            "chunk_id": "4ff7a1fb0cbe",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.771672,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "21b49e350d2b",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.757875,
+            "bm25_score": 0.0,
+            "rrf_score": 0.016129,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "c1924556ff8f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": true,
+            "dense_score": 0.757296,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015873,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e842042e98b5",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.756663,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015625,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "887bbb2cd620",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.755644,
+            "bm25_score": 0.0,
+            "rrf_score": 0.015385,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_rrf": [
+          {
+            "chunk_id": "4ff7a1fb0cbe",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.771672,
+            "bm25_score": 35.53117,
+            "rrf_score": 0.016393,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "c1924556ff8f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": true,
+            "dense_score": 0.757296,
+            "bm25_score": 18.279621,
+            "rrf_score": 0.01602,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "21b49e350d2b",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.757875,
+            "bm25_score": 20.549698,
+            "rrf_score": 0.015989,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "887bbb2cd620",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.755644,
+            "bm25_score": 26.897611,
+            "rrf_score": 0.015673,
+            "rerank_score": null
+          },
+          {
+            "chunk_id": "e842042e98b5",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.756663,
+            "bm25_score": 14.301464,
+            "rrf_score": 0.015381,
+            "rerank_score": null
+          }
+        ],
+        "hybrid_plus_reranker": [
+          {
+            "chunk_id": "4ff7a1fb0cbe",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": false,
+            "dense_score": 0.771672,
+            "bm25_score": 35.53117,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393
+          },
+          {
+            "chunk_id": "c1924556ff8f",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 7,
+            "contains_table": true,
+            "dense_score": 0.757296,
+            "bm25_score": 18.279621,
+            "rrf_score": 0.01602,
+            "rerank_score": 0.01602
+          },
+          {
+            "chunk_id": "21b49e350d2b",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.757875,
+            "bm25_score": 20.549698,
+            "rrf_score": 0.015989,
+            "rerank_score": 0.015989
+          },
+          {
+            "chunk_id": "887bbb2cd620",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 5,
+            "contains_table": true,
+            "dense_score": 0.755644,
+            "bm25_score": 26.897611,
+            "rrf_score": 0.015673,
+            "rerank_score": 0.015673
+          },
+          {
+            "chunk_id": "e842042e98b5",
+            "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+            "page_number": 4,
+            "contains_table": false,
+            "dense_score": 0.756663,
+            "bm25_score": 14.301464,
+            "rrf_score": 0.015381,
+            "rerank_score": 0.015381
+          }
+        ]
+      }
+    }
+  ]
+}
