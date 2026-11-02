@@ -3,13 +3,13 @@
 import asyncio
 import json
 import logging
-import re
 from typing import Any, AsyncGenerator, Dict, List
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
 from src.config import settings
+from src.domain.citations import parse_citations
 from src.domain.documents import RetrievedDocument
 from src.usecases.synthesis import (
     DOCUMENTS_QUESTION_RE,
@@ -203,14 +203,7 @@ class UnifiedLLMClient:
                 content = data["choices"][0]["message"]["content"]
                 if not isinstance(content, str) or not content.strip():
                     raise ValueError("Remote provider returned an empty answer")
-                cited_pages = {
-                    (match.group(1).strip(), int(match.group(2)))
-                    for match in re.finditer(
-                        r"\[([^,\]]+),\s*(?:page|p)\.?\s*(\d+)\]",
-                        content,
-                        flags=re.IGNORECASE,
-                    )
-                }
+                cited_pages = parse_citations(content)
                 available_pages = {
                     (chunk.doc_name, chunk.page_number) for chunk in chunks
                 }

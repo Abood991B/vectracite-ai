@@ -6,6 +6,7 @@ import logging
 
 import redis
 
+from src.adapters.redis_clients import INDEX_TIMEOUT_SECONDS, build_redis_client
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -14,10 +15,10 @@ INDEX_GENERATION_KEY = "vectracite:index:generation"
 
 
 def _client() -> redis.Redis:
-    return redis.from_url(
+    return build_redis_client(
         settings.REDIS_URL,
-        socket_timeout=1.0,
-        socket_connect_timeout=1.0,
+        timeout=INDEX_TIMEOUT_SECONDS,
+        decode_responses=False,
     )
 
 

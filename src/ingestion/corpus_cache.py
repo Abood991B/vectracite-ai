@@ -127,6 +127,18 @@ def _chunks_from_cache(cache: Dict[str, Any]) -> List[DocumentChunk]:
     return chunks
 
 
+def cache_path_for_corpus(corpus_dir: Path) -> Path:
+    """Return the cache file that belongs to a corpus directory.
+
+    The default corpus uses the configured index path; any other corpus keeps its cache beside the
+    directory itself, so the file can be checked in and reused across runs. This is the single owner
+    of that decision — callers must not build the filename themselves.
+    """
+    if corpus_dir.resolve() == settings.CORPUS_PDF_DIR.resolve():
+        return settings.CORPUS_INDEX_PATH
+    return corpus_dir.parent / f"{corpus_dir.name}_index.json"
+
+
 def load_corpus_chunks(
     corpus_dir: Path | None = None,
     parser: MultimodalFinancialParser | None = None,

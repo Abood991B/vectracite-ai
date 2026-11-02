@@ -7,7 +7,6 @@ response DTO it returns — nothing about FastAPI, Qdrant, Redis, or httpx. A re
 
 from __future__ import annotations
 
-import re
 import time
 from typing import Any, AsyncGenerator, Callable, List
 
@@ -29,18 +28,12 @@ from src.usecases.ports import (
     RetrieverPort,
     SynthesizerPort,
 )
+from src.domain.citations import parse_citations
 
 
 def answer_contributors(answer: str, chunks: List[Any]) -> List[Any]:
     """Keep only evidence pages explicitly cited by the synthesized answer."""
-    cited_pages = {
-        (match.group(1).strip(), int(match.group(2)))
-        for match in re.finditer(
-            r"\[([^,\]]+),\s*(?:page|p)\.?\s*(\d+)\]",
-            answer,
-            flags=re.IGNORECASE,
-        )
-    }
+    cited_pages = parse_citations(answer)
     if not cited_pages:
         return []
     contributors: List[Any] = []

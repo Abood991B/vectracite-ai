@@ -4,15 +4,10 @@ import base64
 import binascii
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from collections import OrderedDict
-import hashlib
 import json
 import logging
-import re
 import threading
-from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
-import pymupdf as fitz
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
@@ -24,6 +19,7 @@ from src.api.security import require_admin_access, require_read_access
 from src.api.ui import WORKBENCH_HTML
 from evaluation.run_ablation_benchmark import load_corpus_chunks_from_pdfs
 from src.adapters.evaluation_runner import build_live_cases, compute_signature, run_suite
+from src.adapters.page_images import InvalidPdf, PageImageRenderer, PageOutOfRange, count_pdf_pages
 from src.adapters.uploads import PdfFileStore
 from src.usecases.documents import commit_document, load_persisted_chunks
 from src.usecases.scenarios import build_scenarios
@@ -107,8 +103,7 @@ logger = logging.getLogger(__name__)
 _mutation_lock = asyncio.Lock()
 _ingestion_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pdf-ingestion")
 _ingestion_slot = threading.BoundedSemaphore(1)
-_PAGE_IMAGE_CACHE: "OrderedDict[str, tuple[str, bytes]]" = OrderedDict()
-_PAGE_IMAGE_CACHE_LIMIT = 128
+page_images = PageImageRenderer()
 
 
 def _cors_origins() -> list[str]:
@@ -199,13 +194,11 @@ def _validate_pdf_limits(raw_bytes: bytes) -> None:
     if len(raw_bytes) > settings.MAX_PDF_BYTES:
         raise HTTPException(status_code=413, detail="PDF size limit exceeded.")
     try:
-        with fitz.open(stream=raw_bytes, filetype="pdf") as document:
-            if document.page_count > settings.MAX_PDF_PAGES:
-                raise HTTPException(status_code=413, detail="PDF page limit exceeded.")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Uploaded content is not a valid PDF.") from exc
+        page_count = count_pdf_pages(raw_bytes)
+    except InvalidPdf as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if page_count > settings.MAX_PDF_PAGES:
+        raise HTTPException(status_code=413, detail="PDF page limit exceeded.")
 
 
 def _load_persisted_chunks(include_defaults: bool | None = None) -> List[Any]:
@@ -275,21 +268,6 @@ def _normalize_scope(doc_name: str | None) -> str | None:
         return normalize_scope(doc_name)
     except InvalidDocumentNameError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-def _persist_pdf(doc_name: str, pdf_bytes: bytes) -> Path:
-    """Atomically persist a user PDF separately from the checked-in default corpus."""
-    return upload_store.write(doc_name, pdf_bytes)
-
-
-def _remove_user_pdf(doc_name: str) -> None:
-    """Remove a user PDF and any legacy custom copy from the corpus directory."""
-    upload_store.delete(doc_name, is_demo=doc_name in demo_document_names())
-
-
-def _find_pdf_path(doc_name: str) -> Path | None:
-    """Find a stored user upload first, then a checked-in demo PDF."""
-    return upload_store.find(_clean_doc_name(doc_name))
 
 
 def _ensure_indexed() -> None:
@@ -478,7 +456,7 @@ async def list_indexed_documents() -> Dict[str, Any]:
 async def document_pdf(doc_name: str) -> FileResponse:
     """Return the original PDF for inline browser preview or download."""
     clean_name = _clean_doc_name(doc_name)
-    pdf_path = _find_pdf_path(clean_name)
+    pdf_path = upload_store.find(clean_name)
     if pdf_path is None:
         raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
     return FileResponse(
@@ -503,81 +481,21 @@ async def document_page_image(
     clean_name = _clean_doc_name(doc_name)
     if page_number < 1:
         raise HTTPException(status_code=400, detail="Page number must be positive.")
-    pdf_path = _find_pdf_path(clean_name)
+    pdf_path = upload_store.find(clean_name)
     if pdf_path is None:
         raise HTTPException(status_code=404, detail=f"Document '{clean_name}' PDF not found.")
 
-    stat = pdf_path.stat()
-    cache_key = (
-        f"{clean_name}:{page_number}:{highlight.strip().casefold()}:"
-        f"{stat.st_mtime_ns}:{stat.st_size}"
-    )
-    cached = _PAGE_IMAGE_CACHE.get(cache_key)
-    if cached is not None:
-        etag, png_bytes = cached
-        if request.headers.get("if-none-match") == etag:
-            return Response(
-                status_code=304,
-                headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
-            )
-        _PAGE_IMAGE_CACHE.move_to_end(cache_key)
-        return Response(
-            content=png_bytes,
-            media_type="image/png",
-            headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
-        )
-
-    document = fitz.open(pdf_path)
     try:
-        if page_number > len(document):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Page {page_number} is outside '{clean_name}' ({len(document)} pages).",
-            )
-        selected_page = document[page_number - 1]
-
-        stopwords = {
-            "about",
-            "according",
-            "and",
-            "compared",
-            "from",
-            "into",
-            "that",
-            "the",
-            "their",
-            "what",
-            "were",
-            "with",
-        }
-        terms = []
-        for term in re.findall(r"[A-Za-z0-9][A-Za-z0-9%$.-]{2,}", highlight):
-            normalized = term.casefold()
-            if normalized not in stopwords and normalized not in terms:
-                terms.append(normalized)
-        highlight_count = 0
-        for term in terms:
-            for rect in selected_page.search_for(term):
-                selected_page.add_highlight_annot(rect).update()
-                highlight_count += 1
-                if highlight_count >= 8:
-                    break
-            if highlight_count >= 8:
-                break
-
-        png_bytes = selected_page.get_pixmap(dpi=150, alpha=False).tobytes("png")
-        etag = '"' + hashlib.sha256(png_bytes).hexdigest()[:32] + '"'
-        _PAGE_IMAGE_CACHE[cache_key] = (etag, png_bytes)
-        _PAGE_IMAGE_CACHE.move_to_end(cache_key)
-        while len(_PAGE_IMAGE_CACHE) > _PAGE_IMAGE_CACHE_LIMIT:
-            _PAGE_IMAGE_CACHE.popitem(last=False)
-        return Response(
-            content=png_bytes,
-            media_type="image/png",
-            headers={"ETag": etag, "Cache-Control": "private, max-age=3600"},
+        rendered = await asyncio.to_thread(
+            page_images.render, pdf_path, clean_name, page_number, highlight
         )
-    finally:
-        document.close()
+    except PageOutOfRange as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    headers = {"ETag": rendered.etag, "Cache-Control": "private, max-age=3600"}
+    if request.headers.get("if-none-match") == rendered.etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=rendered.png, media_type="image/png", headers=headers)
 
 
 @app.post("/documents/clear-demos", dependencies=[Depends(require_admin_access)])
@@ -844,7 +762,7 @@ async def delete_document(doc_name: str) -> Dict[str, Any]:
                 raise HTTPException(
                     status_code=404, detail=f"Document '{clean_name}' not found."
                 )
-            _remove_user_pdf(clean_name)
+            upload_store.delete(clean_name, is_demo=clean_name in demo_document_names())
             semantic_cache.clear()
             await asyncio.to_thread(bump_index_generation)
     return {

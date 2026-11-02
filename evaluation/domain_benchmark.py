@@ -15,7 +15,7 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 import numpy as np
 
 from src.config import settings
-from src.ingestion.corpus_cache import load_corpus_chunks
+from src.ingestion.corpus_cache import cache_path_for_corpus, load_corpus_chunks
 from src.ingestion.pdf_parser import DocumentChunk, MultimodalFinancialParser
 from src.retrieval.hybrid_retriever import HybridRetriever, RetrievedDocument
 from src.retrieval.reranker import CrossEncoderReranker, get_shared_cross_encoder
@@ -180,9 +180,7 @@ def load_domain_benchmark_spec(path: Path | str = DEFAULT_CASES_PATH) -> DomainB
 
 
 def _cache_path_for_corpus(corpus_dir: Path) -> Path:
-    if corpus_dir.resolve() == settings.CORPUS_PDF_DIR.resolve():
-        return settings.CORPUS_INDEX_PATH
-    return corpus_dir.parent / f"{corpus_dir.name}_index.json"
+    return cache_path_for_corpus(corpus_dir)
 
 
 def load_benchmark_chunks(

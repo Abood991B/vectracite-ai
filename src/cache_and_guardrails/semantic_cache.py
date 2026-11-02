@@ -10,6 +10,7 @@ from redis.commands.search.field import TextField, VectorField
 from redis.commands.search.index_definition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 
+from src.adapters.redis_clients import CACHE_TIMEOUT_SECONDS, build_redis_client
 from src.config import settings
 from src.retrieval.financial_numbers import (
     canonical_number_values,
@@ -50,20 +51,14 @@ class SemanticCache:
         self.semantic_hits = 0
 
         try:
-            client = redis.from_url(
-                redis_url,
-                decode_responses=True,
-                socket_connect_timeout=1.5,
-                socket_timeout=1.5,
-            )
+            client = build_redis_client(redis_url, timeout=CACHE_TIMEOUT_SECONDS)
             client.ping()
             self._redis_client = client
             try:
-                vector_client = redis.from_url(
+                vector_client = build_redis_client(
                     redis_url,
+                    timeout=CACHE_TIMEOUT_SECONDS,
                     decode_responses=False,
-                    socket_connect_timeout=1.5,
-                    socket_timeout=1.5,
                 )
                 vector_client.ping()
                 self._redis_vector_client = vector_client
