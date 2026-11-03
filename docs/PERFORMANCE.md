@@ -7,19 +7,19 @@ the 830-page corpus). Numbers are only comparable within the same mode.
 
 ## Baselines & Budgets
 
-Live-HTTP baseline, 2026-11-02, 10 iterations after 2 warmups, real `BAAI/bge-small-en-v1.5` and
+Live-HTTP baseline, 2026-11-04, 10 iterations after 2 warmups, real `BAAI/bge-small-en-v1.5` and
 `bge-reranker-base` on CPU, in-memory Qdrant, Redis absent.
 
 | Metric (p50/p95, throughput, cost) | Baseline (date) | Budget | Gate |
 |---|---|---|---|
-| `/query` p95, cache miss | 175.83 ms (2026-11-02) | ≤ 250 ms | CI budget gate (inproc) + dashboard |
-| `/query` p95, cache hit | 2.34 ms (2026-11-02) | ≤ 25 ms | CI budget gate (inproc) |
-| `/query/stream` time-to-first-byte p95 | 372.93 ms (2026-11-02) | ≤ 500 ms | CI budget gate (inproc) + dashboard |
-| `/ingest/pdf` 5-page p95 | 3173.50 ms (2026-11-02) | ≤ 3500 ms | CI budget gate (inproc) + dashboard |
-| Cold start → first answered request | 660 s before cache fix; **23.3 s after** (2026-11-02) | ≤ 120 s | manual / dashboard (process start is not timed in CI) |
-| `/evaluate/latest` p95 | 33.85 ms (2026-11-02) | ≤ 50 ms | CI budget gate (inproc) |
-| Workbench `GET /` p95 | 3.19 ms (2026-11-02) | ≤ 20 ms | CI budget gate (inproc) |
-| Default `pytest` suite | ~54 min before cache fix; 149.6 s for 97 tests (2026-11-02); **67.3 s for 146 tests** (2026-11-03); **189 passed, 2 skipped in 61.6 s** (2026-11-04) | ≤ 10 min | CI gate |
+| `/query` p95, cache miss | 194.36 ms (2026-11-04) | ≤ 250 ms | CI budget gate (inproc) + dashboard |
+| `/query` p95, cache hit | 2.29 ms (2026-11-04) | ≤ 25 ms | CI budget gate (inproc) |
+| `/query/stream` time-to-first-byte p95 | 206.93 ms (2026-11-04) | ≤ 500 ms | CI budget gate (inproc) + dashboard |
+| `/ingest/pdf` 5-page p95 | 1875.52 ms (2026-11-04) | ≤ 3500 ms | CI budget gate (inproc) + dashboard |
+| Cold start → first answered request | 660 s before cache fix; **20.0 s** (2026-11-04) | ≤ 120 s | manual / dashboard (process start is not timed in CI) |
+| `/evaluate/latest` p95 | 17.38 ms (2026-11-04) | ≤ 50 ms | CI budget gate (inproc) |
+| Workbench `GET /` p95 | 1.76 ms (2026-11-04) | ≤ 20 ms | CI budget gate (inproc) |
+| Default `pytest` suite | ~54 min before cache fix; 149.6 s for 97 tests (2026-11-02); **67.3 s for 146 tests** (2026-11-03); **192 passed, 2 skipped in 62.1 s** (2026-11-04) | ≤ 10 min | CI gate |
 
 In-process baseline, same date, 15 iterations after 3 warmups, lightweight models, fixture corpus.
 Kept because it isolates code cost from model and corpus cost:
@@ -79,7 +79,7 @@ decision is revisited on evidence rather than mood:
 | Retrieval is cheap relative to synthesis | inproc: `retrieve_hybrid` 0.89 ms, `rerank` 0.36 ms vs `/query` 9.96 ms | Query time is dominated by embedding and deterministic synthesis, not fusion | No action | n/a |
 | Query path has no infrastructure-shaped bottleneck | Same split: retrieval is ~13% of query time; cache hits land at 2.3 ms live | The remaining cost is model inference and synthesis, which a cache tier, queue, or replica would not reduce | No infrastructure move; capacity triggers recorded under Load Reality | n/a |
 | Every live query cost ≈2.1 s | Direct Qdrant client: **2042 ms via `localhost`, 8 ms via `127.0.0.1`** | Windows resolves `localhost` to `::1` first; Qdrant binds IPv4, so each search paid a connection fallback | Defaults changed to `127.0.0.1` in `src/config.py` and `.env.example`; pinned by a test | fixed |
-| Load behavior | 30 s at concurrency 4: **10.1 rps, p95 511 ms, 0 errors** uncached; 20 s cached: **122 rps, p95 47.5 ms, 0 errors** | CPU-bound embedding and synthesis under concurrency; the cache absorbs repeated work | Recorded; `scripts/load_test.py` is the tool | measured |
+| Load behavior | 30 s at concurrency 4: **6.6 rps, p95 756 ms, 0 errors** uncached; 20 s cached: **685 rps, p95 5.9 ms, 0 errors** (2026-11-04) | CPU-bound embedding and the cross-encoder under concurrency; the in-memory cache absorbs repeated work | Recorded; `scripts/load_test.py` is the tool | measured |
 
 ## Optimization Ledger
 

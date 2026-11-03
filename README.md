@@ -31,6 +31,8 @@ deterministic; an OpenAI-compatible endpoint is optional.
 > The verified path is CPU-hosted and single-user, with optional multi-replica operation on shared
 > Qdrant and Redis. See [Deployment notes](#deployment-notes) for hardening and multi-tenant guidance.
 
+![The VectraCite-AI workbench answering a capex question: the cited line on page 60, the matched table coordinates, and the highlighted source page](assets/workbench.png)
+
 ## Contents
 
 - [At a glance](#at-a-glance)
@@ -52,10 +54,10 @@ deterministic; an OpenAI-compatible endpoint is optional.
 |---|---|
 | Citation accuracy, frozen confirmation set | **6/6** answers cite the labelled statement page and contain the gold value |
 | Non-finance answer set | **10/12** cited, **10/12** value |
-| Cached query throughput | **122 req/s**, p95 47.5 ms, 0 errors |
-| Cold start to first answer | **23.3 s** after the cache fix |
+| Cached query throughput | **685 req/s**, p95 5.9 ms, 0 errors (local in-memory cache) |
+| Cold start to first answer | **20.0 s** on CPU |
 | Checked-in finance corpus | 5 real 10-Ks, 830 pages, 4,154 page-cited chunks |
-| Test suite | **189 passed, 2 skipped** in 61.6 s (2026-11-04) |
+| Test suite | **192 passed, 2 skipped** in 62.1 s (2026-11-04) |
 
 All figures above come from the checked-in corpus, labelled sets, and reports; the full suite, corpus
 hashes, and benchmark reports were re-run on 2026-11-04.
@@ -271,21 +273,23 @@ and the per-set reports beside them. Each is written by the command above.
 
 ### Performance
 
-Measured with `scripts/bench_hot_paths.py` in `http` mode on 2026-11-02: live API, real BGE models on
+Measured with `scripts/bench_hot_paths.py` in `http` mode on 2026-11-04: live API, real BGE models on
 CPU, in-memory Qdrant, Redis absent. Numbers are only comparable within the same mode.
 
 | Metric | Baseline | Budget |
 |---|---:|---:|
-| `/query` p95, cache miss | 175.83 ms | ≤ 250 ms |
-| `/query` p95, cache hit | 2.34 ms | ≤ 25 ms |
-| `/query/stream` time-to-first-byte p95 | 372.93 ms | ≤ 500 ms |
-| `/ingest/pdf` 5-page p95 | 3173.50 ms | ≤ 3500 ms |
-| Cold start → first answered request | 23.3 s (after cache fix) | ≤ 120 s |
-| `/evaluate/latest` p95 | 33.85 ms | ≤ 50 ms |
-| Workbench `GET /` p95 | 3.19 ms | ≤ 20 ms |
+| `/query` p95, cache miss | 194.36 ms | ≤ 250 ms |
+| `/query` p95, cache hit | 2.29 ms | ≤ 25 ms |
+| `/query/stream` time-to-first-byte p95 | 206.93 ms | ≤ 500 ms |
+| `/ingest/pdf` 5-page p95 | 1875.52 ms | ≤ 3500 ms |
+| Cold start → first answered request | 20.0 s | ≤ 120 s |
+| `/evaluate/latest` p95 | 17.38 ms | ≤ 50 ms |
+| Workbench `GET /` p95 | 1.76 ms | ≤ 20 ms |
 
-Load behavior, 30 s at concurrency 4: **10.1 req/s, p95 511 ms, 0 errors** uncached; cached:
-**122 req/s, p95 47.5 ms, 0 errors**. Reproduce:
+Load behavior, 30 s at concurrency 4: **6.6 req/s, p95 756 ms, 0 errors** uncached; 20 s cached:
+**685 req/s, p95 5.9 ms, 0 errors**. The single-request budgets above are what the workbench sees;
+under four concurrent requests the cross-encoder serializes on CPU, which is the throughput limit.
+Reproduce:
 
 ```bash
 python scripts/bench_hot_paths.py --mode inproc --iterations 15
@@ -480,44 +484,76 @@ interrupting the document update.
 
 ### Example verified response
 
-From [`data/live_system_showcase_output.json`](data/live_system_showcase_output.json):
+From [`data/live_system_showcase_output.json`](data/live_system_showcase_output.json), trimmed to the
+first citation and the three capex cells:
 
 ```json
 {
-  "question": "Did AMD report customer concentration in FY22?",
-  "answer": "According to [AMD_2022_10K, Page 12]:\nOne customer accounted for 16% of our consolidated net revenue for the year ended December 31, 2022.\nSales to this customer consisted of sales of products\nA loss of this customer would have a material adverse effect on our business.",
-  "matched_cells": [],
+  "question": "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response to the question by relying on the details shown in the cash flow statement.",
+  "answer": "From [3M_2018_10K, Page 60]:\n- Cash Flows from Investing Activities Purchases of property, plant and equipment (PP&E) (1,577) (1,373) (1,420) Proceeds from sale of PP&E and other assets 262 49 58 Acquisitions, net of cash acquired 13 (2,023) (16) Purchases of marketable securities and investments (1,828) (2,152) (1,410) Proceeds from maturities and sale of marketable securities and investments 2,497 1,354 1,247 Proceeds from sale of businesses, net of cash sold 846 1,065 142 Other — net 9 (6) (4)",
+  "matched_cells": [
+    {
+      "doc_name": "3M_2018_10K",
+      "page_number": 60,
+      "row_key": "Purchases of property, plant and equipment (PP&E)",
+      "col_header": "2018",
+      "value": "**(1,577)**",
+      "row_index": 13,
+      "col_index": 3
+    },
+    {
+      "doc_name": "3M_2018_10K",
+      "page_number": 60,
+      "row_key": "Purchases of property, plant and equipment (PP&E)",
+      "col_header": "2017",
+      "value": "(1,373)",
+      "row_index": 13,
+      "col_index": 6
+    },
+    {
+      "doc_name": "3M_2018_10K",
+      "page_number": 60,
+      "row_key": "Purchases of property, plant and equipment (PP&E)",
+      "col_header": "2016",
+      "value": "(1,420)",
+      "row_index": 13,
+      "col_index": 9
+    }
+  ],
   "computed_deltas": [],
   "citations": [
     {
-      "chunk_id": "97d58560857f",
-      "doc_name": "AMD_2022_10K",
-      "page_number": 12,
-      "contains_table": false,
-      "rerank_score": 0.0156,
-      "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 12]\nTable of Contents\n\nWe also work with our customers to create differentiated products that leverage our CPU, GPU and APU technology. Certain customers pay us non-recurring\nengineering fees for design and development services and a purchase price"
+      "chunk_id": "0668347e6339",
+      "doc_name": "3M_2018_10K",
+      "page_number": 60,
+      "contains_table": true,
+      "rerank_score": 0.0,
+      "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nEXTRACTED TABLES (PAGE 60)\n|(Millions)|Col2|Col3|2018|Col5|Col6|2017|Col8|Col9|2016|"
     }
   ],
   "verification": {
     "is_fully_grounded": true,
     "numeric_grounding_score": 1.0,
-    "verified_figures": ["16%", "31,", "2022"],
+    "verified_figures": ["(1,577)", "(1,373)", "(1,420)", "262", "49", "58"],
     "unverified_figures": [],
     "verification_applicable": true
   },
   "cache_hit": false,
   "cache_similarity": null,
-  "latency_ms": 93.0,
+  "latency_ms": 348.67,
   "guardrail_flags": [],
   "metadata": {
     "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
     "candidates_evaluated": 6,
-    "document_scope": "AMD_2022_10K",
+    "document_scope": "3M_2018_10K",
     "answer_provider": "local_deterministic",
     "provider_error": null
   }
 }
 ```
+
+A second identical request returns `cache_hit: true` in 0.7 ms. The injection probe in the same
+artifact returns HTTP 400.
 
 > [!IMPORTANT]
 > Numeric verification confirms that figures in the answer appear in the cited evidence or in a
@@ -570,7 +606,7 @@ python scripts/check_layers.py             # 0 inward violations, 0 cycles
 python scripts/bench_hot_paths.py --mode inproc --iterations 3 --warmup 1 --gate
 ```
 
-On 2026-11-04 the full suite reported **189 passed, 2 skipped in 61.6 s**; the skips are
+On 2026-11-04 the full suite reported **192 passed, 2 skipped in 62.1 s**; the skips are
 Redis-dependent. CI also runs lint and compile checks, the Dependency Rule check, the documentation
 link check, corpus verification, the hot-path budget gate, and a container smoke test with
 lightweight models. An optional KFP compile job verifies the pipeline definition.

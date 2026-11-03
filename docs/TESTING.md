@@ -20,7 +20,7 @@ Measured feedback cost, 2026-11-02. Before the cache fix the default `pytest -q`
 domain tests cost 619 s each and `test_real_corpus.py` cost 1663 s, all re-parsing the corpus. After the
 fix the suite dropped to 149.6 s for 97 tests. Measured again on 2026-11-03: **146 passed in 67.3 s**
 (Redis up, so the real-Redis lease test runs; it skips without Redis). The full run on 2026-11-04
-was **189 passed, 2 skipped in 61.6 s**. `tests/test_corpus_cache.py` fails in 0.07 s if a checked-in
+was **192 passed, 2 skipped in 62.1 s**. `tests/test_corpus_cache.py` fails in 0.07 s if a checked-in
 cache goes stale again.
 
 ## Safety Net Map
@@ -52,7 +52,7 @@ cache goes stale again.
 
 | Gate | Command | Budget | Status |
 |---|---|---|---|
-| Default suite | `pytest -q` | ≤ 10 min | implemented - **189 passed, 2 skipped in 61.6 s** (2026-11-04) |
+| Default suite | `pytest -q` | ≤ 10 min | implemented - **192 passed, 2 skipped in 62.1 s** (2026-11-04) |
 | Documentation links | `python scripts/check_docs.py` | 0 broken or unpublished targets | implemented - runs in CI |
 | Lint | `ruff check .` | 0 findings | implemented - runs in CI |
 | Integration suite | `pytest -q -m integration` | informational | implemented — 23.7 s cached |
