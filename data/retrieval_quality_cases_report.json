@@ -1,0 +1,239 @@
+{
+  "cases_path": "data/retrieval_quality_cases.json",
+  "top_k": 4,
+  "chunks": 4154,
+  "documents": [
+    "3M_2018_10K",
+    "3M_2022_10K",
+    "ACTIVISIONBLIZZARD_2019_10K",
+    "ADOBE_2022_10K",
+    "AMD_2022_10K"
+  ],
+  "gates": {
+    "adaptive": {
+      "overall": {
+        "cases": 11,
+        "recall_at_1": 0.2727,
+        "recall_at_3": 0.4545,
+        "mrr": 0.3889,
+        "cited_hit": 1.0,
+        "value_hit": 1.0
+      },
+      "families": {
+        "attribute_headcount": {
+          "cases": 5,
+          "recall_at_1": 0.4,
+          "recall_at_3": 0.6,
+          "mrr": 0.5618,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        },
+        "comparison_net_sales": {
+          "cases": 4,
+          "recall_at_1": 0.25,
+          "recall_at_3": 0.5,
+          "mrr": 0.3395,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        },
+        "table_statement": {
+          "cases": 2,
+          "recall_at_1": 0.0,
+          "recall_at_3": 0.0,
+          "mrr": 0.0556,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        }
+      },
+      "per_case": [
+        {
+          "case_id": "attr_3m_2018_headcount",
+          "family": "attribute_headcount",
+          "question": "How many employees did 3M have at the end of 2018?",
+          "gold": "3M_2018_10K p[4]",
+          "retrieval_rank": 2,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2018_10K p4"
+          ],
+          "answer": "According to [3M_2018_10K, Page 4]: 3M is among the leading manufacturers of products for many of the markets it serves. At December 31, 2018, the Company employed 93,516 people (full-time equivalents), with 37,412 emplo"
+        },
+        {
+          "case_id": "attr_3m_2022_headcount",
+          "family": "attribute_headcount",
+          "question": "What is 3M's employee count in FY2022?",
+          "gold": "3M_2022_10K p[6]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2022_10K p6",
+            "3M_2022_10K p6",
+            "3M_2022_10K p6"
+          ],
+          "answer": "According to [3M_2022_10K, Page 6]: On December 31, 2022, the Company employed approximately 92,000 people (full-time equivalents), with approximately 37,000 employed in the United States and 55,000 employed internationa"
+        },
+        {
+          "case_id": "attr_adobe_2022_headcount",
+          "family": "attribute_headcount",
+          "question": "How many people work at Adobe?",
+          "gold": "ADOBE_2022_10K p[16]",
+          "retrieval_rank": 4,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p16",
+            "ADOBE_2022_10K p16"
+          ],
+          "answer": "According to [ADOBE_2022_10K, Page 16]: Our culture is built on the foundation that our people and the way we treat one another promote creativity, innovation and performance, which spur the Company’s success. As of Dece"
+        },
+        {
+          "case_id": "attr_amd_2022_headcount",
+          "family": "attribute_headcount",
+          "question": "How many employees does AMD have?",
+          "gold": "AMD_2022_10K p[14]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "AMD_2022_10K p14"
+          ],
+          "answer": "According to [AMD_2022_10K, Page 14]: As of December 31, 2022, we had approximately 25,000 employees in our global workforce. We believe we are at our best when our culture of innovation, creative minds and people from a"
+        },
+        {
+          "case_id": "attr_activision_2019_headcount",
+          "family": "attribute_headcount",
+          "question": "How many employees does Activision Blizzard have?",
+          "gold": "ACTIVISIONBLIZZARD_2019_10K p[9]",
+          "retrieval_rank": 17,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ACTIVISIONBLIZZARD_2019_10K p9"
+          ],
+          "answer": "According to [ACTIVISIONBLIZZARD_2019_10K, Page 9]: At December 31, 2019, we had approximately 9,200 total full-time and part-time employees. At December 31, 2019, approximately 120 of our full-time employees were subjec"
+        },
+        {
+          "case_id": "cmp_3m_2022_net_sales",
+          "family": "comparison_net_sales",
+          "question": "Compare net sales for 3M and AMD in 2022.",
+          "gold": "3M_2022_10K p[48]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [3M_2022_10K, Page 48]: - Net sales $ 34,229 $ 35,355 $ 32,184 - From [AMD_2022_10K, Page 54]: - Net revenue $ 23,601 $ 16,434 $ 9,763"
+        },
+        {
+          "case_id": "cmp_amd_2022_net_sales",
+          "family": "comparison_net_sales",
+          "question": "Compare net sales for 3M and AMD in 2022.",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 85,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [3M_2022_10K, Page 48]: - Net sales $ 34,229 $ 35,355 $ 32,184 - From [AMD_2022_10K, Page 54]: - Net revenue $ 23,601 $ 16,434 $ 9,763"
+        },
+        {
+          "case_id": "cmp_adobe_2022_revenue",
+          "family": "comparison_net_sales",
+          "question": "Compare total revenue for Adobe and AMD in 2022.",
+          "gold": "ADOBE_2022_10K p[54]",
+          "retrieval_rank": 3,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [ADOBE_2022_10K, Page 54]: - Total revenue (Col2): 17,606 - Total revenue (YearsEnded): 15,785 - Total revenue (Col6): 12,868 Calculated comparisons: - Period change - Total revenue (C"
+        },
+        {
+          "case_id": "cmp_amd_2022_revenue",
+          "family": "comparison_net_sales",
+          "question": "Compare total revenue for Adobe and AMD in 2022.",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 78,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [ADOBE_2022_10K, Page 54]: - Total revenue (Col2): 17,606 - Total revenue (YearsEnded): 15,785 - Total revenue (Col6): 12,868 Calculated comparisons: - Period change - Total revenue (C"
+        },
+        {
+          "case_id": "table_3m_2018_net_sales",
+          "family": "table_statement",
+          "question": "What were 3M's net sales in 2018?",
+          "gold": "3M_2018_10K p[56]",
+          "retrieval_rank": 36,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56"
+          ],
+          "answer": "From [3M_2018_10K, Page 56]: - Net sales<br> (2018): **32,765** - Net income attributable to 3M<br> (2018): **5,349** - Net sales<br> (Col3): **$** - Net sales<br> (Col5): $ - Net sales<br> (Col6): $ - Net sales<br> (201"
+        },
+        {
+          "case_id": "table_activision_2019_net_revenue",
+          "family": "table_statement",
+          "question": "What were Activision Blizzard's net revenues in 2019?",
+          "gold": "ACTIVISIONBLIZZARD_2019_10K p[37]",
+          "retrieval_rank": 12,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37"
+          ],
+          "answer": "From [ACTIVISIONBLIZZARD_2019_10K, Page 37]: - Total net revenues (Col3): 6,489 - Total net revenues (FortheYears): 100 - Total net revenues (Ended December 31<br>,): 100 - Total net revenues (Col11): 7,500 - Total net r"
+        }
+      ]
+    }
+  },
+  "elapsed_s": 11.9
+}

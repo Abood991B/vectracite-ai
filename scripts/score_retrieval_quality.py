@@ -19,11 +19,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 import time
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 from qdrant_client import QdrantClient
