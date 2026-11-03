@@ -12,14 +12,37 @@ authors = [
     { name = "Abdulrahman Baidaq", email = "abdulrahman16baidaq@gmail.com" }
 ]
 
+[project.optional-dependencies]
+gpu = [
+    "accelerate>=1.0.0",
+    "bitsandbytes>=0.44.0",
+    "peft>=0.13.0",
+    "torch>=2.4.0",
+    "transformers>=4.45.0",
+    "trl>=0.12.0",
+    "vllm>=0.6.3",
+]
+mlops = [
+    "google-cloud-aiplatform>=1.70.0",
+    "google-cloud-storage>=2.18.0",
+    "kfp>=2.7.0,<3",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: exercises the real PDF corpus and production models",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.setuptools.package-data]
+"src.api" = ["static/*.html"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]

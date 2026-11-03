@@ -1,0 +1,179 @@
+{
+  "mode": "http",
+  "label": "phase1-baseline-live",
+  "timestamp": "2026-11-02T17:33:49+00:00",
+  "iterations": 10,
+  "warmup": 2,
+  "python": "3.11.9",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "elapsed_seconds": 74.02,
+  "scenarios": {
+    "cold_start_first_query": {
+      "n": 1,
+      "p50": 133.75,
+      "p95": 133.75,
+      "p99": 133.75,
+      "min": 133.75,
+      "max": 133.75,
+      "mean": 133.75,
+      "samples_ms": [
+        133.75
+      ],
+      "note": "measured from a warm server process; true cold start is timed separately"
+    },
+    "query_cold": {
+      "n": 10,
+      "p50": 122.2,
+      "p95": 175.83,
+      "p99": 175.83,
+      "min": 102.38,
+      "max": 175.83,
+      "mean": 130.72,
+      "samples_ms": [
+        121.95,
+        134.86,
+        102.38,
+        122.2,
+        109.2,
+        175.83,
+        160.16,
+        122.7,
+        121.65,
+        136.22
+      ],
+      "note": "/query, cache miss"
+    },
+    "query_cache_hit": {
+      "n": 10,
+      "p50": 2.03,
+      "p95": 2.34,
+      "p99": 2.34,
+      "min": 1.91,
+      "max": 2.34,
+      "mean": 2.08,
+      "samples_ms": [
+        2.23,
+        2.01,
+        2.19,
+        2.03,
+        2.1,
+        2.34,
+        1.92,
+        1.91,
+        2.03,
+        2.08
+      ],
+      "note": "/query, semantic cache hit"
+    },
+    "query_stream_ttfb": {
+      "n": 10,
+      "p50": 131.0,
+      "p95": 372.93,
+      "p99": 372.93,
+      "min": 107.85,
+      "max": 372.93,
+      "mean": 158.75,
+      "samples_ms": [
+        155.57,
+        137.49,
+        107.85,
+        131.0,
+        116.2,
+        170.79,
+        148.13,
+        124.5,
+        123.06,
+        372.93
+      ],
+      "note": "/query/stream to first data event"
+    },
+    "query_stream_total": {
+      "n": 10,
+      "p50": 131.21,
+      "p95": 373.16,
+      "p99": 373.16,
+      "min": 108.04,
+      "max": 373.16,
+      "mean": 158.94,
+      "samples_ms": [
+        155.74,
+        137.66,
+        108.04,
+        131.21,
+        116.37,
+        170.95,
+        148.26,
+        124.68,
+        123.38,
+        373.16
+      ],
+      "note": "/query/stream to last event"
+    },
+    "ingest_pdf": {
+      "n": 10,
+      "p50": 3038.29,
+      "p95": 3173.5,
+      "p99": 3173.5,
+      "min": 3016.31,
+      "max": 3173.5,
+      "mean": 3058.02,
+      "samples_ms": [
+        3060.52,
+        3072.89,
+        3173.5,
+        3095.83,
+        3016.34,
+        3052.2,
+        3017.71,
+        3038.29,
+        3016.31,
+        3036.61
+      ],
+      "note": "5-page PDF upload, parse, index, delete"
+    },
+    "workbench_render": {
+      "n": 10,
+      "p50": 2.17,
+      "p95": 3.19,
+      "p99": 3.19,
+      "min": 1.79,
+      "max": 3.19,
+      "mean": 2.27,
+      "samples_ms": [
+        3.19,
+        2.32,
+        2.73,
+        2.4,
+        2.29,
+        1.92,
+        1.79,
+        1.84,
+        2.01,
+        2.17
+      ],
+      "note": "GET / dashboard HTML"
+    },
+    "evaluate_latest": {
+      "n": 10,
+      "p50": 22.75,
+      "p95": 33.85,
+      "p99": 33.85,
+      "min": 20.57,
+      "max": 33.85,
+      "mean": 23.68,
+      "samples_ms": [
+        33.85,
+        22.75,
+        23.42,
+        22.58,
+        23.63,
+        24.45,
+        20.58,
+        22.25,
+        20.57,
+        22.75
+      ],
+      "note": "GET /evaluate/latest"
+    }
+  }
+}

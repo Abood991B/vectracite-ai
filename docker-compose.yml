@@ -1,51 +1,93 @@
-version: "3.9"
-
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PRELOAD_MODELS: "true"
     container_name: vectracite-api
     ports:
       - "8080:8080"
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - QDRANT_IN_MEMORY=false
+      - ALLOW_QDRANT_FALLBACK=false
+      - INDEX_SYNC_SECONDS=15
+      - REQUIRE_REDIS=true
       - REDIS_URL=redis://redis:6379/0
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - AUTH_REQUIRED=true
+      - API_READ_KEY=${API_READ_KEY:?Set API_READ_KEY in the environment}
+      - API_ADMIN_KEY=${API_ADMIN_KEY:?Set API_ADMIN_KEY in the environment}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      - MAX_REQUEST_BYTES=${MAX_REQUEST_BYTES:-0}
+      - USE_LIGHTWEIGHT_MODELS=false
+    volumes:
+      - api_uploads:/app/data/uploads
     depends_on:
-      - qdrant
-      - redis
-      - mlflow
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
     restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
     container_name: vectracite-qdrant
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   redis:
     image: redis/redis-stack-server:latest
     container_name: vectracite-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.17.0
     container_name: vectracite-mlflow
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     command: mlflow server --host 0.0.0.0 --port 5000
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
   qdrant_data:
   redis_data:
+  api_uploads:

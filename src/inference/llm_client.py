@@ -1,324 +1,208 @@
-"""Local, citation-grounded answer synthesis for indexed PDF chunks."""
+"""Local and optional OpenAI-compatible citation-grounded answer synthesis."""
 
-import re
-from collections import defaultdict
-from typing import AsyncGenerator, Dict, Iterable, List
+import asyncio
+import json
+import logging
+import time
+from typing import Any, AsyncGenerator, Dict, List
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
 
 from src.config import settings
-from src.ingestion.pdf_parser import SECTION_HEADER_REGEX
-from src.retrieval.hybrid_retriever import RetrievedDocument
+from src.adapters.circuit_breaker import CircuitBreaker
+from src.domain.citations import parse_citations
+from src.domain.documents import RetrievedDocument
+from src.usecases.synthesis import (
+    DOCUMENTS_QUESTION_RE,
+    META_QUESTION_RE,
+    META_RESPONSE,
+    LocalSynthesizer,
+)
 
-QUERY_STOPWORDS = {
-    "a",
-    "about",
-    "according",
-    "an",
-    "and",
-    "are",
-    "at",
-    "by",
-    "compared",
-    "did",
-    "does",
-    "for",
-    "from",
-    "give",
-    "how",
-    "in",
-    "is",
-    "it",
-    "of",
-    "on",
-    "or",
-    "overview",
-    "tell",
-    "the",
-    "their",
-    "this",
-    "to",
-    "what",
-    "was",
-    "were",
-    "which",
-    "with",
-}
-META_QUESTION_RE = re.compile(
-    r"\b(what model|which model|who are you|what are you|how do you work|"
-    r"how does (?:this|it) work|what is this|what llm|privacy|is my data private|"
-    r"local execution)\b",
-    flags=re.IGNORECASE,
-)
-DOCUMENTS_QUESTION_RE = re.compile(
-    r"\b(what documents|which documents|what files|which files).*\b"
-    r"(loaded|indexed|available)\b",
-    flags=re.IGNORECASE,
-)
-SECTION_ALIASES: Dict[str, tuple[str, ...]] = {
-    "summary": ("professional summary", "executive summary", "summary", "profile", "overview"),
-    "skills": ("technical skills", "skills", "core competencies", "technologies"),
-    "experience": ("work experience", "experience", "employment"),
-    "projects": ("key projects", "projects"),
-    "education": ("education", "academic"),
-    "certifications": ("certifications", "certificates", "awards"),
-}
-META_RESPONSE = (
-    "VectraCite-AI runs 100% locally on your machine for complete enterprise data privacy:\n"
-    "- Stage 1 (Semantic + Lexical Search): BAAI/bge-small-en-v1.5 (local PyTorch embeddings) + BM25Okapi.\n"
-    "- Stage 2 (2D Table & Section Reranking): BAAI/bge-reranker-base with Adaptive SCAR Table-AST coordinate verification.\n"
-    "- Stage 3 (Grounded Synthesis & Numeric Audit): extracts verified sections, table coordinates, and YoY deltas while checking numbers against source pages.\n"
-    "Zero confidential PDF bytes leave localhost."
+logger = logging.getLogger(__name__)
+REMOTE_SYSTEM_PROMPT = (
+    "You are a financial document analyst. Answer ONLY from the supplied EVIDENCE. "
+    "Every factual claim must end with a citation in the exact form [DOC_NAME, Page N]. "
+    "Never invent numbers, pages, documents, or sources. If the evidence does not answer "
+    "the question, say that the information is not present in the indexed documents. "
+    "Prefer concise bullets and preserve table labels and units verbatim."
 )
 
 
 class UnifiedLLMClient:
-    """Structured local synthesizer; no document content is sent to a remote API."""
+    """Use deterministic synthesis or a configured remote provider."""
 
     def __init__(
         self,
         base_url: str = settings.LLM_BASE_URL,
         api_key: str = settings.LLM_API_KEY,
         model_name: str = settings.LLM_MODEL_NAME,
+        *,
+        remote_enabled: bool | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.base_url = base_url
         self.api_key = api_key
         self.model_name = model_name
+        self.remote_enabled = (
+            settings.LLM_REMOTE_ENABLED if remote_enabled is None else remote_enabled
+        )
+        self.timeout_seconds = timeout_seconds or settings.LLM_TIMEOUT_SECONDS
+        self._transport = transport
+        self._http_client: httpx.AsyncClient | None = None
+        self._http_client_loop: asyncio.AbstractEventLoop | None = None
+        self.last_provider = "local_deterministic"
+        self.last_error: str | None = None
+        self.remote_requests = 0
+        self.remote_failures = 0
+        self.local = LocalSynthesizer()
+        # A dead provider must not cost every query its connect timeout: two failures open the
+        # breaker and queries fall back locally until the recovery window elapses.
+        self._remote_breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=30.0)
 
     def configure_provider(
         self,
         base_url: str | None = None,
         api_key: str | None = None,
         model_name: str | None = None,
+        enabled: bool | None = None,
     ) -> Dict[str, object]:
         """Update the optional OpenAI-compatible provider without restarting."""
         if base_url is not None and base_url.strip():
-            self.base_url = base_url.strip()
+            self.base_url = base_url.strip().rstrip("/")
         if api_key is not None:
             self.api_key = api_key.strip()
         if model_name is not None and model_name.strip():
             self.model_name = model_name.strip()
+        if enabled is not None:
+            self.remote_enabled = enabled
         return self.get_provider_status()
 
     def get_provider_status(self) -> Dict[str, object]:
         """Return safe provider metadata without exposing the configured secret."""
+        try:
+            parts = urlsplit(self.base_url)
+            safe_url = urlunsplit((parts.scheme, parts.netloc.rsplit("@", 1)[-1], parts.path, "", ""))
+        except ValueError:
+            safe_url = ""
         return {
-            "base_url": self.base_url,
+            "base_url": safe_url,
             "model_name": self.model_name,
             "api_key_configured": bool(self.api_key and self.api_key != "EMPTY"),
+            "enabled": self.remote_enabled,
+            "last_provider": self.last_provider,
+            "last_error": self.last_error,
+            "remote_requests": self.remote_requests,
+            "remote_failures": self.remote_failures,
         }
 
-    @staticmethod
-    def _query_terms(question: str) -> set[str]:
-        cleaned = re.sub(r"['’]s\b", "", question.lower())
-        words = re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
-        return {word for word in words if len(word) > 2 and word not in QUERY_STOPWORDS}
 
-    @classmethod
-    def _is_cross_document_request(cls, question: str) -> bool:
-        if not re.search(
-            r"\b(compare|comparison|between|across|versus|vs\.?|both|each)\b",
-            question,
-            flags=re.IGNORECASE,
-        ):
-            return False
-        explicit_documents = re.findall(
-            r"\b(?:amd|msft|microsoft|jpm|jpmorgan|oncology|cardiology)\b",
-            question,
-            flags=re.IGNORECASE,
-        )
-        return len({item.casefold() for item in explicit_documents}) >= 2 or bool(
-            re.search(r"\b(documents?|files?|reports?|filings?|pdfs?)\b", question, re.I)
-        )
 
-    @classmethod
-    def _select_answer_chunks(
-        cls,
-        question: str,
-        chunks: List[RetrievedDocument],
-    ) -> List[RetrievedDocument]:
-        """Keep normal answers on the primary hit; admit only qualified comparisons."""
-        if not chunks:
-            return []
-        primary_doc = chunks[0].doc_name
-        selected = [chunk for chunk in chunks if chunk.doc_name == primary_doc]
-        if not cls._is_cross_document_request(question):
-            return selected
 
-        query_terms = cls._query_terms(question)
-        for chunk in chunks:
-            if chunk.doc_name == primary_doc or not query_terms:
-                continue
-            chunk_terms = set(
-                re.findall(r"[\w]+", chunk.text.casefold(), flags=re.UNICODE)
+
+
+
+
+
+
+
+
+
+
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        loop = asyncio.get_running_loop()
+        if self._http_client is None or self._http_client_loop is not loop:
+            self._http_client = httpx.AsyncClient(
+                transport=self._transport,
+                timeout=httpx.Timeout(
+                    self.timeout_seconds,
+                    connect=min(5.0, self.timeout_seconds),
+                ),
             )
-            coverage = len(query_terms & chunk_terms) / len(query_terms)
-            score = float(chunk.rerank_score or 0.0)
-            if score >= 0.60 and coverage >= 0.50:
-                selected.append(chunk)
-        return selected
+            self._http_client_loop = loop
+        return self._http_client
 
-    @staticmethod
-    def _out_of_scope_message(question: str) -> str:
-        return (
-            f"No matching information for '{question}' was found in the selected PDF documents. "
-            "Try asking about a topic covered in your active PDFs or upload a relevant PDF file "
-            "in the sidebar."
-        )
+    async def aclose(self) -> None:
+        if self._http_client is not None:
+            await self._http_client.aclose()
 
-    @staticmethod
-    def _clean_lines(chunk: RetrievedDocument) -> List[str]:
-        return [
-            line.strip()
-            for line in chunk.text.splitlines()
-            if line.strip() and not line.strip().startswith("[DOCUMENT:")
-        ]
+    async def test_connection(self) -> Dict[str, object]:
+        """Probe the configured provider's model list without spending a completion."""
+        if not self.remote_enabled:
+            return {"ok": False, "detail": "Remote provider is disabled."}
+        started = time.perf_counter()
+        try:
+            client = self._get_http_client()
+            response = await client.get(
+                f"{self.base_url.rstrip('/')}/models",
+                headers=self._request_headers(),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            models = payload.get("data") if isinstance(payload, dict) else None
+            self._mark_remote_success()
+            return {
+                "ok": True,
+                "latency_ms": round((time.perf_counter() - started) * 1000.0, 1),
+                "models": len(models or []),
+            }
+        except Exception as exc:
+            self._mark_remote_failure(exc)
+            return {
+                "ok": False,
+                "detail": type(exc).__name__,
+                "latency_ms": round((time.perf_counter() - started) * 1000.0, 1),
+            }
+            self._http_client = None
+            self._http_client_loop = None
 
-    @staticmethod
-    def _canonical_section(line: str) -> str | None:
-        normalized = re.sub(r"[^a-z0-9]+", " ", line.casefold()).strip()
-        if not normalized or not SECTION_HEADER_REGEX.fullmatch(line):
-            return None
-        for section, aliases in SECTION_ALIASES.items():
-            if normalized in aliases:
-                return section
-        return None
+    def _request_headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key and self.api_key != "EMPTY":
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
-    @classmethod
-    def _requested_sections(cls, question: str) -> set[str]:
-        folded = question.casefold()
-        requested = {
-            section
-            for section, aliases in SECTION_ALIASES.items()
-            if any(alias in folded for alias in aliases)
+    def _chat_endpoint(self) -> str:
+        base = self.base_url.rstrip("/")
+        if base.endswith("/chat/completions"):
+            return base
+        return f"{base}/chat/completions"
+
+    def _request_payload(
+        self, question: str, chunks: List[RetrievedDocument], *, stream: bool
+    ) -> Dict[str, Any]:
+        return {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": REMOTE_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": self.local.build_evidence(question, chunks),
+                },
+            ],
+            "temperature": 0.0,
+            "max_tokens": settings.LLM_MAX_TOKENS,
+            "stream": stream,
         }
-        return {"summary"} if "overview" in folded and not requested else requested
 
-    @classmethod
-    def _ordered_chunks(cls, chunks: Iterable[RetrievedDocument]) -> List[RetrievedDocument]:
-        return sorted(
-            chunks,
-            key=lambda chunk: (
-                chunk.doc_name,
-                chunk.page_number,
-            ),
+    def _mark_remote_success(self) -> None:
+        self.last_provider = "remote_openai_compatible"
+        self.last_error = None
+        self.remote_requests += 1
+        self._remote_breaker.record_success()
+
+    def _mark_remote_failure(self, exc: Exception) -> None:
+        self.last_provider = "local_fallback"
+        self.last_error = type(exc).__name__
+        self.remote_failures += 1
+        self._remote_breaker.record_failure()
+        logger.warning(
+            "Remote LLM request failed (%s); using deterministic fallback",
+            type(exc).__name__,
         )
-
-    @classmethod
-    def _extract_sections(
-        cls,
-        chunks: List[RetrievedDocument],
-        requested: set[str],
-    ) -> Dict[str, List[tuple[str, int, List[str]]]]:
-        sections: Dict[str, List[tuple[str, int, List[str]]]] = defaultdict(list)
-        for doc_name in sorted({chunk.doc_name for chunk in chunks}):
-            doc_chunks = cls._ordered_chunks(chunk for chunk in chunks if chunk.doc_name == doc_name)
-            active_section: str | None = None
-            active_page = 1
-            active_lines: List[str] = []
-
-            def flush_section() -> None:
-                nonlocal active_lines
-                if active_section in requested and active_lines:
-                    sections[active_section].append((doc_name, active_page, list(active_lines)))
-                active_lines = []
-
-            for chunk in doc_chunks:
-                for line in cls._clean_lines(chunk):
-                    section = cls._canonical_section(line)
-                    if section is not None:
-                        flush_section()
-                        active_section = section
-                        active_page = chunk.page_number
-                        active_lines = [line]
-                    elif active_section in requested:
-                        active_lines.append(line)
-            flush_section()
-        return sections
-
-    @classmethod
-    def _format_sections(
-        cls,
-        question: str,
-        chunks: List[RetrievedDocument],
-    ) -> str | None:
-        requested = cls._requested_sections(question)
-        if not requested:
-            return None
-        sections = cls._extract_sections(chunks, requested)
-        if not sections:
-            return None
-
-        parts: List[str] = []
-        for section in ("summary", "skills", "experience", "projects", "education", "certifications"):
-            for doc_name, page_number, lines in sections.get(section, []):
-                parts.append(f"[{doc_name}, Page {page_number}]\n" + "\n".join(lines))
-        return "\n\n".join(parts)
-
-    @staticmethod
-    def _table_answer(question: str, top: RetrievedDocument) -> str | None:
-        from src.retrieval.table_ast import TableASTParser
-
-        matched_cells = TableASTParser.match_query_cells(
-            question,
-            top.text,
-            doc_name=top.doc_name,
-            page_number=top.page_number,
-        )
-        if not matched_cells:
-            return None
-        cell_lines = [
-            f"- {cell.row_key} ({cell.col_header}): {cell.value}" for cell in matched_cells[:8]
-        ]
-        delta_lines = [
-            f"- Period change - {delta['row_key']} ({delta['comparison']}): "
-            f"{delta['absolute_change']} ({delta['pct_change']})"
-            for delta in TableASTParser.compute_row_deltas(matched_cells)[:4]
-        ]
-        answer = f"Verified from [{top.doc_name}, Page {top.page_number}]:\n" + "\n".join(cell_lines)
-        if delta_lines:
-            answer += "\n\nCalculated comparisons:\n" + "\n".join(delta_lines)
-        return answer
-
-    @classmethod
-    def _narrative_lines(
-        cls,
-        question: str,
-        chunks: List[RetrievedDocument],
-    ) -> Dict[str, tuple[RetrievedDocument, List[str]]]:
-        terms = cls._query_terms(question)
-        grouped: Dict[str, tuple[RetrievedDocument, List[str]]] = {}
-        for chunk in cls._ordered_chunks(chunks):
-            matching: List[str] = []
-            for raw_line in re.split(r"(?<=[.!?])\s+|\n", chunk.text):
-                line = " ".join(raw_line.split()).strip()
-                if not line or line.startswith(("[", "---", "|")):
-                    continue
-                line_terms = set(re.findall(r"[a-z0-9]+", line.lower()))
-                if terms & line_terms:
-                    matching.append(line)
-            if matching and chunk.doc_name not in grouped:
-                grouped[chunk.doc_name] = (chunk, matching[:3])
-        return grouped
-
-    @classmethod
-    def _general_answer(cls, question: str, chunks: List[RetrievedDocument]) -> str:
-        grouped = cls._narrative_lines(question, chunks)
-        if len(grouped) > 1:
-            parts = []
-            for chunk, lines in grouped.values():
-                parts.append(
-                    f"- [{chunk.doc_name}, Page {chunk.page_number}]\n  " + "\n  ".join(lines[:2])
-                )
-            return "Findings by document:\n" + "\n".join(parts)
-        if grouped:
-            chunk, lines = next(iter(grouped.values()))
-            return f"According to [{chunk.doc_name}, Page {chunk.page_number}]:\n" + "\n".join(lines[:6])
-
-        top = chunks[0]
-        top_score = float(top.rerank_score if top.rerank_score is not None else top.rrf_score)
-        if top_score >= 0.30:
-            excerpt = " ".join(top.text.split())[:350]
-            return f"Based on [{top.doc_name}, Page {top.page_number}], {excerpt}"
-        return ""
 
     async def generate_answer(
         self,
@@ -326,7 +210,7 @@ class UnifiedLLMClient:
         chunks: List[RetrievedDocument],
         indexed_docs: List[str] | None = None,
     ) -> str:
-        """Generate a structured, citation-grounded answer entirely on localhost."""
+        """Use the configured remote model when enabled, else deterministic synthesis."""
         if DOCUMENTS_QUESTION_RE.search(question):
             document_names = sorted(set(indexed_docs or [chunk.doc_name for chunk in chunks]))
             if document_names:
@@ -340,19 +224,39 @@ class UnifiedLLMClient:
         if META_QUESTION_RE.search(question):
             return META_RESPONSE
         if not chunks:
-            return self._out_of_scope_message(question)
+            return self.local.out_of_scope(question)
 
-        answer_chunks = self._select_answer_chunks(question, chunks)
-        section_answer = self._format_sections(question, answer_chunks)
-        if section_answer:
-            return section_answer
+        if not self.remote_enabled:
+            self.last_provider = "local_deterministic"
+        if self.remote_enabled and self._remote_breaker.allow():
+            try:
+                client = self._get_http_client()
+                response = await client.post(
+                    self._chat_endpoint(),
+                    headers=self._request_headers(),
+                    json=self._request_payload(question, chunks, stream=False),
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                if not isinstance(content, str) or not content.strip():
+                    raise ValueError("Remote provider returned an empty answer")
+                cited_pages = parse_citations(content)
+                available_pages = {
+                    (chunk.doc_name, chunk.page_number) for chunk in chunks
+                }
+                if not cited_pages or not cited_pages <= available_pages:
+                    raise ValueError(
+                        "Remote provider cited a page outside the retrieved evidence"
+                    )
+                self._mark_remote_success()
+                return content.strip()
+            except Exception as exc:
+                self._mark_remote_failure(exc)
 
-        table_answer = self._table_answer(question, answer_chunks[0])
-        if table_answer:
-            return table_answer
-
-        narrative_answer = self._general_answer(question, answer_chunks)
-        return narrative_answer or self._out_of_scope_message(question)
+        if self.last_provider != "local_fallback":
+            self.last_provider = "local_deterministic"
+        return self.local.answer(question, chunks, indexed_docs=indexed_docs)
 
     async def stream_answer(
         self,
@@ -360,10 +264,45 @@ class UnifiedLLMClient:
         chunks: List[RetrievedDocument],
         indexed_docs: List[str] | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream the same local answer path as server-sent events."""
-        answer = await self.generate_answer(question, chunks, indexed_docs=indexed_docs)
+        """Yield answer text from the remote SSE stream, falling back locally."""
+        if not self.remote_enabled:
+            self.last_provider = "local_deterministic"
+        if self.remote_enabled and chunks and self._remote_breaker.allow():
+            emitted = False
+            try:
+                client = self._get_http_client()
+                async with client.stream(
+                    "POST",
+                    self._chat_endpoint(),
+                    headers=self._request_headers(),
+                    json=self._request_payload(question, chunks, stream=True),
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        payload = line[5:].strip()
+                        if payload == "[DONE]":
+                            break
+                        event = json.loads(payload)
+                        delta = event["choices"][0].get("delta", {})
+                        token = delta.get("content")
+                        if isinstance(token, str) and token:
+                            emitted = True
+                            yield token
+                if not emitted:
+                    raise ValueError("Remote provider streamed no content")
+                self._mark_remote_success()
+                return
+            except Exception as exc:
+                self._mark_remote_failure(exc)
+                if emitted:
+                    return
+
+        if self.last_provider != "local_fallback":
+            self.last_provider = "local_deterministic"
+        answer = self.local.answer(question, chunks, indexed_docs=indexed_docs)
         words = answer.split(" ")
         for index, word in enumerate(words):
             suffix = " " if index < len(words) - 1 else ""
-            yield f"data: {word}{suffix}\n\n"
-        yield "data: [DONE]\n\n"
+            yield f"{word}{suffix}"

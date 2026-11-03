@@ -1,0 +1,42 @@
+{
+  "documents": {
+    "3M_2018_10K": {
+      "bytes": 1252586,
+      "filename": "3M_2018_10K.pdf",
+      "pages": 160,
+      "sha256": "faf10c53fc6f1a8aa346ec3db79145e3ae6fbb3753c8064924e174d0a973934d",
+      "source_url": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs/3M_2018_10K.pdf"
+    },
+    "3M_2022_10K": {
+      "bytes": 1655681,
+      "filename": "3M_2022_10K.pdf",
+      "pages": 252,
+      "sha256": "d5cf549543a24b04228fd2af979ff2ca94cf64fb008a789340cb9117fbcfde5d",
+      "source_url": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs/3M_2022_10K.pdf"
+    },
+    "ACTIVISIONBLIZZARD_2019_10K": {
+      "bytes": 1274941,
+      "filename": "ACTIVISIONBLIZZARD_2019_10K.pdf",
+      "pages": 198,
+      "sha256": "017f1bbc1e37f2945a41fa2b5cf39d822e1e9d435a2c2b9c6b1cc76cd114a2df",
+      "source_url": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs/ACTIVISIONBLIZZARD_2019_10K.pdf"
+    },
+    "ADOBE_2022_10K": {
+      "bytes": 620288,
+      "filename": "ADOBE_2022_10K.pdf",
+      "pages": 99,
+      "sha256": "ce8c716abac26bfa38ae6b71d703112852c8591a4bb19f7c1177beb1dfc87ad2",
+      "source_url": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs/ADOBE_2022_10K.pdf"
+    },
+    "AMD_2022_10K": {
+      "bytes": 5122473,
+      "filename": "AMD_2022_10K.pdf",
+      "pages": 121,
+      "sha256": "a3bd74088fae0ad4aa03d04998a1f4c64fd0b3c693841601b0ac49b46cf5c1f4",
+      "source_url": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs/AMD_2022_10K.pdf"
+    }
+  },
+  "generated_at": "2026-11-01T21:58:21.804878+00:00",
+  "schema_version": 1,
+  "source": "https://raw.githubusercontent.com/patronus-ai/financebench/main/pdfs"
+}

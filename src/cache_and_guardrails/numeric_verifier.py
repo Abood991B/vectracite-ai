@@ -1,7 +1,15 @@
-import re
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List
-from src.retrieval.hybrid_retriever import RetrievedDocument
+
+from src.retrieval.financial_numbers import (
+    canonical_number_values,
+    canonical_numbers_in_text,
+    canonical_unscaled,
+    display_financial_token,
+    extract_number_tokens,
+    parse_financial_number,
+)
+from src.domain.documents import RetrievedDocument
 
 
 @dataclass
@@ -12,6 +20,7 @@ class NumericVerificationResult:
     numeric_grounding_score: float
     verified_figures: List[str]
     unverified_figures: List[str]
+    verification_applicable: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -24,29 +33,51 @@ class DeterministicNumericVerifier:
     exact presence inside the retrieved source chunks and Markdown tables.
     """
 
-    NUMERIC_TOKEN_REGEX = re.compile(
-        r"(?:\$\s?\d[\d,]*(?:\.\d+)?|\d[\d,]*(?:\.\d+)?%|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+\.\d+\b)"
-    )
+    @classmethod
+    def _extract_tokens(cls, text: str, *, ignore_page_references: bool = False) -> List[str]:
+        """Extract quantitative claims while optionally excluding citation page metadata.
+
+        Standalone years are intentionally treated as claims and must be present in a source.
+        Explicit ``p. 12``/``page 12`` references are citation metadata, so answer-side page
+        numbers are ignored rather than diluting the grounding score.
+        """
+        return extract_number_tokens(text, ignore_page_references=ignore_page_references)
 
     @staticmethod
     def _normalize_number(token: str) -> str:
-        return re.sub(r"[\s$,+]", "", token.strip()).lower()
+        """Return a canonical numeric value, retaining percentage units and sign."""
+        parsed = parse_financial_number(token)
+        if parsed is None:
+            return ""
+        if parsed.is_percentage:
+            return next(iter(parsed.canonical_values()))
+        return canonical_unscaled(parsed)
 
     def verify(
         self, answer: str, retrieved_chunks: List[RetrievedDocument], doc_names: List[str] | None = None
     ) -> NumericVerificationResult:
         """Cross-checks every quantitative figure in `answer` against `retrieved_chunks`."""
-        raw_Matches = self.NUMERIC_TOKEN_REGEX.findall(answer)
-        if not raw_Matches:
+        raw_matches = self._extract_tokens(answer, ignore_page_references=True)
+        if not retrieved_chunks:
             return NumericVerificationResult(
-                is_fully_grounded=True,
-                numeric_grounding_score=1.0,
+                is_fully_grounded=False,
+                numeric_grounding_score=0.0,
                 verified_figures=[],
                 unverified_figures=[],
+                verification_applicable=False,
+            )
+        if not raw_matches:
+            return NumericVerificationResult(
+                is_fully_grounded=False,
+                numeric_grounding_score=0.0,
+                verified_figures=[],
+                unverified_figures=[],
+                verification_applicable=False,
             )
 
-        corpus_text = " ".join(c.text for c in retrieved_chunks)
-        normalized_corpus = self._normalize_number(corpus_text)
+        corpus_numbers = canonical_numbers_in_text(
+            "\n".join(chunk.text for chunk in retrieved_chunks)
+        )
         derived_numbers: set[str] = set()
         from src.retrieval.table_ast import TableASTParser
 
@@ -59,24 +90,28 @@ class DeterministicNumericVerifier:
                 page_number=chunk.page_number,
             )
             for delta in TableASTParser.compute_row_deltas(cells):
-                derived_numbers.add(self._normalize_number(delta["absolute_change"]))
-                derived_numbers.add(self._normalize_number(delta["pct_change"]))
+                for key in ("absolute_change", "pct_change"):
+                    derived_numbers.update(canonical_number_values(delta[key]))
 
+        known_numbers = corpus_numbers | derived_numbers
         verified: List[str] = []
         unverified: List[str] = []
         seen = set()
 
-        for raw_token in raw_Matches:
+        for raw_token in raw_matches:
             clean_tok = raw_token.strip()
-            norm_tok = self._normalize_number(clean_tok)
-            if not norm_tok or norm_tok in seen:
+            candidates = canonical_number_values(clean_tok)
+            if not candidates:
                 continue
-            seen.add(norm_tok)
-
-            if norm_tok in normalized_corpus or norm_tok in derived_numbers:
-                verified.append(clean_tok)
+            signature = tuple(sorted(candidates))
+            if signature in seen:
+                continue
+            seen.add(signature)
+            display_token = display_financial_token(clean_tok)
+            if candidates & known_numbers:
+                verified.append(display_token)
             else:
-                unverified.append(clean_tok)
+                unverified.append(display_token)
 
         total = len(verified) + len(unverified)
         score = round(len(verified) / total, 4) if total > 0 else 1.0
@@ -85,4 +120,5 @@ class DeterministicNumericVerifier:
             numeric_grounding_score=score,
             verified_figures=verified,
             unverified_figures=unverified,
+            verification_applicable=True,
         )

@@ -23,9 +23,97 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pyyaml
+
+      - name: Validate Shell Scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          bash -n training_and_vllm/serve_vllm.sh
+          shellcheck training_and_vllm/serve_vllm.sh
+
+      - name: Validate Kubernetes and Compose YAML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          for path in sorted(Path("k8s").glob("*.yaml")) + [Path("docker-compose.yml")]:
+              list(yaml.safe_load_all(path.read_text(encoding="utf-8")))
+              print("valid", path)
+          PY
+          API_READ_KEY=reader-ci API_ADMIN_KEY=admin-ci docker compose config -q
 
       - name: Run Ruff Code Quality Check
-        run: ruff check src/ tests/ evaluation/
+        run: ruff check src/ tests/ evaluation/ scripts/ training_and_vllm/ k8s/
 
-      - name: Run Automated Pytest Suite & FinanceBench Evaluation
-        run: pytest -v
+      - name: Compile Python Sources
+        run: python -m compileall -q src tests evaluation scripts training_and_vllm k8s
+
+      - name: Enforce Dependency Rule
+        run: python scripts/check_layers.py
+
+      - name: Check Hot-Path Budgets
+        run: python scripts/bench_hot_paths.py --mode inproc --iterations 3 --warmup 1 --gate
+
+      - name: Verify Checked-In Real Corpus
+        run: |
+          python scripts/fetch_real_pdf_corpus.py --verify
+          python scripts/build_corpus_index.py --verify
+          python scripts/fetch_domain_corpus.py --verify
+
+      - name: Run Automated Pytest Suite
+        run: pytest -q
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Smoke Test Client
+        run: python -m pip install httpx
+
+      - name: Build Runtime Image
+        run: docker build -t vectracite-ai:ci .
+
+      - name: Run Container Smoke Test
+        run: |
+          docker run -d --name vectracite-ci -p 18080:8080 -e AUTH_REQUIRED=false -e USE_LIGHTWEIGHT_MODELS=true -e QDRANT_IN_MEMORY=true -e REQUIRE_REDIS=false -e ALLOW_QDRANT_FALLBACK=false vectracite-ai:ci
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:18080/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          python scripts/smoke_test_api.py --base-url http://localhost:18080
+          python scripts/load_test.py --base-url http://localhost:18080 --duration 10 --concurrency 2 --output /tmp/load_test_ci.json
+          docker logs vectracite-ci
+          docker rm -f vectracite-ci
+
+      - name: Dump Container Logs on Failure
+        if: failure()
+        run: docker logs vectracite-ci || true
+
+  optional-mlops-compile:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile KFP v2 Pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install "kfp>=2.7,<3"
+          python k8s/vertex_ai_pipeline.py --compile --output /tmp/vectracite_pipeline.yaml
+          test -s /tmp/vectracite_pipeline.yaml

@@ -1,0 +1,46 @@
+{
+  "documents": {
+    "ARXIV_LLaMA_Open_Efficient_Foundation_LMs": {
+      "attribution": "Touvron et al., LLaMA: Open and Efficient Foundation Language Models, arXiv:2302.13971.",
+      "bytes": 726566,
+      "domain": "academic_ml",
+      "filename": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs.pdf",
+      "license": "CC-BY-4.0",
+      "pages": 27,
+      "sha256": "2e663675ae36ad12adb2f5a05281bac2747ecf8d23d92bedd9f937a89fee7136",
+      "source_url": "https://arxiv.org/pdf/2302.13971"
+    },
+    "CDC_MMWR_72_42": {
+      "attribution": "Centers for Disease Control and Prevention, MMWR 2023;72(42).",
+      "bytes": 197357,
+      "domain": "public_health",
+      "filename": "CDC_MMWR_72_42.pdf",
+      "license": "public_domain_us_government",
+      "pages": 6,
+      "sha256": "970a773273a2ad9a1a1decfa1187aef07ec08c14fab0509629ded86f4231a40c",
+      "source_url": "https://www.cdc.gov/mmwr/volumes/72/wr/pdfs/mm7242a1-H.pdf"
+    },
+    "NIST_AI_RMF_1_0": {
+      "attribution": "National Institute of Standards and Technology, NIST AI 100-1 (2023).",
+      "bytes": 1946127,
+      "domain": "ai_governance",
+      "filename": "NIST_AI_RMF_1_0.pdf",
+      "license": "public_domain_us_government",
+      "pages": 48,
+      "sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1",
+      "source_url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf"
+    },
+    "SCOTUS_303_Creative_v_Elenis": {
+      "attribution": "Supreme Court of the United States, 303 Creative LLC v. Elenis, 600 U.S. 570 (2023).",
+      "bytes": 450426,
+      "domain": "legal",
+      "filename": "SCOTUS_303_Creative_v_Elenis.pdf",
+      "license": "public_domain_us_government",
+      "pages": 73,
+      "sha256": "87fd2aa79e9a73dc85458ffb4e41ac91a0c6d2e40bf2d2774a812a9225317587",
+      "source_url": "https://www.supremecourt.gov/opinions/22pdf/600us1r58_7khn.pdf"
+    }
+  },
+  "generated_at": "2026-11-02T01:45:02.910760+00:00",
+  "schema_version": 1
+}
