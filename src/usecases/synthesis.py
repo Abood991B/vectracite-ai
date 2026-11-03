@@ -103,7 +103,6 @@ TABLE_INTENT_RE = re.compile(
     r"\b(table|row|column|revenue|sales|income|profit|margin|capex|"
     r"capital expenditure|expense|cash flow|cashflow|assets?|liabilit\w*|"
     r"ratio|earnings|dividend|debt|turnover|growth|percent|percentage|"
-    r"make|made|earn|earned|generate|generated|bring|brought|sell|sold|"
     r"top\s+line|bottom\s+line|topline|bottomline|"
     r"fy\s?\d{2,4}|\d{4}|%)\b",
     flags=re.IGNORECASE,

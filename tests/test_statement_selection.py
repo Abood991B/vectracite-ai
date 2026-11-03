@@ -17,7 +17,7 @@ import pytest
 from src.domain.documents import DocumentChunk, RetrievedDocument
 from src.domain.financial_statements import is_statement_heading
 from src.retrieval.hybrid_retriever import HybridRetriever
-from src.usecases.synthesis import LocalSynthesizer
+from src.usecases.synthesis import LocalSynthesizer, wants_table_evidence
 
 DOC = "STATEMENT_DOC"
 
@@ -220,3 +220,13 @@ def test_a_cost_row_still_answers_a_cost_question() -> None:
 
     assert answer is not None
     assert "12,998" in answer
+
+
+def test_an_idiomatic_make_up_is_not_a_table_question() -> None:
+    """"Which four functions make up the AI RMF Core?" was routed to table synthesis by "make"."""
+    assert not wants_table_evidence("Which four functions make up the AI RMF Core?")
+
+
+def test_a_revenue_question_with_make_is_still_a_table_question() -> None:
+    """Dropping the bare verbs must not drop genuine financial questions."""
+    assert wants_table_evidence("How much revenue did AMD make in 2022?")
