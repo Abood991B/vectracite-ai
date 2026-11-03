@@ -195,18 +195,27 @@ async def test_a_table_question_passes_the_documents_table_chunks_to_synthesis()
     assert any(chunk.page_number == 14 for chunk in service.llm_client.seen_chunks)
 
 
-async def test_execute_caches_an_answer_without_citations_when_chunks_were_reranked() -> None:
-    """Current behavior: the cache guard is "some chunks were reranked", not "the answer cited them".
-
-    Pinned as-is rather than fixed here â€” see the internal debt ledger.
-    """
+async def test_execute_does_not_cache_an_answer_that_cited_nothing() -> None:
+    """A citation-free answer is a degraded result; caching it would replay it for a full TTL."""
     chunks = [_chunk(5, "Revenue grew.")]
     service, _, cache = _service(chunks, answer="Revenue grew without a page reference.")
 
     await service.execute(QueryRequest(question="How did revenue change?"))
 
-    stored = next(iter(cache.entries.values()))
-    assert stored["citations"] == []
+    assert cache.entries == {}
+
+
+async def test_stream_does_not_cache_an_answer_that_cited_nothing() -> None:
+    chunks = [_chunk(5, "Revenue grew.")]
+    service, _, cache = _service(
+        chunks,
+        answer="Revenue grew without a page reference.",
+        tokens=["Revenue grew without a page reference."],
+    )
+
+    _ = [event async for event in service.stream(QueryRequest(question="How did revenue change?"))]
+
+    assert cache.entries == {}
 
 
 async def test_execute_stores_a_cache_entry_for_cited_evidence() -> None:

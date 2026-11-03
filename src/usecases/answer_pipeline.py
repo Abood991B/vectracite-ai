@@ -140,7 +140,7 @@ class AnswerPipeline:
             candidates_evaluated=len(hybrid_candidates),
             start_time=start_time,
         )
-        if payload.use_cache and reranked_chunks:
+        if payload.use_cache and response.citations:
             self.semantic_cache.store(cache_key, response.model_dump())
         return response
 
@@ -395,6 +395,6 @@ class AnswerPipeline:
             already_sanitized=True,
             guardrail_flags=redactor.triggered_rules,
         )
-        if payload.use_cache and reranked_chunks:
+        if payload.use_cache and response.citations:
             self.semantic_cache.store(cache_key, response.model_dump())
         yield response

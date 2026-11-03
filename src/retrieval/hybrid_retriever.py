@@ -192,9 +192,12 @@ class HybridRetriever:
                 self.last_error = f"{type(exc).__name__}: shared Qdrant is unreachable"
                 if not allow_fallback:
                     raise RuntimeError(
-                        "Shared Qdrant is unavailable; refusing to start with a "
-                        "process-local index. Set ALLOW_QDRANT_FALLBACK=true only for "
-                        "explicit single-process deployments."
+                        f"Qdrant is not reachable at {settings.QDRANT_HOST}:"
+                        f"{settings.QDRANT_PORT}. For a single-user local run start the app "
+                        "with `python scripts/run_local.py`, which uses in-memory vectors. To "
+                        "keep a persistent index instead, start the server with "
+                        "`docker compose up -d qdrant`. Set ALLOW_QDRANT_FALLBACK=true only to "
+                        "accept a process-local index knowingly."
                     ) from exc
                 logger.warning(
                     "Qdrant server unreachable (%s); falling back to :memory%.",
