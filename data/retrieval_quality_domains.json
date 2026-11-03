@@ -53,7 +53,8 @@
       "question": "Which four functions make up the AI RMF Core?",
       "doc_name": "NIST_AI_RMF_1_0",
       "evidence_pages": [
-        8
+        8,
+        25
       ],
       "gold_answer": "GOVERN, MAP, MEASURE, and MANAGE.",
       "gold_keywords": [
@@ -62,7 +63,7 @@
         "MEASURE",
         "MANAGE"
       ],
-      "source": "NIST AI 100-1"
+      "source": "NIST AI 100-1. Page 25 (section 5, AI RMF Core) states the same four functions as page 8, so both pages are accepted"
     },
     {
       "case_id": "nist_risk_tolerance",
@@ -168,9 +169,9 @@
       ],
       "gold_answer": "67%.",
       "gold_keywords": [
-        "67%"
+        "67.0"
       ],
-      "source": "arXiv:2302.13971"
+      "source": "arXiv:2302.13971. End-to-end label corrected to the page's verbatim form: the pre-training table prints 67.0%, not 67%"
     },
     {
       "case_id": "academic_ml_llama_boolq_65b",

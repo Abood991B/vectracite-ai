@@ -7,6 +7,7 @@ types and pure parsing helpers — no HTTP client, no settings, no provider.
 
 from __future__ import annotations
 
+import math
 import re
 from collections import defaultdict
 from typing import Dict, Iterable, List
@@ -276,6 +277,47 @@ def query_terms(question: str) -> set[str]:
             digits = fiscal_year.group(1)
             terms.add(digits if len(digits) == 4 else f"20{digits}")
     return terms
+
+
+def narrative_sentences(text: str) -> List[str]:
+    """Rebuild sentences from extracted page text.
+
+    Extraction wraps at the column edge and hyphenates there, so a line is not a sentence:
+    "The AI RMF Core provides ... and" / "activities to manage ... As illus-" / "trated in
+    Figure 5 ..." is one sentence. Scoring lines answers with fragments, so lines are rejoined
+    first: a trailing hyphen closes up, anything else joins with a space, and the result is split
+    at sentence punctuation.
+
+    Table markup is dropped before joining. It carries no prose, and joining it to the paragraph
+    above produces one giant "sentence" that later filters discard, taking the prose with it.
+    """
+    sentences: List[str] = []
+    buffer: List[str] = []
+
+    def flush() -> None:
+        if not buffer:
+            return
+        block = " ".join(buffer)
+        sentences.extend(
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+", block)
+            if sentence.strip()
+        )
+        buffer.clear()
+
+    for raw_line in text.splitlines():
+        line = " ".join(raw_line.split()).strip()
+        if not line:
+            flush()
+            continue
+        if line.startswith("|") or line.startswith("EXTRACTED TABLES"):
+            continue
+        if buffer and buffer[-1].endswith("-"):
+            buffer[-1] = buffer[-1][:-1] + line
+        else:
+            buffer.append(line)
+    flush()
+    return sentences
 
 
 class LocalSynthesizer:
@@ -715,17 +757,25 @@ class LocalSynthesizer:
     ) -> Dict[str, tuple[RetrievedDocument, List[str]]]:
         terms = query_terms(question)
         count_question = is_count_question(question)
+        # The "[DOCUMENT: ...]" header belongs to the chunk, not to the first sentence: left in
+        # place it makes that sentence start with "[" and get dropped as metadata.
+        candidates = [
+            (
+                chunk,
+                narrative_sentences(
+                    re.sub(r"^\[DOCUMENT:[^\]]*\]\s*", "", chunk.text.strip())
+                ),
+            )
+            # Keep the caller's order: it is the retrieval ranking, and it breaks ties between
+            # pages that match the question equally well.
+            for chunk in chunks
+        ]
+        weights = cls._term_weights(terms, candidates)
         grouped: Dict[str, tuple[RetrievedDocument, List[str]]] = {}
-        scores: Dict[str, int] = {}
-        for chunk in cls._ordered_chunks(chunks):
-            scored_lines: List[tuple[int, int, str]] = []
-            # The "[DOCUMENT: ...]" header belongs to the chunk, not to the first sentence: left in
-            # place it makes that sentence start with "[" and get dropped as metadata.
-            body = re.sub(r"^\[DOCUMENT:[^\]]*\]\s*", "", chunk.text.strip())
-            for line_index, raw_line in enumerate(
-                re.split(r"(?<=[.!?])\s+|\n", body)
-            ):
-                line = " ".join(raw_line.split()).strip()
+        scores: Dict[str, float] = {}
+        for chunk, sentences in candidates:
+            scored_lines: List[tuple[float, int, str]] = []
+            for line_index, line in enumerate(sentences):
                 if not line or line.startswith(("[", "---", "|")):
                     continue
                 raw_tokens = re.findall(r"[a-z0-9]+", line.lower())
@@ -734,7 +784,9 @@ class LocalSynthesizer:
                 if line.isupper() and not re.search(r"\d", line):
                     continue
                 line_terms = set(raw_tokens)
-                overlap = len(terms & line_terms)
+                overlap = sum(
+                    weights.get(term, 0.0) for term in terms & line_terms
+                )
                 # A count question is answered by the sentence that states the quantity, not by the
                 # most verbose page that repeats the attribute: stock-plan boilerplate mentions
                 # employees more often than the human-capital sentence stating the number.
@@ -746,11 +798,38 @@ class LocalSynthesizer:
                 continue
             selected = sorted(scored_lines, key=lambda item: item[0], reverse=True)[:5]
             selected.sort(key=lambda item: item[1])
-            chunk_score = sum(item[0] for item in selected)
+            # Rank a page by its best sentence, not by the sum over its sentences: summing rewards
+            # a long discussion page over the syllabus line that actually answers the question.
+            chunk_score = max(item[0] for item in selected)
             if chunk.doc_name not in grouped or chunk_score > scores[chunk.doc_name]:
                 grouped[chunk.doc_name] = (chunk, [item[2] for item in selected])
                 scores[chunk.doc_name] = chunk_score
         return grouped
+
+    @staticmethod
+    def _term_weights(
+        terms: set[str],
+        candidates: List[tuple[RetrievedDocument, List[str]]],
+    ) -> Dict[str, float]:
+        """Weight query terms by how rare they are in the candidate text.
+
+        Every page of a court opinion mentions "public", so counting it as heavily as "CADA" or
+        "accommodations" hands the citation to the page that repeats the common word. Weighting by
+        local inverse sentence frequency favours the sentence that uses the words this question is
+        actually made of.
+        """
+        containing: Dict[str, int] = {term: 0 for term in terms}
+        for _, sentences in candidates:
+            seen: set[str] = set()
+            for sentence in sentences:
+                seen.update(re.findall(r"[a-z0-9]+", sentence.lower()))
+            for term in terms & seen:
+                containing[term] += 1
+        documents = len(candidates) or 1
+        return {
+            term: 1.0 + math.log(documents / max(count, 1))
+            for term, count in containing.items()
+        }
     @classmethod
     def _general_answer(cls, question: str, chunks: List[RetrievedDocument]) -> str:
         grouped = cls._narrative_lines(question, chunks)

@@ -178,15 +178,28 @@ class AnswerPipeline:
                 )
             table_docs = list(by_doc)
         else:
+            # Prose pages resemble each other far more than table pages do, so the answering page
+            # can sit ninth. A table question is answered from one row and needs no wide net.
+            prose_question = not wants_table_evidence(question)
+            candidate_width = (
+                max(payload.top_k * 4, 16)
+                if prose_question
+                else max(payload.top_k * 2, 6)
+            )
             hybrid_candidates = self.retriever.retrieve_hybrid(
                 query=retrieval_query,
-                top_k=max(payload.top_k * 2, 6),
+                top_k=candidate_width,
                 doc_name=scope,
             )
+            # A table question is answered from a specific row, so a short list is right. A prose
+            # question has no such anchor, and a document whose pages all read alike ranks them
+            # almost equally: the answering page can sit fifth. Keep the wider list for prose and
+            # let the narrative selector choose.
+            evidence_width = payload.top_k if not prose_question else candidate_width
             reranked_chunks = self.reranker.rerank(
                 query=retrieval_query,
                 candidates=hybrid_candidates,
-                top_n=payload.top_k,
+                top_n=evidence_width,
             )
             if scope:
                 reranked_chunks = [
