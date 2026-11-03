@@ -530,11 +530,19 @@ async def clear_demo_documents() -> Dict[str, Any]:
             path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")
         }
         removed_chunks = 0
+        survivors = 0
         for doc_name in demo_document_names() - user_document_names:
             removed_chunks += retriever.delete_document(doc_name, epoch=lease.epoch)
+            if lease.epoch is not None and retriever.has_document(doc_name):
+                survivors += 1
         semantic_cache.clear()
-        upload_store.mark_defaults_cleared()
         await asyncio.to_thread(bump_index_generation)
+        if survivors:
+            raise HTTPException(
+                status_code=409,
+                detail="A demo document changed while it was being cleared. Retry.",
+            )
+        upload_store.mark_defaults_cleared()
     return {
         "status": "cleared_demos",
         "documents": len(retriever.list_documents()),
@@ -550,8 +558,14 @@ async def clear_all_documents() -> Dict[str, Any]:
     async with _mutation_guard() as lease:
         upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
         lease.require_lease()
-        retriever.clear()
+        retriever.clear(epoch=lease.epoch)
         semantic_cache.clear()
+        await asyncio.to_thread(bump_index_generation)
+        if lease.epoch is not None and retriever.has_newer_commit(lease.epoch):
+            raise HTTPException(
+                status_code=409,
+                detail="Index changed while it was being cleared. Retry.",
+            )
         removed_files = 0
         for path in upload_paths:
             try:
@@ -560,7 +574,6 @@ async def clear_all_documents() -> Dict[str, Any]:
             except OSError:
                 logger.exception("Unable to remove uploaded PDF %s", path.name)
         upload_store.mark_defaults_cleared()
-        await asyncio.to_thread(bump_index_generation)
     return {
         "status": "cleared_all",
         "documents": len(retriever.list_documents()),
@@ -574,8 +587,14 @@ async def restore_default_documents() -> Dict[str, Any]:
     async with _mutation_guard() as lease:
         persisted_chunks = _load_persisted_chunks(include_defaults=True)
         lease.require_lease()
-        retriever.clear()
+        retriever.clear(epoch=lease.epoch)
         semantic_cache.clear()
+        if lease.epoch is not None and retriever.has_newer_commit(lease.epoch):
+            await asyncio.to_thread(bump_index_generation)
+            raise HTTPException(
+                status_code=409,
+                detail="Index changed while it was being restored. Retry.",
+            )
         indexed_count = (
             retriever.index_chunks(
                 persisted_chunks,

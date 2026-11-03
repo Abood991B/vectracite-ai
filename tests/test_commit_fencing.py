@@ -110,6 +110,27 @@ def test_a_current_delete_removes_the_document(retriever) -> None:
     assert _payloads(retriever) == []
 
 
+def test_a_stale_clear_keeps_a_newer_commit(retriever) -> None:
+    """A clear is an epoch-scoped delete, not a collection drop, so a stale holder cannot wipe it."""
+    retriever.replace_document(DOC, _chunks("NEW"), epoch=6)
+
+    retriever.clear(epoch=5)
+    assert retriever.has_newer_commit(5) is True
+    retriever.hydrate_from_qdrant()
+    assert retriever.chunks_store
+    assert all("NEW" in chunk.text for chunk in retriever.chunks_store)
+
+
+def test_a_current_clear_removes_everything(retriever) -> None:
+    retriever.replace_document(DOC, _chunks("NEW"), epoch=6)
+    retriever.index_chunks(_chunks("BULK"), use_embedding_cache=False)
+
+    retriever.clear(epoch=6)
+    assert retriever.has_newer_commit(6) is False
+    assert _payloads(retriever) == []
+    assert retriever.hydrate_from_qdrant() == 0
+
+
 def test_hydration_repairs_a_crash_between_upsert_and_stale_delete(retriever) -> None:
     _write_version(retriever, "OLD", version="v-old", epoch=5)
     _write_version(retriever, "NEW", version="v-new", epoch=6)

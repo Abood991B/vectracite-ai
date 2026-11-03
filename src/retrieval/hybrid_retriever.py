@@ -647,14 +647,50 @@ class HybridRetriever:
         )
         return fused_results[:top_k]
 
-    def clear(self) -> None:
-        """Remove every indexed chunk and recreate the empty vector collection."""
+    def clear(self, *, epoch: int | None = None) -> None:
+        """Delete indexed points without dropping the collection.
+
+        A collection drop cannot be conditioned on a commit token, so a fenced clear deletes only
+        points committed up to ``epoch``. A stale holder therefore cannot erase a newer commit;
+        the caller can detect the survivors with ``has_newer_commit`` and retry.
+        """
+        must_not = []
+        if epoch is not None:
+            must_not.append(
+                qmodels.FieldCondition(
+                    key="commit_epoch", range=qmodels.Range(gt=epoch)
+                )
+            )
         with self._mutation_lock:
-            self.qdrant.delete_collection(collection_name=self.collection_name)
             self._ensure_collection()
+            self.qdrant.delete(
+                collection_name=self.collection_name,
+                points_selector=qmodels.Filter(must_not=must_not or None),
+            )
             self.chunks_store = []
             self._lexical.rebuild([])
             self.last_sync_at = time.monotonic()
+
+    def has_newer_commit(self, epoch: int) -> bool:
+        """Return whether any point was committed by a lease epoch newer than ``epoch``."""
+        selector = qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="commit_epoch", range=qmodels.Range(gt=epoch)
+                )
+            ]
+        )
+        try:
+            return (
+                self.qdrant.count(
+                    collection_name=self.collection_name,
+                    count_filter=selector,
+                    exact=True,
+                ).count
+                > 0
+            )
+        except Exception:
+            return False
 
     def delete_document(self, doc_name: str, *, epoch: int | None = None) -> int:
         """Remove the document's points, never those committed by a newer lease epoch."""
