@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "description": "Confirmation set measured once, after the statement-page rules were final. These metrics and pages were not used to write or revise any rule or label: operating income on four filings and research and development expense on two. Its purpose is to check the held-out set's 8/8 was not itself fitted. The 3M FY2018 case also exercises the extracted heading 'Consolidated Statement of Incom e', where extraction inserted a space inside the word.",
+  "corpus_dirs": ["data/corpus_pdfs"],
+  "cases": [
+    {
+      "case_id": "cf_adobe_operating_income",
+      "domain": "table_statement",
+      "question": "What was Adobe's operating income in 2022?",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "6,098",
+      "gold_keywords": ["6,098"],
+      "source": "ADOBE_2022_10K page 54 (CONSOLIDATED STATEMENTS OF INCOME): Operating income 6,098 5,802 4,237"
+    },
+    {
+      "case_id": "cf_amd_operating_income",
+      "domain": "table_statement",
+      "question": "What was AMD's operating income in 2022?",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "1,264",
+      "gold_keywords": ["1,264"],
+      "source": "AMD_2022_10K page 54 (Consolidated Statements of Operations): Operating income 1,264 3,648 1,369"
+    },
+    {
+      "case_id": "cf_3m_2018_operating_income",
+      "domain": "table_statement",
+      "question": "What was 3M's operating income in 2018?",
+      "doc_name": "3M_2018_10K",
+      "evidence_pages": [56],
+      "gold_answer": "7,207",
+      "gold_keywords": ["7,207"],
+      "source": "3M_2018_10K page 56 (Consolidated Statement of Income): Operating income 7,207 7,692 7,027"
+    },
+    {
+      "case_id": "cf_3m_2022_operating_income",
+      "domain": "table_statement",
+      "question": "What was 3M's operating income in 2022?",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [48],
+      "gold_answer": "6,539",
+      "gold_keywords": ["6,539"],
+      "source": "3M_2022_10K page 48 (Consolidated Statement of Income): Operating income 6,539 7,369 7,161"
+    },
+    {
+      "case_id": "cf_adobe_rd_expense",
+      "domain": "table_statement",
+      "question": "What was Adobe's research and development expense in 2022?",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "2,987",
+      "gold_keywords": ["2,987"],
+      "source": "ADOBE_2022_10K page 54 (CONSOLIDATED STATEMENTS OF INCOME): Research and development 2,987 2,540 2,188"
+    },
+    {
+      "case_id": "cf_3m_2022_rd_expense",
+      "domain": "table_statement",
+      "question": "What was 3M's research and development expense in 2022?",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [48],
+      "gold_answer": "1,862",
+      "gold_keywords": ["1,862"],
+      "source": "3M_2022_10K page 48 (Consolidated Statement of Income): Research, development and related expenses 1,862 1,994 1,878"
+    }
+  ]
+}

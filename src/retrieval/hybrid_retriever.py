@@ -10,7 +10,9 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from sentence_transformers import SentenceTransformer
 from src.config import settings
+from src.domain.attributes import PERSON_ATTRIBUTE_TERMS, person_count_value
 from src.domain.documents import DocumentChunk, RetrievedDocument
+from src.domain.financial_statements import is_statement_heading
 from src.retrieval.embedding_cache import load_embeddings, save_embeddings
 from src.retrieval.lexical_index import LexicalIndex, tokenize
 from src.usecases.query_normalization import vocabulary_from_texts
@@ -20,6 +22,14 @@ logger = logging.getLogger(__name__)
 
 _SHARED_EMBEDDERS: dict[tuple[str, int], SentenceTransformer] = {}
 _SHARED_LIGHTWEIGHT_EMBEDDERS: dict[int, "LightweightEmbedder"] = {}
+
+
+def _chunk_index(chunk: DocumentChunk) -> int:
+    return int(chunk.metadata.get("chunk_index", 0) or 0)
+
+
+def _opening_chunk(chunks: List[DocumentChunk]) -> DocumentChunk:
+    return min(chunks, key=_chunk_index)
 
 
 class LightweightEmbedder:
@@ -547,6 +557,7 @@ class HybridRetriever:
                     dense_score=float(hit.score),
                     bm25_score=0.0,
                     rrf_score=1.0 / (self.rrf_k + rank + 1),
+                    chunk_index=int(payload.get("chunk_index", 0) or 0),
                 )
             )
         return results
@@ -638,6 +649,7 @@ class HybridRetriever:
                     dense_score=dense_scores.get(cid, 0.0),
                     bm25_score=bm25_scores.get(cid, 0.0),
                     rrf_score=rrf_score,
+                    chunk_index=int(chunk.metadata.get("chunk_index", 0) or 0),
                 )
             )
 
@@ -777,6 +789,59 @@ class HybridRetriever:
                 if len(matches) >= limit:
                     break
         return matches
+
+    def attribute_candidates(
+        self, doc_name: str, terms: set[str], limit: int = 5
+    ) -> List[DocumentChunk]:
+        """Return the document's chunks that state the asked-for people count.
+
+        Reranked top-k can miss the human-capital page ("How many employees does AMD have?" ranks
+        compensation and stock-plan pages first), so a headcount question searches the document's
+        own chunks for a sentence that states a number of people.
+        """
+        normalized = {term.casefold() for term in terms if term}
+        attribute_question = bool(PERSON_ATTRIBUTE_TERMS & normalized)
+        matches: List[DocumentChunk] = []
+        with self._mutation_lock:
+            for chunk in self.chunks_store:
+                if chunk.doc_name != doc_name:
+                    continue
+                if not attribute_question and not normalized.intersection(
+                    tokenize(chunk.text)
+                ):
+                    continue
+                if not person_count_value(chunk.text):
+                    continue
+                matches.append(chunk)
+                if len(matches) >= limit:
+                    break
+        return matches
+
+    def statement_candidates(
+        self, doc_name: str, limit_pages: int = 6
+    ) -> List[DocumentChunk]:
+        """Return every chunk of the document's consolidated primary statement pages.
+
+        An annual report restates each figure in MD&A tables, notes, and selected-financial-data
+        summaries, so retrieval alone can hand synthesis a page that repeats the number without
+        being its source. The statement page is identified by its opening chunk, and all of its
+        chunks are returned so synthesis can read the reporting line even when the page is
+        printed as plain text rather than as an extracted table.
+        """
+        by_page: Dict[int, List[DocumentChunk]] = {}
+        with self._mutation_lock:
+            for chunk in self.chunks_store:
+                if chunk.doc_name == doc_name:
+                    by_page.setdefault(chunk.page_number, []).append(chunk)
+        pages = sorted(
+            page
+            for page, chunks in by_page.items()
+            if is_statement_heading(_opening_chunk(chunks).text)
+        )[:limit_pages]
+        selected: List[DocumentChunk] = []
+        for page in pages:
+            selected.extend(sorted(by_page[page], key=_chunk_index))
+        return selected
 
     @staticmethod
     def _payload_epoch(payload: Dict[str, Any]) -> int:

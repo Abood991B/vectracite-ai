@@ -39,6 +39,14 @@ class RetrieverPort(Protocol):
         self, doc_name: str, terms: set[str], limit: int = 40
     ) -> List[DocumentChunk]: ...
 
+    def attribute_candidates(
+        self, doc_name: str, terms: set[str], limit: int = 5
+    ) -> List[DocumentChunk]: ...
+
+    def statement_candidates(
+        self, doc_name: str, limit_pages: int = 6
+    ) -> List[DocumentChunk]: ...
+
 
 class RerankerPort(Protocol):
     """Optional reordering of retrieved evidence."""
