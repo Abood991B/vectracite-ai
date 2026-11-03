@@ -4,10 +4,8 @@ from typing import Any, Dict, List
 from src.retrieval.financial_numbers import (
     canonical_number_values,
     canonical_numbers_in_text,
-    canonical_unscaled,
     display_financial_token,
     extract_number_tokens,
-    parse_financial_number,
 )
 from src.domain.documents import RetrievedDocument
 
@@ -42,16 +40,6 @@ class DeterministicNumericVerifier:
         numbers are ignored rather than diluting the grounding score.
         """
         return extract_number_tokens(text, ignore_page_references=ignore_page_references)
-
-    @staticmethod
-    def _normalize_number(token: str) -> str:
-        """Return a canonical numeric value, retaining percentage units and sign."""
-        parsed = parse_financial_number(token)
-        if parsed is None:
-            return ""
-        if parsed.is_percentage:
-            return next(iter(parsed.canonical_values()))
-        return canonical_unscaled(parsed)
 
     def verify(
         self, answer: str, retrieved_chunks: List[RetrievedDocument], doc_names: List[str] | None = None
