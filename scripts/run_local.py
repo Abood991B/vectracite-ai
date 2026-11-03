@@ -30,7 +30,11 @@ def main() -> int:
 
     import uvicorn
 
-    vector_mode = "in-memory Qdrant" if os.environ["QDRANT_IN_MEMORY"] == "true" else "Qdrant server"
+    vector_mode = (
+        "in-memory Qdrant"
+        if os.environ["QDRANT_IN_MEMORY"].strip().lower() in {"1", "true", "yes", "on"}
+        else "Qdrant server"
+    )
     print(f"VectraCite-AI local mode ({vector_mode})")
     print(f"Workbench:   http://{args.host}:{args.port}/")
     print(f"OpenAPI:     http://{args.host}:{args.port}/docs")
