@@ -14,7 +14,7 @@ from src.config import settings
 from src.domain.attributes import PERSON_ATTRIBUTE_TERMS, person_count_value
 from src.domain.documents import DocumentChunk, RetrievedDocument
 from src.domain.financial_statements import is_statement_heading
-from src.retrieval.embedding_cache import load_embeddings, save_embeddings
+from src.retrieval.embedding_cache import load_vector_map, save_embeddings
 from src.retrieval.lexical_index import LexicalIndex, tokenize
 from src.usecases.query_normalization import vocabulary_from_texts
 from src.retrieval.table_ast import named_entities
@@ -461,21 +461,39 @@ class HybridRetriever:
                 self.embedding_model == settings.EMBEDDING_MODEL
                 and self.embedding_dim == settings.EMBEDDING_DIM
             )
-            if (
+            cacheable = (
                 use_embedding_cache
                 and not self.use_lightweight_embedder
                 and uses_default_embedder
-            ):
-                vectors = load_embeddings(chunks)
-            if vectors is None:
-                texts = [chunk.text for chunk in chunks]
-                vectors = self._encode_texts(texts)
+            )
+            cached: dict[str, np.ndarray] = load_vector_map(
+                (chunk.chunk_id for chunk in chunks)
+            ) if cacheable else {}
+            missing = [
+                index
+                for index, chunk in enumerate(chunks)
+                if chunk.chunk_id not in cached
+            ]
+            if missing:
+                fresh = self._encode_texts([chunks[index].text for index in missing])
+                matrix = np.zeros(
+                    (len(chunks), fresh.shape[1]), dtype=np.float32
+                )
+                for position, chunk in enumerate(chunks):
+                    known = cached.get(chunk.chunk_id)
+                    if known is not None:
+                        matrix[position] = known
+                for row, index in enumerate(missing):
+                    matrix[index] = fresh[row]
+                vectors = matrix
                 if (
                     write_embedding_cache
                     and not self.use_lightweight_embedder
                     and uses_default_embedder
                 ):
                     save_embeddings(chunks, vectors)
+            else:
+                vectors = np.stack([cached[chunk.chunk_id] for chunk in chunks])
         else:
             vectors = np.asarray(vectors, dtype=np.float32)
         if len(vectors) != len(chunks):

@@ -57,7 +57,7 @@ deterministic; an OpenAI-compatible endpoint is optional.
 | Cached query throughput | **685 req/s**, p95 5.9 ms, 0 errors (local in-memory cache) |
 | Cold start to first answer | **20.0 s** on CPU |
 | Checked-in finance corpus | 5 real 10-Ks, 830 pages, 4,154 page-cited chunks |
-| Test suite | **194 passed, 2 skipped** in 61.1 s (2026-11-04) |
+| Test suite | **197 passed, 2 skipped** in 61.0 s (2026-11-04) |
 
 All figures above come from the checked-in corpus, labelled sets, and reports; the full suite, corpus
 hashes, and benchmark reports were re-run on 2026-11-04.
@@ -606,7 +606,7 @@ python scripts/check_layers.py             # 0 inward violations, 0 cycles
 python scripts/bench_hot_paths.py --mode inproc --iterations 3 --warmup 1 --gate
 ```
 
-On 2026-11-04 the full suite reported **194 passed, 2 skipped in 61.1 s**; the skips are
+On 2026-11-04 the full suite reported **197 passed, 2 skipped in 61.0 s**; the skips are
 Redis-dependent. CI also runs lint and compile checks, the Dependency Rule check, the documentation
 link check, corpus verification, the hot-path budget gate, and a container smoke test with
 lightweight models. An optional KFP compile job verifies the pipeline definition.

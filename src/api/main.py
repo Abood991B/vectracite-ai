@@ -302,10 +302,13 @@ def _ensure_indexed() -> None:
             logger.exception("Unable to hydrate the shared Qdrant catalog")
     corpus_chunks = _load_persisted_chunks()
     if corpus_chunks:
+        # Startup must not rewrite the checked-in embedding cache: the chunk set here includes the
+        # user's uploads, and the corpus cache is a tracked artifact that only
+        # scripts/build_corpus_index.py owns. Cached corpus vectors are still reused per chunk.
         retriever.index_chunks(
             corpus_chunks,
             use_embedding_cache=True,
-            write_embedding_cache=True,
+            write_embedding_cache=False,
         )
 
 
