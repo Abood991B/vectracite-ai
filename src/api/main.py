@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from src.api.answer_service import AnswerService
-from src.api.distributed_lock import distributed_mutation_lock
+from src.api.distributed_lock import DistributedMutationLock, distributed_mutation_lock
 from src.api.index_state import bump_index_generation, read_index_generation
 from src.api.middleware import BodySizeLimitMiddleware
 from src.api.security import require_admin_access, require_read_access
@@ -107,17 +107,18 @@ page_images = PageImageRenderer()
 
 
 @asynccontextmanager
-async def _mutation_guard() -> AsyncIterator[None]:
+async def _mutation_guard() -> AsyncIterator[DistributedMutationLock]:
     """Serialize a mutation against local handlers, then against other replicas.
 
     Local requests queue on the asyncio lock before asking Redis for the lease, so a waiting
     handler never holds the cross-process lease. The lease is re-checked after acquisition
-    because a holder that lost it mid-write must fail instead of writing through.
+    because a holder that lost it mid-write must fail instead of writing through. The lease is
+    yielded so the caller can stamp points with its commit epoch.
     """
     async with _mutation_lock:
         async with distributed_mutation_lock() as lease:
             lease.require_lease()
-            yield
+            yield lease
 
 
 def _cors_origins() -> list[str]:
@@ -321,7 +322,9 @@ def _build_scenarios() -> List[Dict[str, Any]]:
     )
 
 
-def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> int:
+def _commit_document(
+    clean_name: str, chunks: List[Any], pdf_bytes: bytes, epoch: int | None = None
+) -> int:
     """Persist bytes and swap the indexed version, restoring both on failure."""
     return commit_document(
         doc_name=clean_name,
@@ -331,6 +334,7 @@ def _commit_document(clean_name: str, chunks: List[Any], pdf_bytes: bytes) -> in
         uploads=upload_store,
         invalidate_cache=semantic_cache.clear,
         notify_index_changed=bump_index_generation,
+        commit_epoch=epoch,
     )
 
 
@@ -521,13 +525,13 @@ async def document_page_image(
 @app.post("/documents/clear-demos", dependencies=[Depends(require_admin_access)])
 async def clear_demo_documents() -> Dict[str, Any]:
     """Remove only demo documents from the active index and preserve user uploads."""
-    async with _mutation_guard():
+    async with _mutation_guard() as lease:
         user_document_names = {
             path.stem for path in settings.USER_UPLOADS_DIR.glob("*.pdf")
         }
         removed_chunks = 0
         for doc_name in demo_document_names() - user_document_names:
-            removed_chunks += retriever.delete_document(doc_name)
+            removed_chunks += retriever.delete_document(doc_name, epoch=lease.epoch)
         semantic_cache.clear()
         upload_store.mark_defaults_cleared()
         await asyncio.to_thread(bump_index_generation)
@@ -543,8 +547,9 @@ async def clear_demo_documents() -> Dict[str, Any]:
 @app.post("/documents/clear-all", dependencies=[Depends(require_admin_access)])
 async def clear_all_documents() -> Dict[str, Any]:
     """Remove every indexed document, uploaded PDF, and cached answer."""
-    async with _mutation_guard():
+    async with _mutation_guard() as lease:
         upload_paths = sorted(settings.USER_UPLOADS_DIR.glob("*.pdf"))
+        lease.require_lease()
         retriever.clear()
         semantic_cache.clear()
         removed_files = 0
@@ -566,8 +571,9 @@ async def clear_all_documents() -> Dict[str, Any]:
 @app.post("/documents/restore-defaults", dependencies=[Depends(require_admin_access)])
 async def restore_default_documents() -> Dict[str, Any]:
     """Restore demos while preserving and re-indexing every user upload."""
-    async with _mutation_guard():
+    async with _mutation_guard() as lease:
         persisted_chunks = _load_persisted_chunks(include_defaults=True)
+        lease.require_lease()
         retriever.clear()
         semantic_cache.clear()
         indexed_count = (
@@ -575,6 +581,7 @@ async def restore_default_documents() -> Dict[str, Any]:
                 persisted_chunks,
                 use_embedding_cache=True,
                 write_embedding_cache=True,
+                epoch=lease.epoch,
             )
             if persisted_chunks
             else 0
@@ -622,9 +629,9 @@ async def ingest_pdf_file(payload: PdfUploadRequest) -> Dict[str, Any]:
         )
         if not chunks:
             raise ValueError("No readable text or tables found in PDF.")
-        async with _mutation_guard():
+        async with _mutation_guard() as lease:
             await asyncio.to_thread(
-                _commit_document, clean_name, chunks, raw_bytes
+                _commit_document, clean_name, chunks, raw_bytes, lease.epoch
             )
         return _upload_result(clean_name, chunks, coverage)
     except HTTPException:
@@ -661,8 +668,10 @@ async def ingest_pdf_stream(payload: PdfUploadRequest) -> StreamingResponse:
                     raise ValueError("No readable text or tables found in PDF.")
                 await queue.put({"stage": "indexing"})
                 indexing = True
-                async with _mutation_guard():
-                    await asyncio.to_thread(_commit_document, clean_name, chunks, raw_bytes)
+                async with _mutation_guard() as lease:
+                    await asyncio.to_thread(
+                        _commit_document, clean_name, chunks, raw_bytes, lease.epoch
+                    )
                 await queue.put({"stage": "complete", "result": _upload_result(clean_name, chunks, coverage)})
             except asyncio.CancelledError:
                 raise
@@ -717,9 +726,9 @@ async def ingest_document(payload: IngestRequest) -> Dict[str, Any]:
                 status_code=400,
                 detail="No readable text or tables found in document.",
             )
-        async with _mutation_guard():
+        async with _mutation_guard() as lease:
             await asyncio.to_thread(
-                _commit_document, clean_name, chunks, pdf_bytes
+                _commit_document, clean_name, chunks, pdf_bytes, lease.epoch
             )
     except PDFRenderLimitError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
@@ -748,9 +757,9 @@ async def update_or_replace_document(doc_name: str, payload: IngestRequest) -> D
                 status_code=400,
                 detail="No readable text or tables found in document.",
             )
-        async with _mutation_guard():
+        async with _mutation_guard() as lease:
             removed = await asyncio.to_thread(
-                _commit_document, clean_name, chunks, pdf_bytes
+                _commit_document, clean_name, chunks, pdf_bytes, lease.epoch
             )
     except PDFRenderLimitError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
@@ -768,15 +777,24 @@ async def update_or_replace_document(doc_name: str, payload: IngestRequest) -> D
 async def delete_document(doc_name: str) -> Dict[str, Any]:
     """Delete a document and all of its chunks from Qdrant and BM25."""
     clean_name = _clean_doc_name(doc_name)
-    async with _mutation_guard():
-        removed = retriever.delete_document(clean_name)
-        if removed == 0:
+    async with _mutation_guard() as lease:
+        removed = retriever.delete_document(clean_name, epoch=lease.epoch)
+        survived = lease.epoch is not None and retriever.has_document(clean_name)
+        if removed == 0 and not survived:
             raise HTTPException(
                 status_code=404, detail=f"Document '{clean_name}' not found."
             )
-        upload_store.delete(clean_name, is_demo=clean_name in demo_document_names())
+        if survived:
+            # A newer commit owns the document, so the fence kept it. Ask the client to retry.
+            semantic_cache.clear()
+            await asyncio.to_thread(bump_index_generation)
+            raise HTTPException(
+                status_code=409,
+                detail="Document changed while it was being deleted. Retry.",
+            )
         semantic_cache.clear()
         await asyncio.to_thread(bump_index_generation)
+        upload_store.delete(clean_name, is_demo=clean_name in demo_document_names())
     return {
         "status": "deleted",
         "doc_name": clean_name,

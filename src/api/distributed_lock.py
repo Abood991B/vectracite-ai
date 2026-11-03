@@ -24,6 +24,20 @@ end
 return 0
 """
 
+# Acquisition also assigns a monotonic commit epoch. Writers stamp every point they write with it,
+# so a holder that resumes after losing the lease cannot delete a newer commit. The counter is
+# bootstrapped from wall-clock nanoseconds once, so it increases across Redis restarts and stays
+# larger than any process-local counter.
+_ACQUIRE_SCRIPT = """
+if redis.call('set', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[2]) then
+    if redis.call('exists', KEYS[2]) == 0 then
+        redis.call('set', KEYS[2], ARGV[3])
+    end
+    return redis.call('incr', KEYS[2])
+end
+return 0
+"""
+
 # Renew only a lease this holder still owns. Recreating a lost lease would let two replicas write,
 # which is the exact failure the lease exists to prevent.
 _RENEW_SCRIPT = """
@@ -47,20 +61,27 @@ class DistributedMutationLock:
     A heartbeat renews the lease every third of its TTL while a mutation is in flight, so a write
     that outlives one TTL keeps its exclusivity instead of being overtaken. The TTL still bounds
     recovery: a crashed holder stops renewing, and the lease expires for the next writer.
+
+    Acquisition also returns a monotonic commit epoch (a Redis ``INCR`` beside the lease). The
+    retriever stamps every point it writes with that epoch, so a stale holder cannot delete a newer
+    commit even if it resumes after losing the lease.
     """
 
     def __init__(
         self,
         *,
         key: str = "vectracite:index:mutation",
+        epoch_key: str = "vectracite:index:commit_epoch",
         ttl_seconds: float = 300.0,
         acquire_timeout_seconds: float = 30.0,
         client_factory: Callable[[], Any] | None = None,
     ) -> None:
         self.key = key
+        self.epoch_key = epoch_key
         self.ttl_ms = max(1, int(ttl_seconds * 1000))
         self.acquire_timeout_seconds = acquire_timeout_seconds
         self.token = uuid.uuid4().hex
+        self.epoch: int | None = None
         self._client_factory = client_factory or self._build_client
         self._client: Any = None
         self._heartbeat: asyncio.Task[None] | None = None
@@ -100,11 +121,14 @@ class DistributedMutationLock:
         while True:
             try:
                 acquired = await asyncio.to_thread(
-                    self._client.set,
+                    self._client.eval,
+                    _ACQUIRE_SCRIPT,
+                    2,
                     self.key,
+                    self.epoch_key,
                     self.token,
-                    nx=True,
-                    px=self.ttl_ms,
+                    self.ttl_ms,
+                    time.time_ns(),
                 )
             except redis.RedisError as exc:
                 _LEASE_BREAKER.record_failure()
@@ -114,6 +138,7 @@ class DistributedMutationLock:
                     detail="Index mutation lock is unavailable. Retry shortly.",
                 ) from exc
             if acquired:
+                self.epoch = int(acquired)
                 _LEASE_BREAKER.record_success()
                 self._heartbeat = asyncio.create_task(self._renew_until_released())
                 return self

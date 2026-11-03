@@ -1239,8 +1239,8 @@ def test_mutation_route_goes_through_the_cross_replica_lease(monkeypatch) -> Non
     from src.api.distributed_lock import DistributedMutationLock
 
     class LeaseHeldElsewhere:
-        def set(self, *args, **kwargs):
-            return None
+        def eval(self, *args, **kwargs):
+            return 0
 
         def close(self) -> None:
             pass
@@ -1285,8 +1285,9 @@ def test_a_slow_commit_keeps_the_lease_across_the_http_route(monkeypatch) -> Non
     broker.delete(key)
     observed = {}
 
-    def slow_commit(clean_name, chunks, pdf_bytes):
+    def slow_commit(clean_name, chunks, pdf_bytes, epoch):
         observed["held_at_start"] = bool(broker.exists(key))
+        observed["epoch"] = epoch
         time.sleep(1.6)
         observed["intruder"] = broker.set(key, "intruder", nx=True, px=5000)
         observed["held_at_end"] = bool(broker.exists(key))
@@ -1311,11 +1312,10 @@ def test_a_slow_commit_keeps_the_lease_across_the_http_route(monkeypatch) -> Non
             },
         )
         assert response.status_code == 200, response.text
-        assert observed == {
-            "held_at_start": True,
-            "intruder": None,
-            "held_at_end": True,
-        }
+        assert observed["held_at_start"] is True
+        assert observed["intruder"] is None
+        assert observed["held_at_end"] is True
+        assert isinstance(observed["epoch"], int) and observed["epoch"] > 0
     finally:
         broker.delete(key)
         broker.close()

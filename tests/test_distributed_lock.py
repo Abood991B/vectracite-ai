@@ -33,16 +33,15 @@ def _reset_lease_breaker():
 
 
 class FakeRedis:
-    """Minimal Redis double: NX/PX SET, compare-and-pexpire, compare-and-delete, real TTL."""
+    """Minimal Redis double: the three lease scripts, real TTLs, monotonic commit epochs."""
 
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
         self.expires_at: dict[str, float] = {}
-        self.set_attempts = 0
-        self.set_calls = 0
+        self.acquire_calls = 0
         self.renew_calls = 0
         self.release_calls = 0
-        self.fail_set = False
+        self.fail_acquire = False
         self.fail_renew = False
         self.lose_lease_on_renew = False
         self.closed = False
@@ -57,22 +56,10 @@ class FakeRedis:
         self.values[key] = token
         self.expires_at[key] = time.monotonic() + seconds
 
-    def set(self, key, value, nx=False, px=None):
-        self.set_attempts += 1
-        if self.fail_set:
-            raise redis.RedisError("connection refused")
-        self.set_calls += 1
-        self._purge(key)
-        if nx and key in self.values:
-            return None
-        self.values[key] = value
-        if px is not None:
-            self.expires_at[key] = time.monotonic() + px / 1000.0
-        return True
-
-    def eval(self, script, numkeys, key, *args):
+    def eval(self, script, numkeys, *keys_and_args):
         del numkeys
         if "pexpire" in script:
+            key, token, ttl_ms = keys_and_args
             self.renew_calls += 1
             if self.fail_renew:
                 raise redis.RedisError("connection reset")
@@ -80,13 +67,29 @@ class FakeRedis:
                 self.values[key] = "another-replica"
                 return 0
             self._purge(key)
-            if self.values.get(key) != args[0]:
+            if self.values.get(key) != token:
                 return 0
-            self.expires_at[key] = time.monotonic() + args[1] / 1000.0
+            self.expires_at[key] = time.monotonic() + ttl_ms / 1000.0
             return 1
+        if "incr" in script:
+            lease_key, epoch_key, token, ttl_ms, bootstrap = keys_and_args
+            self.acquire_calls += 1
+            if self.fail_acquire:
+                raise redis.RedisError("connection refused")
+            self._purge(lease_key)
+            if lease_key in self.values:
+                return 0
+            self.values[lease_key] = token
+            self.expires_at[lease_key] = time.monotonic() + ttl_ms / 1000.0
+            if epoch_key not in self.values:
+                self.values[epoch_key] = str(bootstrap)
+            epoch = int(self.values[epoch_key]) + 1
+            self.values[epoch_key] = str(epoch)
+            return epoch
+        key, token = keys_and_args
         self.release_calls += 1
         self._purge(key)
-        if self.values.get(key) == args[0]:
+        if self.values.get(key) == token:
             del self.values[key]
             self.expires_at.pop(key, None)
             return 1
@@ -105,7 +108,7 @@ def test_lock_is_a_noop_when_redis_is_not_required(monkeypatch) -> None:
             lease.require_lease()
 
     asyncio.run(scenario())
-    assert fake.set_calls == 0
+    assert fake.acquire_calls == 0
     assert fake.release_calls == 0
     assert not fake.closed
 
@@ -129,7 +132,7 @@ def test_held_lease_is_renewed_while_a_slow_write_runs(monkeypatch) -> None:
     assert fake.renew_calls >= 2
     assert fake.release_calls == 1
     assert fake.closed
-    assert fake.values == {}
+    assert LOCK_KEY not in fake.values
 
 
 def test_release_never_deletes_another_replicas_lease(monkeypatch) -> None:
@@ -187,8 +190,8 @@ def test_a_crashed_holder_lease_expires_for_the_next_writer(monkeypatch) -> None
             pass
 
     asyncio.run(take_over())
-    assert fake.set_calls == 2
-    assert fake.values == {}
+    assert fake.acquire_calls == 2
+    assert LOCK_KEY not in fake.values
 
 
 def test_acquire_timeout_is_a_clean_503_and_closes_the_client(monkeypatch) -> None:
@@ -209,7 +212,7 @@ def test_acquire_timeout_is_a_clean_503_and_closes_the_client(monkeypatch) -> No
 def test_redis_outage_during_acquire_is_a_clean_503(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
     fake = FakeRedis()
-    fake.fail_set = True
+    fake.fail_acquire = True
 
     with pytest.raises(HTTPException) as blocked:
         asyncio.run(
@@ -224,7 +227,7 @@ def test_breaker_skips_the_redis_timeout_after_repeated_failures(monkeypatch) ->
     """Two failed acquisitions open the breaker, so the third never pays the connect timeout."""
     monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
     fake = FakeRedis()
-    fake.fail_set = True
+    fake.fail_acquire = True
 
     async def scenario() -> list[int]:
         statuses = []
@@ -237,7 +240,7 @@ def test_breaker_skips_the_redis_timeout_after_repeated_failures(monkeypatch) ->
         return statuses
 
     assert asyncio.run(scenario()) == [503, 503, 503]
-    assert fake.set_attempts == 2
+    assert fake.acquire_calls == 2
     assert not _LEASE_BREAKER.allow()
 
 
@@ -259,6 +262,44 @@ def test_a_failed_renewal_keeps_the_lease_and_retries(monkeypatch) -> None:
 
     asyncio.run(scenario())
     assert fake.renew_calls >= 2
+
+
+def test_each_acquisition_gets_a_monotonic_commit_epoch(monkeypatch) -> None:
+    """The commit epoch is what fences stale writers, so it must only ever increase."""
+    monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
+    fake = FakeRedis()
+
+    async def scenario() -> list[int]:
+        epochs = []
+        for _ in range(3):
+            lock = DistributedMutationLock(client_factory=lambda: fake)
+            async with lock:
+                assert lock.epoch is not None
+                epochs.append(lock.epoch)
+        return epochs
+
+    epochs = asyncio.run(scenario())
+    assert len(set(epochs)) == 3
+    assert epochs == sorted(epochs)
+    assert all(epoch > 0 for epoch in epochs)
+
+
+def test_the_ledger_handover_keeps_the_epoch_counter(monkeypatch) -> None:
+    """A new holder must get a newer epoch, not restart the counter."""
+    monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
+    fake = FakeRedis()
+
+    async def scenario() -> int:
+        first = DistributedMutationLock(client_factory=lambda: fake)
+        async with first:
+            pass
+        second = DistributedMutationLock(client_factory=lambda: fake)
+        async with second:
+            assert second.epoch is not None
+            return second.epoch
+
+    assert asyncio.run(scenario()) > 0
+    assert int(fake.values["vectracite:index:commit_epoch"]) >= 2
 
 
 def test_factory_reads_the_configured_lease_budget(monkeypatch) -> None:
@@ -287,16 +328,19 @@ def test_heartbeat_keeps_a_real_redis_lease_past_its_ttl(monkeypatch) -> None:
         pytest.skip(f"Redis is not reachable at {settings.REDIS_URL}")
 
     key = f"vectracite:test:mutation:{uuid.uuid4().hex}"
+    epoch_key = f"vectracite:test:commit_epoch:{uuid.uuid4().hex}"
 
     async def scenario() -> None:
         async with DistributedMutationLock(
             key=key,
+            epoch_key=epoch_key,
             ttl_seconds=1.0,
             acquire_timeout_seconds=2.0,
             client_factory=lambda: redis.Redis.from_url(
                 settings.REDIS_URL, socket_timeout=2.0
             ),
         ) as lease:
+            assert isinstance(lease.epoch, int) and lease.epoch > 0
             assert broker.set(key, "intruder", nx=True, px=5000) is None
             await asyncio.sleep(2.5)
             assert not lease.lease_lost
@@ -308,4 +352,5 @@ def test_heartbeat_keeps_a_real_redis_lease_past_its_ttl(monkeypatch) -> None:
         assert broker.get(key) is None
     finally:
         broker.delete(key)
+        broker.delete(epoch_key)
         broker.close()

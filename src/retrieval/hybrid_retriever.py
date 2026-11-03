@@ -197,20 +197,26 @@ class HybridRetriever:
             self._ensure_payload_index()
 
     def _ensure_payload_index(self) -> None:
-        """Index the field every scoped search filters on; without it Qdrant scans the collection."""
+        """Index the fields scoped search and the commit fence filter on."""
+        required = {
+            "doc_name": qmodels.PayloadSchemaType.KEYWORD,
+            "commit_epoch": qmodels.PayloadSchemaType.INTEGER,
+        }
         try:
             info = self.qdrant.get_collection(self.collection_name)
-            if "doc_name" in (info.payload_schema or {}):
-                return
-            self.qdrant.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="doc_name",
-                field_schema=qmodels.PayloadSchemaType.KEYWORD,
-                wait=True,
-            )
+            existing = info.payload_schema or {}
+            for field_name, schema in required.items():
+                if field_name in existing:
+                    continue
+                self.qdrant.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=schema,
+                    wait=True,
+                )
         except Exception as exc:
             logger.warning(
-                "doc_name payload index unavailable (%s); scoped search will scan",
+                "Payload index unavailable (%s); scoped search and fencing will scan",
                 type(exc).__name__,
             )
 
@@ -302,6 +308,7 @@ class HybridRetriever:
         vectors: np.ndarray,
         *,
         version: str | None = None,
+        epoch: int | None = None,
     ) -> List[qmodels.PointStruct]:
         points: List[qmodels.PointStruct] = []
         for idx, chunk in enumerate(chunks):
@@ -315,6 +322,8 @@ class HybridRetriever:
             }
             if version is not None:
                 payload["version"] = version
+            if epoch is not None:
+                payload["commit_epoch"] = epoch
             points.append(
                 qmodels.PointStruct(
                     id=self._point_uuid(chunk),
@@ -376,6 +385,7 @@ class HybridRetriever:
         vectors: np.ndarray | None = None,
         use_embedding_cache: bool = True,
         write_embedding_cache: bool = False,
+        epoch: int | None = None,
     ) -> int:
         """Indexes DocumentChunks into both Qdrant and the in-process BM25 catalog."""
         if not chunks:
@@ -405,7 +415,7 @@ class HybridRetriever:
             vectors = np.asarray(vectors, dtype=np.float32)
         if len(vectors) != len(chunks):
             raise ValueError("embedding count does not match chunk count")
-        points = self._build_points(chunks, vectors)
+        points = self._build_points(chunks, vectors, epoch=epoch)
 
         with self._mutation_lock:
             self._upsert_points(points)
@@ -416,25 +426,35 @@ class HybridRetriever:
             self._rebuild_bm25()
         return len(chunks)
 
-    def replace_document(self, doc_name: str, chunks: List[DocumentChunk]) -> int:
-        """Stage a new document version, then remove stale points for that document."""
+    def replace_document(
+        self, doc_name: str, chunks: List[DocumentChunk], *, epoch: int | None = None
+    ) -> int:
+        """Stage a new document version, then remove versions older than this commit."""
         if not chunks:
-            return self.delete_document(doc_name)
+            return self.delete_document(doc_name, epoch=epoch)
 
         version = uuid.uuid4().hex
         vectors = self._encode_texts([chunk.text for chunk in chunks])
-        points = self._build_points(chunks, vectors, version=version)
+        points = self._build_points(chunks, vectors, version=version, epoch=epoch)
+        stale_must_not = [
+            qmodels.FieldCondition(
+                key="version", match=qmodels.MatchValue(value=version)
+            )
+        ]
+        if epoch is not None:
+            # The fence: never delete a version committed by a newer lease epoch.
+            stale_must_not.append(
+                qmodels.FieldCondition(
+                    key="commit_epoch", range=qmodels.Range(gt=epoch)
+                )
+            )
         stale_filter = qmodels.Filter(
             must=[
                 qmodels.FieldCondition(
                     key="doc_name", match=qmodels.MatchValue(value=doc_name)
                 )
             ],
-            must_not=[
-                qmodels.FieldCondition(
-                    key="version", match=qmodels.MatchValue(value=version)
-                )
-            ],
+            must_not=stale_must_not,
         )
 
         with self._mutation_lock:
@@ -461,7 +481,12 @@ class HybridRetriever:
                     if old_chunks:
                         old_vectors = self._encode_texts([c.text for c in old_chunks])
                         self._upsert_points(
-                            self._build_points(old_chunks, old_vectors)
+                            self._build_points(
+                                old_chunks,
+                                old_vectors,
+                                version=uuid.uuid4().hex,
+                                epoch=epoch,
+                            )
                         )
                 except Exception:
                     logger.exception("Unable to roll back failed document replacement")
@@ -486,12 +511,18 @@ class HybridRetriever:
                 if chunk.doc_name == doc_name
             ]
 
-    def restore_document(self, doc_name: str, chunks: List[DocumentChunk]) -> None:
+    def restore_document(
+        self,
+        doc_name: str,
+        chunks: List[DocumentChunk],
+        *,
+        epoch: int | None = None,
+    ) -> None:
         """Restore a previously snapshotted document after an API-level failure."""
         if chunks:
-            self.replace_document(doc_name, chunks)
+            self.replace_document(doc_name, chunks, epoch=epoch)
         else:
-            self.delete_document(doc_name)
+            self.delete_document(doc_name, epoch=epoch)
 
     def retrieve_dense_only(self, query: str, top_k: int = 10) -> List[RetrievedDocument]:
         """Executes standard dense-only vector search in Qdrant (used as baseline comparison)."""
@@ -625,14 +656,22 @@ class HybridRetriever:
             self._lexical.rebuild([])
             self.last_sync_at = time.monotonic()
 
-    def delete_document(self, doc_name: str) -> int:
-        """Remove every point belonging to `doc_name` without dropping the collection."""
+    def delete_document(self, doc_name: str, *, epoch: int | None = None) -> int:
+        """Remove the document's points, never those committed by a newer lease epoch."""
+        must_not = []
+        if epoch is not None:
+            must_not.append(
+                qmodels.FieldCondition(
+                    key="commit_epoch", range=qmodels.Range(gt=epoch)
+                )
+            )
         selector = qmodels.Filter(
             must=[
                 qmodels.FieldCondition(
                     key="doc_name", match=qmodels.MatchValue(value=doc_name)
                 )
-            ]
+            ],
+            must_not=must_not or None,
         )
         with self._mutation_lock:
             local_removed = sum(1 for c in self.chunks_store if c.doc_name == doc_name)
@@ -644,6 +683,10 @@ class HybridRetriever:
                 ).count
             except Exception:
                 remote_removed = local_removed
+            if epoch is not None and remote_removed == 0:
+                # A newer commit owns this document now; leave the local catalog alone and let
+                # the caller report that the delete did not apply.
+                return 0
             if remote_removed:
                 self.qdrant.delete(
                     collection_name=self.collection_name,
@@ -654,6 +697,118 @@ class HybridRetriever:
             ]
             self._rebuild_bm25()
         return max(local_removed, remote_removed)
+
+    def has_document(self, doc_name: str) -> bool:
+        """Return whether any point for `doc_name` remains, preferring the shared store."""
+        selector = qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="doc_name", match=qmodels.MatchValue(value=doc_name)
+                )
+            ]
+        )
+        try:
+            return (
+                self.qdrant.count(
+                    collection_name=self.collection_name,
+                    count_filter=selector,
+                    exact=True,
+                ).count
+                > 0
+            )
+        except Exception:
+            with self._mutation_lock:
+                return any(chunk.doc_name == doc_name for chunk in self.chunks_store)
+
+    @staticmethod
+    def _payload_epoch(payload: Dict[str, Any]) -> int:
+        try:
+            return int(payload.get("commit_epoch", 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def _reconcile_versions(self, records: List[Any]) -> List[Any]:
+        """Keep the newest commit epoch per document and delete versions a crash left behind."""
+        groups: Dict[str, Dict[str | None, Dict[str, Any]]] = {}
+        for record in records:
+            payload = record.payload or {}
+            doc_name = str(payload.get("doc_name", "")).strip()
+            if not doc_name:
+                continue
+            version = payload.get("version")
+            version_key = str(version) if version is not None else None
+            epoch = self._payload_epoch(payload)
+            group = groups.setdefault(doc_name, {}).setdefault(
+                version_key, {"epoch": epoch, "records": []}
+            )
+            group["records"].append(record)
+            group["epoch"] = max(group["epoch"], epoch)
+
+        kept: List[Any] = []
+        for doc_name, versions in groups.items():
+            if len(versions) <= 1:
+                kept.extend(next(iter(versions.values()))["records"])
+                continue
+            newest_epoch = max(group["epoch"] for group in versions.values())
+            winners = [
+                version
+                for version, group in versions.items()
+                if group["epoch"] == newest_epoch
+            ]
+            if len(winners) > 1:
+                logger.warning(
+                    "Document %s has %d versions without an ordering epoch; keeping all of them",
+                    doc_name,
+                    len(winners),
+                )
+                for version in winners:
+                    kept.extend(versions[version]["records"])
+                continue
+            winner = winners[0]
+            kept.extend(versions[winner]["records"])
+            for version, group in versions.items():
+                if version == winner:
+                    continue
+                if self._delete_version(doc_name, version):
+                    logger.warning(
+                        "Reconciled document %s: removed version %s (%d points) in favour "
+                        "of epoch %s",
+                        doc_name,
+                        version,
+                        len(group["records"]),
+                        newest_epoch,
+                    )
+        return kept
+
+    def _delete_version(self, doc_name: str, version: str | None) -> bool:
+        must = [
+            qmodels.FieldCondition(
+                key="doc_name", match=qmodels.MatchValue(value=doc_name)
+            )
+        ]
+        if version is None:
+            must.append(
+                qmodels.IsEmptyCondition(is_empty=qmodels.PayloadField(key="version"))
+            )
+        else:
+            must.append(
+                qmodels.FieldCondition(
+                    key="version", match=qmodels.MatchValue(value=version)
+                )
+            )
+        try:
+            self.qdrant.delete(
+                collection_name=self.collection_name,
+                points_selector=qmodels.Filter(must=must),
+            )
+            return True
+        except Exception:
+            logger.exception(
+                "Unable to remove stale version %s of %s during reconcile",
+                version,
+                doc_name,
+            )
+            return False
 
     def hydrate_from_qdrant(self) -> int:
         """Rebuild BM25 and the read catalog from the shared Qdrant payload store."""
@@ -671,6 +826,7 @@ class HybridRetriever:
             if offset is None:
                 break
 
+        records = self._reconcile_versions(records)
         chunks = [
             chunk
             for record in records

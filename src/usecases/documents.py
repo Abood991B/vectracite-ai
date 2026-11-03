@@ -19,9 +19,21 @@ class DocumentCatalogPort(Protocol):
 
     def snapshot_document(self, doc_name: str) -> List[DocumentChunk]: ...
 
-    def replace_document(self, doc_name: str, chunks: List[DocumentChunk]) -> int: ...
+    def replace_document(
+        self,
+        doc_name: str,
+        chunks: List[DocumentChunk],
+        *,
+        epoch: int | None = None,
+    ) -> int: ...
 
-    def restore_document(self, doc_name: str, chunks: List[DocumentChunk]) -> None: ...
+    def restore_document(
+        self,
+        doc_name: str,
+        chunks: List[DocumentChunk],
+        *,
+        epoch: int | None = None,
+    ) -> None: ...
 
 
 class UploadStorePort(Protocol):
@@ -65,13 +77,14 @@ def commit_document(
     uploads: UploadStorePort,
     invalidate_cache: Callable[[], None],
     notify_index_changed: Callable[[], None],
+    commit_epoch: int | None = None,
 ) -> int:
     """Persist bytes and swap the indexed version, restoring both on failure."""
     previous_bytes = uploads.read(doc_name)
     snapshot = catalog.snapshot_document(doc_name)
     try:
         uploads.write(doc_name, pdf_bytes)
-        removed = catalog.replace_document(doc_name, chunks)
+        removed = catalog.replace_document(doc_name, chunks, epoch=commit_epoch)
     except Exception:
         try:
             if previous_bytes is not None:
@@ -79,7 +92,7 @@ def commit_document(
             else:
                 uploads.delete(doc_name, is_demo=False)
             if snapshot:
-                catalog.restore_document(doc_name, snapshot)
+                catalog.restore_document(doc_name, snapshot, epoch=commit_epoch)
         except Exception:
             logger.exception("Unable to roll back failed document commit")
         raise
