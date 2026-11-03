@@ -4,6 +4,7 @@ import re
 import threading
 import time
 import uuid
+from dataclasses import dataclass, field
 from typing import Any, Dict, List
 import numpy as np
 from qdrant_client import QdrantClient
@@ -30,6 +31,21 @@ def _chunk_index(chunk: DocumentChunk) -> int:
 
 def _opening_chunk(chunks: List[DocumentChunk]) -> DocumentChunk:
     return min(chunks, key=_chunk_index)
+
+
+@dataclass
+class DocumentIndex:
+    """Per-document answers to questions that only change when the document changes.
+
+    Scanning the whole store for statement headings and people-count sentences took ~10-20 ms
+    per query on a 4,000-chunk corpus. Both answers depend only on the document's chunks, so
+    they are built once and dropped whenever the store is replaced. Each is built on first use,
+    so a table question never pays for the people-count scan and the reverse.
+    """
+
+    chunks: List[DocumentChunk] = field(default_factory=list)
+    statement_pages: List[List[DocumentChunk]] | None = None
+    person_count_chunks: List[DocumentChunk] | None = None
 
 
 class LightweightEmbedder:
@@ -191,6 +207,8 @@ class HybridRetriever:
         self.chunks_store: List[DocumentChunk] = []
         self._lexical = LexicalIndex()
         self._vocab_cache: tuple[tuple[int, str], Dict[str, int]] | None = None
+        self._by_document: Dict[str, List[DocumentChunk]] = {}
+        self._document_indexes: Dict[str, DocumentIndex] = {}
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:
@@ -352,15 +370,57 @@ class HybridRetriever:
                 points=points[start : start + batch_size],
             )
 
-    def _rebuild_bm25(self) -> None:
-        self._lexical.rebuild(self.chunks_store)
+    def _commit_chunks_store(self, chunks: List[DocumentChunk]) -> None:
+        """Replace the in-memory store and drop everything derived from the old one.
+
+        Every write to ``chunks_store`` goes through here. That is the whole point: the derived
+        per-document indexes cannot go stale because there is no other way to change the store.
+        """
+        self.chunks_store = chunks
+        by_document: Dict[str, List[DocumentChunk]] = {}
+        for chunk in chunks:
+            by_document.setdefault(chunk.doc_name, []).append(chunk)
+        self._by_document = by_document
+        self._document_indexes.clear()
+        self._lexical.rebuild(chunks)
+
+    def _document_index(self, doc_name: str) -> DocumentIndex:
+        """The document's derived index container. Call under the mutation lock."""
+        cached = self._document_indexes.get(doc_name)
+        if cached is not None:
+            return cached
+        index = DocumentIndex(chunks=self._by_document.get(doc_name, []))
+        self._document_indexes[doc_name] = index
+        return index
+
+    def _statement_pages(self, doc_name: str) -> List[List[DocumentChunk]]:
+        index = self._document_index(doc_name)
+        if index.statement_pages is None:
+            pages: Dict[int, List[DocumentChunk]] = {}
+            for chunk in index.chunks:
+                pages.setdefault(chunk.page_number, []).append(chunk)
+            index.statement_pages = [
+                sorted(pages[page], key=_chunk_index)
+                for page in sorted(pages)
+                if is_statement_heading(_opening_chunk(pages[page]).text)
+            ]
+        return index.statement_pages
+
+    def _person_count_chunks(self, doc_name: str) -> List[DocumentChunk]:
+        index = self._document_index(doc_name)
+        if index.person_count_chunks is None:
+            index.person_count_chunks = [
+                chunk for chunk in index.chunks if person_count_value(chunk.text)
+            ]
+        return index.person_count_chunks
 
     def _replace_local_chunks(
         self, doc_name: str, chunks: List[DocumentChunk]
     ) -> None:
         remaining = [chunk for chunk in self.chunks_store if chunk.doc_name != doc_name]
-        self.chunks_store = sorted(remaining + chunks, key=self._chunk_sort_key)
-        self._rebuild_bm25()
+        self._commit_chunks_store(
+            sorted(remaining + chunks, key=self._chunk_sort_key)
+        )
 
     @staticmethod
     def _chunk_from_payload(payload: Dict[str, Any]) -> DocumentChunk | None:
@@ -432,8 +492,9 @@ class HybridRetriever:
             existing = {chunk.chunk_id: chunk for chunk in self.chunks_store}
             for chunk in chunks:
                 existing[chunk.chunk_id] = chunk
-            self.chunks_store = sorted(existing.values(), key=self._chunk_sort_key)
-            self._rebuild_bm25()
+            self._commit_chunks_store(
+                sorted(existing.values(), key=self._chunk_sort_key)
+            )
         return len(chunks)
 
     def replace_document(
@@ -679,8 +740,7 @@ class HybridRetriever:
                 collection_name=self.collection_name,
                 points_selector=qmodels.Filter(must_not=must_not or None),
             )
-            self.chunks_store = []
-            self._lexical.rebuild([])
+            self._commit_chunks_store([])
             self.last_sync_at = time.monotonic()
 
     def has_newer_commit(self, epoch: int) -> bool:
@@ -740,10 +800,13 @@ class HybridRetriever:
                     collection_name=self.collection_name,
                     points_selector=selector,
                 )
-            self.chunks_store = [
-                chunk for chunk in self.chunks_store if chunk.doc_name != doc_name
-            ]
-            self._rebuild_bm25()
+            self._commit_chunks_store(
+                [
+                    chunk
+                    for chunk in self.chunks_store
+                    if chunk.doc_name != doc_name
+                ]
+            )
         return max(local_removed, remote_removed)
 
     def has_document(self, doc_name: str) -> bool:
@@ -803,14 +866,10 @@ class HybridRetriever:
         attribute_question = bool(PERSON_ATTRIBUTE_TERMS & normalized)
         matches: List[DocumentChunk] = []
         with self._mutation_lock:
-            for chunk in self.chunks_store:
-                if chunk.doc_name != doc_name:
-                    continue
+            for chunk in self._person_count_chunks(doc_name):
                 if not attribute_question and not normalized.intersection(
                     tokenize(chunk.text)
                 ):
-                    continue
-                if not person_count_value(chunk.text):
                     continue
                 matches.append(chunk)
                 if len(matches) >= limit:
@@ -828,20 +887,9 @@ class HybridRetriever:
         chunks are returned so synthesis can read the reporting line even when the page is
         printed as plain text rather than as an extracted table.
         """
-        by_page: Dict[int, List[DocumentChunk]] = {}
         with self._mutation_lock:
-            for chunk in self.chunks_store:
-                if chunk.doc_name == doc_name:
-                    by_page.setdefault(chunk.page_number, []).append(chunk)
-        pages = sorted(
-            page
-            for page, chunks in by_page.items()
-            if is_statement_heading(_opening_chunk(chunks).text)
-        )[:limit_pages]
-        selected: List[DocumentChunk] = []
-        for page in pages:
-            selected.extend(sorted(by_page[page], key=_chunk_index))
-        return selected
+            pages = self._statement_pages(doc_name)[:limit_pages]
+        return [chunk for page in pages for chunk in page]
 
     @staticmethod
     def _payload_epoch(payload: Dict[str, Any]) -> int:
@@ -957,8 +1005,7 @@ class HybridRetriever:
         ]
         chunks.sort(key=self._chunk_sort_key)
         with self._mutation_lock:
-            self.chunks_store = chunks
-            self._rebuild_bm25()
+            self._commit_chunks_store(chunks)
             self.last_sync_at = time.monotonic()
         return len(chunks)
 
