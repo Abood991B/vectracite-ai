@@ -54,9 +54,6 @@ class PdfFileStore:
     def list_upload_paths(self) -> List[Path]:
         return sorted(self.uploads_dir.glob("*.pdf"))
 
-    def list_upload_names(self) -> List[str]:
-        return [path.stem for path in self.list_upload_paths()]
-
     def defaults_cleared(self) -> bool:
         return (self.uploads_dir / DEFAULTS_CLEARED_MARKER).exists()
 

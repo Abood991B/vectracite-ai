@@ -1,0 +1,227 @@
+{
+  "cases_path": "data/retrieval_quality_domains.json",
+  "top_k": 4,
+  "chunks": 525,
+  "documents": [
+    "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+    "CDC_MMWR_72_42",
+    "NIST_AI_RMF_1_0",
+    "SCOTUS_303_Creative_v_Elenis"
+  ],
+  "gates": {
+    "adaptive": {
+      "overall": {
+        "cases": 12,
+        "recall_at_1": 0.3333,
+        "recall_at_3": 0.5833,
+        "mrr": 0.4933,
+        "cited_hit": 0.8333,
+        "value_hit": 0.8333
+      },
+      "families": {
+        "academic_ml": {
+          "cases": 3,
+          "recall_at_1": 0.3333,
+          "recall_at_3": 0.6667,
+          "mrr": 0.5333,
+          "cited_hit": 0.6667,
+          "value_hit": 0.6667
+        },
+        "ai_governance": {
+          "cases": 3,
+          "recall_at_1": 0.6667,
+          "recall_at_3": 1.0,
+          "mrr": 0.8333,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        },
+        "legal": {
+          "cases": 3,
+          "recall_at_1": 0.3333,
+          "recall_at_3": 0.3333,
+          "mrr": 0.4,
+          "cited_hit": 0.6667,
+          "value_hit": 0.6667
+        },
+        "public_health": {
+          "cases": 3,
+          "recall_at_1": 0.0,
+          "recall_at_3": 0.3333,
+          "mrr": 0.2063,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        }
+      },
+      "per_case": [
+        {
+          "case_id": "public_health_hepatitis_deaths",
+          "family": "public_health",
+          "question": "How many hepatitis A outbreak-related deaths were analyzed across 27 states during August 1, 2016 through October 31, 2022?",
+          "gold": "CDC_MMWR_72_42 p[4]",
+          "retrieval_rank": 28,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "CDC_MMWR_72_42 p4",
+            "CDC_MMWR_72_42 p4",
+            "NIST_AI_RMF_1_0 p27"
+          ],
+          "answer": "Comparison across documents: - From [CDC_MMWR_72_42, Page 4]: - **Total no. of reported hepatitis A** (tes,* August 1, 2016– No. (%)): **315** - 2016 (tes,* August 1, 2016– No. (%)): 4 (1.3) - 2022 (tes,* August 1, 2016–"
+        },
+        {
+          "case_id": "public_health_male_percentage",
+          "family": "public_health",
+          "question": "Among the reported hepatitis A outbreak-related deaths, what percentage were male?",
+          "gold": "CDC_MMWR_72_42 p[4]",
+          "retrieval_rank": 4,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "CDC_MMWR_72_42 p4",
+            "CDC_MMWR_72_42 p4"
+          ],
+          "answer": "From [CDC_MMWR_72_42, Page 4]: - **Total no. of reported hepatitis A** (tes,* August 1, 2016– No. (%)): **315** - **Sex**<br>Female<br>Male (tes,* August 1, 2016– No. (%)): 85 (27.0)<br>230 (73.0) - **Hepatitis A vaccina"
+        },
+        {
+          "case_id": "public_health_death_certificate_not_listed",
+          "family": "public_health",
+          "question": "Among decedents with available death certificates, what percentage had hepatitis A not listed on the death certificate?",
+          "gold": "CDC_MMWR_72_42 p[5]",
+          "retrieval_rank": 3,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "CDC_MMWR_72_42 p5",
+            "CDC_MMWR_72_42 p5"
+          ],
+          "answer": "From [CDC_MMWR_72_42, Page 5]: - **Hepatitis A status when death certificate was available (272)§**<br>Hepatitis A not listed on death certificate<br>108 (39.7)<br>Hepatitis A listed on death certificate<br>164 (60.3)<br"
+        },
+        {
+          "case_id": "nist_core_functions",
+          "family": "ai_governance",
+          "question": "Which four functions make up the AI RMF Core?",
+          "gold": "NIST_AI_RMF_1_0 p[8, 25]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "NIST_AI_RMF_1_0 p25",
+            "NIST_AI_RMF_1_0 p25"
+          ],
+          "answer": "According to [NIST_AI_RMF_1_0, Page 25]: Part 2: Core and Profiles AI RMF Core The AI RMF Core provides outcomes and actions that enable dialogue, understanding, and activities to manage AI risks and responsibly develop "
+        },
+        {
+          "case_id": "nist_risk_tolerance",
+          "family": "ai_governance",
+          "question": "Does the AI RMF prescribe a specific risk tolerance for organizations?",
+          "gold": "NIST_AI_RMF_1_0 p[12]",
+          "retrieval_rank": 2,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "NIST_AI_RMF_1_0 p12",
+            "NIST_AI_RMF_1_0 p12"
+          ],
+          "answer": "According to [NIST_AI_RMF_1_0, Page 12]: 1.2.2 Risk Tolerance While the AI RMF can be used to prioritize risk, it does not prescribe risk tolerance. Risk tolerance refers to the organization’s or AI actor’s (see Appendix"
+        },
+        {
+          "case_id": "nist_trustworthy_characteristics",
+          "family": "ai_governance",
+          "question": "What characteristics of trustworthy AI systems are listed in the AI RMF?",
+          "gold": "NIST_AI_RMF_1_0 p[17]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "NIST_AI_RMF_1_0 p17",
+            "NIST_AI_RMF_1_0 p17"
+          ],
+          "answer": "According to [NIST_AI_RMF_1_0, Page 17]: For AI systems to be trustworthy, they often need to be responsive to a multiplicity of criteria that are of value to interested parties. This Framework articulates the following "
+        },
+        {
+          "case_id": "scotus_303_creative_holding",
+          "family": "legal",
+          "question": "What did the Supreme Court hold in 303 Creative LLC v. Elenis?",
+          "gold": "SCOTUS_303_Creative_v_Elenis p[3]",
+          "retrieval_rank": null,
+          "cited": false,
+          "value_found": false,
+          "cited_pages": [
+            "SCOTUS_303_Creative_v_Elenis p56"
+          ],
+          "answer": "According to [SCOTUS_303_Creative_v_Elenis, Page 56]: 624 303 CREATIVE LLC v."
+        },
+        {
+          "case_id": "scotus_cada_maximum_fine",
+          "family": "legal",
+          "question": "Under CADA, what is the maximum fine a court can order per violation?",
+          "gold": "SCOTUS_303_Creative_v_Elenis p[13]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "SCOTUS_303_Creative_v_Elenis p13"
+          ],
+          "answer": "According to [SCOTUS_303_Creative_v_Elenis, Page 13]: And a variety of penalties can follow. Courts can order fines up to $500 per violation. The Colorado Commission on Civil Rights can issue cease­ and-desist orders, § "
+        },
+        {
+          "case_id": "scotus_cada_scope",
+          "family": "legal",
+          "question": "What does CADA prohibit public accommodations from denying, and on what protected traits?",
+          "gold": "SCOTUS_303_Creative_v_Elenis p[2]",
+          "retrieval_rank": 5,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "SCOTUS_303_Creative_v_Elenis p2"
+          ],
+          "answer": "According to [SCOTUS_303_Creative_v_Elenis, Page 2]: CADA prohibits all “public accommodations” from denying “the full and equal enjoyment” of its goods and services to any customer based on his race, creed, disability, "
+        },
+        {
+          "case_id": "academic_ml_llama_parameter_range",
+          "family": "academic_ml",
+          "question": "What parameter range does the LLaMA collection cover?",
+          "gold": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p[1]",
+          "retrieval_rank": 10,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p1"
+          ],
+          "answer": "According to [ARXIV_LLaMA_Open_Efficient_Foundation_LMs, Page 1]: For instance, We introduce LLaMA, a collection of founda- although Hoffmann et al. In The focus of this work is to train a series of particular, LLaMA-13B"
+        },
+        {
+          "case_id": "academic_ml_llama_commoncrawl_share",
+          "family": "academic_ml",
+          "question": "What percentage of LLaMA's pre-training data mixture is English CommonCrawl?",
+          "gold": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p[2]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p2",
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p2"
+          ],
+          "answer": "From [ARXIV_LLaMA_Open_Efficient_Foundation_LMs, Page 2]: - CommonCrawl (Col2): 67.0% - CommonCrawl (Epochs): 1.10 - CommonCrawl (Disksize): 3.3 TB Calculated comparisons: - Period change - CommonCrawl (Col2 vs Epochs): "
+        },
+        {
+          "case_id": "academic_ml_llama_boolq_65b",
+          "family": "academic_ml",
+          "question": "What zero-shot BoolQ accuracy does LLaMA-65B report?",
+          "gold": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p[4]",
+          "retrieval_rank": 2,
+          "cited": false,
+          "value_found": false,
+          "cited_pages": [
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p5",
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p5",
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p5",
+            "ARXIV_LLaMA_Open_Efficient_Foundation_LMs p5"
+          ],
+          "answer": "According to [ARXIV_LLaMA_Open_Efficient_Foundation_LMs, Page 5]: We evaluate in the zero-shot setting as 540B 68.1 49.1 done in the language modeling community. 7B 61.1 46.9 In Table 3, we compare with existing models 1"
+        }
+      ]
+    }
+  },
+  "elapsed_s": 50.1
+}

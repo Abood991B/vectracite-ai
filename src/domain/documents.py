@@ -37,6 +37,9 @@ class RetrievedDocument:
     bm25_score: float
     rrf_score: float
     rerank_score: float | None = None
+    # Position of this chunk inside its page. Zero marks the page's opening chunk, which is the
+    # only one whose text carries the page's own heading.
+    chunk_index: int = 0
 
 
 __all__ = ["DocumentChunk", "RetrievedDocument"]

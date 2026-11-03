@@ -899,7 +899,9 @@ def test_edge_case_pdfs_encrypted_corrupted_and_unicode() -> None:
 
 
 def test_clear_and_restore_demos_invalidates_cache_and_leaves_no_orphans() -> None:
-    from src.api.main import DEMO_DOCUMENT_NAMES, retriever, semantic_cache
+    from src.api.main import demo_document_names, retriever, semantic_cache
+
+    demos = demo_document_names()
 
     question = "What were AMD total net revenue values for FY2022 and FY2021?"
     try:
@@ -918,7 +920,7 @@ def test_clear_and_restore_demos_invalidates_cache_and_leaves_no_orphans() -> No
         assert cleared.status_code == 200
         assert semantic_cache.lookup(cache_key) is None
         assert not any(
-            chunk.doc_name in DEMO_DOCUMENT_NAMES for chunk in retriever.chunks_store
+            chunk.doc_name in demos for chunk in retriever.chunks_store
         )
         indexed_count = retriever.qdrant.count(
             collection_name=retriever.collection_name
@@ -928,7 +930,7 @@ def test_clear_and_restore_demos_invalidates_cache_and_leaves_no_orphans() -> No
         restored_again = client.post("/documents/restore-defaults")
         assert restored_again.status_code == 200
         assert semantic_cache.lookup(cache_key) is None
-        assert DEMO_DOCUMENT_NAMES <= {
+        assert demos <= {
             document["doc_name"] for document in retriever.list_documents()
         }
     finally:

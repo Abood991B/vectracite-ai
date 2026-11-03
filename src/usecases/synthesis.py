@@ -7,11 +7,19 @@ types and pure parsing helpers — no HTTP client, no settings, no provider.
 
 from __future__ import annotations
 
+import math
 import re
 from collections import defaultdict
 from typing import Dict, Iterable, List
 
+from src.domain.attributes import (
+    FINANCIAL_METRIC_RE,
+    asks_for_people_count,
+    is_count_question,
+    person_count_value,
+)
 from src.domain.documents import RetrievedDocument
+from src.domain.financial_statements import asked_statement_families, statement_family
 from src.domain.sections import SECTION_HEADER_REGEX
 from src.retrieval.table_ast import TableASTParser
 
@@ -78,6 +86,11 @@ QUERY_TERM_SYNONYMS: Dict[str, set[str]] = {
     "sold": {"sales", "revenue"},
     "topline": {"revenue", "sales"},
     "bottomline": {"income", "profit"},
+    # Headcount vocabulary: the gold sentence says "employed 29,239 people", not "employee count".
+    "employee": {"employees", "employed", "people", "workforce", "headcount", "staff"},
+    "employees": {"employed", "people", "workforce", "headcount", "staff"},
+    "headcount": {"employees", "employed", "people", "workforce"},
+    "workforce": {"employees", "employed", "people"},
 }
 SECTION_ALIASES: Dict[str, tuple[str, ...]] = {
     "summary": ("professional summary", "executive summary", "summary", "profile", "overview"),
@@ -91,22 +104,69 @@ TABLE_INTENT_RE = re.compile(
     r"\b(table|row|column|revenue|sales|income|profit|margin|capex|"
     r"capital expenditure|expense|cash flow|cashflow|assets?|liabilit\w*|"
     r"ratio|earnings|dividend|debt|turnover|growth|percent|percentage|"
-    r"make|made|earn|earned|generate|generated|bring|brought|sell|sold|"
     r"top\s+line|bottom\s+line|topline|bottomline|"
     r"fy\s?\d{2,4}|\d{4}|%)\b",
+    flags=re.IGNORECASE,
+)
+# A yes/no question asks for the sentence that supports the answer, not for a row of figures.
+YES_NO_OPENING_RE = re.compile(
+    r"^\s*(?:did|does|do|is|are|was|were|has|have|had|can|could|should|would|will)\b",
     flags=re.IGNORECASE,
 )
 # A row that starts with a revenue or income statement line is stronger evidence than an expense
 # or segment table that merely mentions the same word ("Sales and marketing"). The family is chosen
 # by what the question asks for, so "net income" rows cannot satisfy a "net sales" question.
 REVENUE_STATEMENT_RE = re.compile(
-    r"^(net sales|total net sales|total revenue|net revenue)\b",
+    r"^(net sales|total net sales|total revenues?|net revenues?)\b",
     flags=re.IGNORECASE,
 )
 INCOME_STATEMENT_RE = re.compile(
     r"^(gross profit|operating income|net income|operating profit|net earnings)\b",
     flags=re.IGNORECASE,
 )
+# A period is a column selector, not a metric. Counting a segment table's "2022" header as
+# query-term overlap promotes a segment row over the statement total the question asks for. The
+# same applies to a date inside a row label: "Balance at December 31, 2019 (Total)" matches the
+# date, not the metric.
+PERIOD_COLUMN_RE = re.compile(r"^(?:19|20)\d{2}$")
+PERIOD_TERM_RE = re.compile(
+    r"^(?:(?:19|20)\d{2}|january|february|march|april|may|june|july|august|september|"
+    r"october|november|december|\d{1,2})$",
+    flags=re.IGNORECASE,
+)
+# The consolidated total is the reported company figure; segment and expense rows repeat the
+# same metric words without being it.
+TOTAL_ROW_RE = re.compile(r"^(?:total|consolidated|combined)\b", flags=re.IGNORECASE)
+REVENUE_FAMILY_RE = re.compile(r"\b(sales|revenues?|turnover)\b", flags=re.IGNORECASE)
+INCOME_FAMILY_RE = re.compile(r"\b(income|profit|earnings)\b", flags=re.IGNORECASE)
+# "Total cost of sales" contains the word "sales" without being revenue, so it cannot take the
+# consolidated-total bonus on a revenue question.
+COST_ROW_RE = re.compile(r"\bcost of\b", flags=re.IGNORECASE)
+# Filings name capital spending "purchases of property, plant and equipment", so a capex question
+# needs those line words to reach the cash-flow line it is asking about.
+CAPITAL_EXPENDITURE_RE = re.compile(r"capital expenditure|\bcapex\b", flags=re.IGNORECASE)
+NUMBER_TOKEN_RE = re.compile(r"\d[\d,.]*\d")
+
+
+def wants_table_evidence(question: str) -> bool:
+    """True when table synthesis should run for this question.
+
+    A count question that names no statement metric ("employee count in FY2022") is a narrative
+    fact question; TABLE_INTENT_RE would otherwise match the bare year and answer it from a table.
+    A yes/no question wants a sentence that supports the yes or the no, and its year token is not
+    a table request either: "Did AMD report customer concentration in FY22?" is answered from the
+    risk-factor paragraph, not from whichever table repeats the word "customer".
+    """
+    if YES_NO_OPENING_RE.match(question):
+        return False
+    if asks_for_people_count(question):
+        return bool(FINANCIAL_METRIC_RE.search(question))
+    return bool(TABLE_INTENT_RE.search(question))
+
+
+# A line that states the asked-for quantity outranks one that merely repeats the attribute word,
+# so the bonus is larger than any realistic term-overlap count on a single line.
+COUNT_STATEMENT_BONUS = 10
 META_QUESTION_RE = re.compile(
     r"\b(what model|which model|who are you|what are you|how do you work|"
     r"how does (?:this|it) work|what llm|privacy|is my data private|"
@@ -230,6 +290,47 @@ def query_terms(question: str) -> set[str]:
             digits = fiscal_year.group(1)
             terms.add(digits if len(digits) == 4 else f"20{digits}")
     return terms
+
+
+def narrative_sentences(text: str) -> List[str]:
+    """Rebuild sentences from extracted page text.
+
+    Extraction wraps at the column edge and hyphenates there, so a line is not a sentence:
+    "The AI RMF Core provides ... and" / "activities to manage ... As illus-" / "trated in
+    Figure 5 ..." is one sentence. Scoring lines answers with fragments, so lines are rejoined
+    first: a trailing hyphen closes up, anything else joins with a space, and the result is split
+    at sentence punctuation.
+
+    Table markup is dropped before joining. It carries no prose, and joining it to the paragraph
+    above produces one giant "sentence" that later filters discard, taking the prose with it.
+    """
+    sentences: List[str] = []
+    buffer: List[str] = []
+
+    def flush() -> None:
+        if not buffer:
+            return
+        block = " ".join(buffer)
+        sentences.extend(
+            sentence.strip()
+            for sentence in re.split(r"(?<=[.!?])\s+", block)
+            if sentence.strip()
+        )
+        buffer.clear()
+
+    for raw_line in text.splitlines():
+        line = " ".join(raw_line.split()).strip()
+        if not line:
+            flush()
+            continue
+        if line.startswith("|") or line.startswith("EXTRACTED TABLES"):
+            continue
+        if buffer and buffer[-1].endswith("-"):
+            buffer[-1] = buffer[-1][:-1] + line
+        else:
+            buffer.append(line)
+    flush()
+    return sentences
 
 
 class LocalSynthesizer:
@@ -444,16 +545,105 @@ class LocalSynthesizer:
         return "Comparison across documents:\n" + "\n".join(blocks)
 
     @classmethod
+    def _statement_line_answer(
+        cls,
+        question: str,
+        terms: set[str],
+        chunks: List[RetrievedDocument],
+        statement_pages: Dict[tuple[str, int], str],
+        asked_families: frozenset[str],
+    ) -> tuple[str, int] | None:
+        """The reporting line on a consolidated statement page that matches the question.
+
+        Statement pages often extract as plain text with no markdown table to parse, so the
+        metric is matched against the line itself rather than a cell row key. Any statement
+        metric works - gross profit, research and development, operating cash flow, total
+        assets - because the match is on the question's own terms, not a fixed family list.
+        """
+        best: tuple[tuple[int, ...], RetrievedDocument, str] | None = None
+        for chunk in chunks:
+            if (chunk.doc_name, chunk.page_number) not in statement_pages:
+                continue
+            entity_terms = set(
+                re.findall(r"[a-z0-9]+", chunk.doc_name.split("_", maxsplit=1)[0].lower())
+            )
+            metric_terms = {
+                term
+                for term in terms - entity_terms
+                if term not in QUERY_STOPWORDS
+                and len(term) >= 3
+                and not PERIOD_TERM_RE.match(term)
+            }
+            # Filings report capital expenditure as "purchases of property, plant and equipment",
+            # so the statement line never contains the words the question used.
+            if CAPITAL_EXPENDITURE_RE.search(question.casefold()):
+                metric_terms |= {"purchases", "property", "plant", "equipment"}
+            if not metric_terms:
+                continue
+            for raw_line in chunk.text.splitlines():
+                line = " ".join(raw_line.split())
+                # Markdown rows are the table path's job; a header row names the metric and the
+                # periods but states no figure, so only real values make a line a candidate.
+                if not line or line.startswith("|"):
+                    continue
+                # "Cost of sales" shares a synonym with revenue without being revenue. Only a
+                # question that asks for cost may be answered by a cost row.
+                if COST_ROW_RE.search(line) and "cost" not in metric_terms:
+                    continue
+                values = [
+                    token
+                    for token in NUMBER_TOKEN_RE.findall(line)
+                    if not PERIOD_COLUMN_RE.match(token)
+                ]
+                if not values:
+                    continue
+                overlap = len(
+                    metric_terms & set(re.findall(r"[a-z0-9]+", line.lower()))
+                )
+                if overlap == 0:
+                    continue
+                # A statement row is the asked-for label followed by its periods' values, so
+                # penalise words the question did not ask for: "Total current assets" is shorter
+                # than "Total assets $ 19,845 $ 17,890" but adds a metric word the question
+                # never used.
+                label_terms = {
+                    token
+                    for token in re.findall(r"[a-z]+", line.lower())
+                    if token not in QUERY_STOPWORDS
+                }
+                score = (
+                    overlap,
+                    1
+                    if statement_pages.get((chunk.doc_name, chunk.page_number))
+                    in asked_families
+                    else 0,
+                    -len(label_terms - metric_terms),
+                    -len(line.split()),
+                    -chunk.page_number,
+                )
+                if best is None or score > best[0]:
+                    best = (score, chunk, line)
+        if best is None:
+            return None
+        (overlap, _, _, _, _), chunk, line = best
+        return (
+            f"From [{chunk.doc_name}, Page {chunk.page_number}]:\n- {line}",
+            overlap,
+        )
+
+    @classmethod
     def _table_answer(
         cls, question: str, chunks: List[RetrievedDocument]
     ) -> str | None:
 
-        if not TABLE_INTENT_RE.search(question):
+        if not wants_table_evidence(question):
             return None
         terms = query_terms(question)
         folded_question = question.casefold()
         wants_revenue = bool(
-            re.search(r"\b(sales|revenue|turnover|top ?line|topline)\b", folded_question)
+            re.search(
+                r"\b(sales|revenues?|turnover|top ?line|topline)\b", folded_question
+            )
         )
         wants_income = bool(
             re.search(r"\b(income|profit|earnings|margin|eps)\b", folded_question)
@@ -465,9 +655,21 @@ class LocalSynthesizer:
                 -(float(chunk.rerank_score or chunk.rrf_score or 0.0)),
             ),
         )
-        best_score: tuple[float, float, float] | None = None
+        best_score: tuple[float, ...] | None = None
         best_chunk: RetrievedDocument | None = None
         best_cells = []
+        # Which statement each page opens, and which statements the question named. A question that
+        # says "the cash flow statement" is answered from that statement, not from whichever table
+        # happens to repeat the figure under a synonym.
+        statement_pages = {
+            (chunk.doc_name, chunk.page_number): statement_family(chunk.text)
+            for chunk in ordered
+            if chunk.chunk_index == 0
+        }
+        statement_pages = {
+            key: family for key, family in statement_pages.items() if family is not None
+        }
+        asked_families = asked_statement_families(question)
         for chunk in ordered:
             matched_cells = TableASTParser.match_query_cells(
                 f"{question} {' '.join(sorted(terms))}",
@@ -483,15 +685,30 @@ class LocalSynthesizer:
             metric_terms = {
                 term
                 for term in terms - entity_terms
-                if term not in QUERY_STOPWORDS and len(term) >= 3
+                if term not in QUERY_STOPWORDS
+                and len(term) >= 3
+                and not PERIOD_TERM_RE.match(term)
             }
+            # A cost row is not the metric, even when the synonym map ties them together, so
+            # drop it before scoring and before rendering.
+            if "cost" not in metric_terms:
+                matched_cells = [
+                    cell
+                    for cell in matched_cells
+                    if not COST_ROW_RE.search(cell.row_key)
+                ]
+                if not matched_cells:
+                    continue
             best_cell_overlap = 0
             statement_rows: set[str] = set()
+            has_total = False
             for cell in matched_cells:
                 row_terms = set(re.findall(r"[a-z0-9]+", cell.row_key.lower()))
-                header_terms = set(
-                    re.findall(r"[a-z0-9]+", cell.col_header.lower())
-                )
+                header_terms = {
+                    term
+                    for term in re.findall(r"[a-z0-9]+", cell.col_header.lower())
+                    if not PERIOD_COLUMN_RE.match(term)
+                }
                 best_cell_overlap = max(
                     best_cell_overlap,
                     len(metric_terms & (row_terms | header_terms)),
@@ -500,20 +717,56 @@ class LocalSynthesizer:
                     wants_income and INCOME_STATEMENT_RE.search(cell.row_key)
                 ):
                     statement_rows.add(cell.row_key.casefold())
+                if TOTAL_ROW_RE.match(cell.row_key.strip()) and not COST_ROW_RE.search(
+                    cell.row_key
+                ) and (
+                    (wants_revenue and REVENUE_FAMILY_RE.search(cell.row_key))
+                    or (wants_income and INCOME_FAMILY_RE.search(cell.row_key))
+                ):
+                    has_total = True
             if metric_terms and best_cell_overlap == 0:
                 continue
             # Score the best single cell, not the union of all cells: an expense table with a
             # "Sales and marketing" row and a "Percentage of total revenue" row must not outrank
-            # an income statement's "Total revenue" row. Statement lines break a tie in favour of
-            # the statement, and a segment table still wins when its row covers more query terms.
+            # an income statement's "Total revenue" row. Overlap comes first so a segment table
+            # whose row covers more query terms still wins, then a consolidated total row (the
+            # reported figure, not a segment), then a statement line over a table that merely
+            # mentions the metric, then a page that is itself a primary statement over a note or
+            # MD&A table that restates it. Ties fall back to the parsed table, the retrieval
+            # score, and finally the earlier page, so the choice does not depend on evidence order.
             score = (
                 float(best_cell_overlap),
+                1.0 if has_total else 0.0,
                 float(len(statement_rows)),
+                1.0
+                if statement_pages.get((chunk.doc_name, chunk.page_number))
+                in asked_families
+                else 0.0,
+                1.0
+                if (chunk.doc_name, chunk.page_number) in statement_pages
+                else 0.0,
                 float(chunk.contains_table),
                 float(chunk.rerank_score or chunk.rrf_score or 0.0),
+                -float(chunk.page_number),
             )
             if best_score is None or score > best_score:
                 best_score, best_chunk, best_cells = score, chunk, matched_cells
+        # A note or an MD&A table restates the figure; the company's own statement is the source.
+        # When the parsed-table winner is not a statement page, answer from the statement line.
+        # When it is a statement page, a line that matches the asked-for metric more closely still
+        # wins: "Total assets" beats the statement of changes in equity's "Balance ... (Total)".
+        statement_line = cls._statement_line_answer(
+            question, terms, ordered, statement_pages, asked_families
+        )
+        if statement_line:
+            line_answer, line_overlap = statement_line
+            table_overlap = best_score[0] if best_score else -1.0
+            if (
+                best_chunk is None
+                or (best_chunk.doc_name, best_chunk.page_number) not in statement_pages
+                or line_overlap > table_overlap
+            ):
+                return line_answer
         if best_chunk is None:
             return None
         cell_lines = [
@@ -539,14 +792,26 @@ class LocalSynthesizer:
         chunks: List[RetrievedDocument],
     ) -> Dict[str, tuple[RetrievedDocument, List[str]]]:
         terms = query_terms(question)
+        count_question = is_count_question(question)
+        # The "[DOCUMENT: ...]" header belongs to the chunk, not to the first sentence: left in
+        # place it makes that sentence start with "[" and get dropped as metadata.
+        candidates = [
+            (
+                chunk,
+                narrative_sentences(
+                    re.sub(r"^\[DOCUMENT:[^\]]*\]\s*", "", chunk.text.strip())
+                ),
+            )
+            # Keep the caller's order: it is the retrieval ranking, and it breaks ties between
+            # pages that match the question equally well.
+            for chunk in chunks
+        ]
+        weights = cls._term_weights(terms, candidates)
         grouped: Dict[str, tuple[RetrievedDocument, List[str]]] = {}
-        scores: Dict[str, int] = {}
-        for chunk in cls._ordered_chunks(chunks):
-            scored_lines: List[tuple[int, int, str]] = []
-            for line_index, raw_line in enumerate(
-                re.split(r"(?<=[.!?])\s+|\n", chunk.text)
-            ):
-                line = " ".join(raw_line.split()).strip()
+        scores: Dict[str, float] = {}
+        for chunk, sentences in candidates:
+            scored_lines: List[tuple[float, int, str]] = []
+            for line_index, line in enumerate(sentences):
                 if not line or line.startswith(("[", "---", "|")):
                     continue
                 raw_tokens = re.findall(r"[a-z0-9]+", line.lower())
@@ -555,18 +820,52 @@ class LocalSynthesizer:
                 if line.isupper() and not re.search(r"\d", line):
                     continue
                 line_terms = set(raw_tokens)
-                overlap = len(terms & line_terms)
+                overlap = sum(
+                    weights.get(term, 0.0) for term in terms & line_terms
+                )
+                # A count question is answered by the sentence that states the quantity, not by the
+                # most verbose page that repeats the attribute: stock-plan boilerplate mentions
+                # employees more often than the human-capital sentence stating the number.
+                if overlap and count_question and person_count_value(line):
+                    overlap += COUNT_STATEMENT_BONUS
                 if overlap:
                     scored_lines.append((overlap, line_index, line))
             if not scored_lines:
                 continue
             selected = sorted(scored_lines, key=lambda item: item[0], reverse=True)[:5]
             selected.sort(key=lambda item: item[1])
-            chunk_score = sum(item[0] for item in selected)
+            # Rank a page by its best sentence, not by the sum over its sentences: summing rewards
+            # a long discussion page over the syllabus line that actually answers the question.
+            chunk_score = max(item[0] for item in selected)
             if chunk.doc_name not in grouped or chunk_score > scores[chunk.doc_name]:
                 grouped[chunk.doc_name] = (chunk, [item[2] for item in selected])
                 scores[chunk.doc_name] = chunk_score
         return grouped
+
+    @staticmethod
+    def _term_weights(
+        terms: set[str],
+        candidates: List[tuple[RetrievedDocument, List[str]]],
+    ) -> Dict[str, float]:
+        """Weight query terms by how rare they are in the candidate text.
+
+        Every page of a court opinion mentions "public", so counting it as heavily as "CADA" or
+        "accommodations" hands the citation to the page that repeats the common word. Weighting by
+        local inverse sentence frequency favours the sentence that uses the words this question is
+        actually made of.
+        """
+        containing: Dict[str, int] = {term: 0 for term in terms}
+        for _, sentences in candidates:
+            seen: set[str] = set()
+            for sentence in sentences:
+                seen.update(re.findall(r"[a-z0-9]+", sentence.lower()))
+            for term in terms & seen:
+                containing[term] += 1
+        documents = len(candidates) or 1
+        return {
+            term: 1.0 + math.log(documents / max(count, 1))
+            for term, count in containing.items()
+        }
     @classmethod
     def _general_answer(cls, question: str, chunks: List[RetrievedDocument]) -> str:
         grouped = cls._narrative_lines(question, chunks)

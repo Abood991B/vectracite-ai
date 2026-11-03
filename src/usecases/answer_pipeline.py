@@ -29,15 +29,24 @@ from src.usecases.ports import (
     SynthesizerPort,
 )
 from src.usecases.synthesis import (
-    TABLE_INTENT_RE,
+    asks_for_people_count,
     expand_query,
     is_comparison_question,
     mentioned_documents,
     query_terms,
+    wants_table_evidence,
 )
 from src.usecases.query_normalization import correct_query_terms
 from src.domain.citations import parse_citations
 from src.domain.documents import RetrievedDocument
+
+
+def candidate_chunk_index(candidate: Any) -> int:
+    """A candidate chunk's position inside its page, whichever chunk type carries it."""
+    metadata = getattr(candidate, "metadata", None)
+    if isinstance(metadata, dict):
+        return int(metadata.get("chunk_index", 0) or 0)
+    return int(getattr(candidate, "chunk_index", 0) or 0)
 
 
 def answer_contributors(answer: str, chunks: List[Any]) -> List[Any]:
@@ -131,7 +140,7 @@ class AnswerPipeline:
             candidates_evaluated=len(hybrid_candidates),
             start_time=start_time,
         )
-        if payload.use_cache and reranked_chunks:
+        if payload.use_cache and response.citations:
             self.semantic_cache.store(cache_key, response.model_dump())
         return response
 
@@ -169,15 +178,28 @@ class AnswerPipeline:
                 )
             table_docs = list(by_doc)
         else:
+            # Prose pages resemble each other far more than table pages do, so the answering page
+            # can sit ninth. A table question is answered from one row and needs no wide net.
+            prose_question = not wants_table_evidence(question)
+            candidate_width = (
+                max(payload.top_k * 4, 16)
+                if prose_question
+                else max(payload.top_k * 2, 6)
+            )
             hybrid_candidates = self.retriever.retrieve_hybrid(
                 query=retrieval_query,
-                top_k=max(payload.top_k * 2, 6),
+                top_k=candidate_width,
                 doc_name=scope,
             )
+            # A table question is answered from a specific row, so a short list is right. A prose
+            # question has no such anchor, and a document whose pages all read alike ranks them
+            # almost equally: the answering page can sit fifth. Keep the wider list for prose and
+            # let the narrative selector choose.
+            evidence_width = payload.top_k if not prose_question else candidate_width
             reranked_chunks = self.reranker.rerank(
                 query=retrieval_query,
                 candidates=hybrid_candidates,
-                top_n=payload.top_k,
+                top_n=evidence_width,
             )
             if scope:
                 reranked_chunks = [
@@ -198,14 +220,21 @@ class AnswerPipeline:
         doc_names: List[str],
         chunks: List[RetrievedDocument],
     ) -> List[RetrievedDocument]:
-        """Append matching table chunks so an income statement can outrank retrieved narrative."""
-        if not TABLE_INTENT_RE.search(question):
+        """Append matching table or attribute chunks so the statement outranks retrieved narrative."""
+        attribute_question = asks_for_people_count(question)
+        if not attribute_question and not wants_table_evidence(question):
             return chunks
         terms = query_terms(question)
         seen = {(chunk.doc_name, chunk.chunk_id) for chunk in chunks}
         augmented = list(chunks)
         for doc_name in doc_names:
-            for chunk in self.retriever.table_candidates(doc_name, terms):
+            if attribute_question:
+                found = self.retriever.attribute_candidates(doc_name, terms)
+            else:
+                found = list(self.retriever.table_candidates(doc_name, terms))
+                # The consolidated statements are the source the restated copies describe.
+                found.extend(self.retriever.statement_candidates(doc_name))
+            for chunk in found:
                 key = (chunk.doc_name, chunk.chunk_id)
                 if key in seen:
                     continue
@@ -220,6 +249,7 @@ class AnswerPipeline:
                         dense_score=0.0,
                         bm25_score=0.0,
                         rrf_score=0.0,
+                        chunk_index=candidate_chunk_index(chunk),
                     )
                 )
         return augmented
@@ -365,6 +395,6 @@ class AnswerPipeline:
             already_sanitized=True,
             guardrail_flags=redactor.triggered_rules,
         )
-        if payload.use_cache and reranked_chunks:
+        if payload.use_cache and response.citations:
             self.semantic_cache.store(cache_key, response.model_dump())
         yield response

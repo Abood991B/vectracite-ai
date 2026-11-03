@@ -1,0 +1,191 @@
+{
+  "cases_path": "data/retrieval_quality_heldout.json",
+  "top_k": 4,
+  "chunks": 4154,
+  "documents": [
+    "3M_2018_10K",
+    "3M_2022_10K",
+    "ACTIVISIONBLIZZARD_2019_10K",
+    "ADOBE_2022_10K",
+    "AMD_2022_10K"
+  ],
+  "gates": {
+    "adaptive": {
+      "overall": {
+        "cases": 8,
+        "recall_at_1": 0.25,
+        "recall_at_3": 0.5,
+        "mrr": 0.4079,
+        "cited_hit": 1.0,
+        "value_hit": 1.0
+      },
+      "families": {
+        "comparison_metric": {
+          "cases": 2,
+          "recall_at_1": 0.0,
+          "recall_at_3": 0.5,
+          "mrr": 0.2564,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        },
+        "table_statement": {
+          "cases": 6,
+          "recall_at_1": 0.3333,
+          "recall_at_3": 0.5,
+          "mrr": 0.4583,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        }
+      },
+      "per_case": [
+        {
+          "case_id": "ho_table_adobe_gross_profit",
+          "family": "table_statement",
+          "question": "What was Adobe's gross profit in 2022?",
+          "gold": "ADOBE_2022_10K p[54]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54"
+          ],
+          "answer": "From [ADOBE_2022_10K, Page 54]: - Gross profit 15,441 13,920 11,146"
+        },
+        {
+          "case_id": "ho_table_amd_gross_profit",
+          "family": "table_statement",
+          "question": "What was AMD's gross profit in 2022?",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 12,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "From [AMD_2022_10K, Page 54]: - Gross profit ($): 10,603 - Gross profit (23601<br>,): 10,603 - Gross profit ($): 7,929 - Gross profit (16434<br>,): 7,929 - Gross profit ($): 4,347 - Gross profit (9763<br>,): 4,347 Calcul"
+        },
+        {
+          "case_id": "ho_cmp_adobe_gross_profit",
+          "family": "comparison_metric",
+          "question": "Compare gross profit for Adobe and AMD in 2022.",
+          "gold": "ADOBE_2022_10K p[54]",
+          "retrieval_rank": 2,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [ADOBE_2022_10K, Page 54]: - Gross profit 15,441 13,920 11,146 - From [AMD_2022_10K, Page 54]: - Gross profit ($): 10,603 - Gross profit (23601<br>,): 10,603 - Gross profit ($): 7,929 "
+        },
+        {
+          "case_id": "ho_cmp_amd_gross_profit",
+          "family": "comparison_metric",
+          "question": "Compare gross profit for Adobe and AMD in 2022.",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 78,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "Comparison across documents: - From [ADOBE_2022_10K, Page 54]: - Gross profit 15,441 13,920 11,146 - From [AMD_2022_10K, Page 54]: - Gross profit ($): 10,603 - Gross profit (23601<br>,): 10,603 - Gross profit ($): 7,929 "
+        },
+        {
+          "case_id": "ho_table_activision_operating_income",
+          "family": "table_statement",
+          "question": "What was Activision Blizzard's operating income in 2019?",
+          "gold": "ACTIVISIONBLIZZARD_2019_10K p[37, 70]",
+          "retrieval_rank": 12,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37",
+            "ACTIVISIONBLIZZARD_2019_10K p37"
+          ],
+          "answer": "From [ACTIVISIONBLIZZARD_2019_10K, Page 37]: - Operating income (Col3): 1,607 - Operating income (FortheYears): 25 - Operating income (Ended December 31<br>,): 25 - Operating income (Col11): 1,988 - Operating income (Col"
+        },
+        {
+          "case_id": "ho_table_amd_rd_expense",
+          "family": "table_statement",
+          "question": "What was AMD's research and development expense in 2022?",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 12,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "From [AMD_2022_10K, Page 54]: - Research and development ($): 5,005 - Research and development (23601<br>,): 5,005 - Research and development ($): 2,845 - Research and development (16434<br>,): 2,845 - Research and devel"
+        },
+        {
+          "case_id": "ho_table_activision_operating_cash_flow",
+          "family": "table_statement",
+          "question": "What was Activision Blizzard's net cash provided by operating activities in 2019?",
+          "gold": "ACTIVISIONBLIZZARD_2019_10K p[73]",
+          "retrieval_rank": 1,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73",
+            "ACTIVISIONBLIZZARD_2019_10K p73"
+          ],
+          "answer": "From [ACTIVISIONBLIZZARD_2019_10K, Page 73]: - Net cash provided by operating activities (For the Years Ended December 31<br>,): 1,831 - Net cash provided by operating activities (Col5): 1,831 - Net cash provided by oper"
+        },
+        {
+          "case_id": "ho_table_activision_total_assets",
+          "family": "table_statement",
+          "question": "What were Activision Blizzard's total assets at December 31, 2019?",
+          "gold": "ACTIVISIONBLIZZARD_2019_10K p[69]",
+          "retrieval_rank": 2,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ACTIVISIONBLIZZARD_2019_10K p69",
+            "ACTIVISIONBLIZZARD_2019_10K p69",
+            "ACTIVISIONBLIZZARD_2019_10K p69",
+            "ACTIVISIONBLIZZARD_2019_10K p69",
+            "ACTIVISIONBLIZZARD_2019_10K p69",
+            "ACTIVISIONBLIZZARD_2019_10K p69"
+          ],
+          "answer": "From [ACTIVISIONBLIZZARD_2019_10K, Page 69]: - Total assets $ 19,845 $ 17,890"
+        }
+      ]
+    }
+  },
+  "elapsed_s": 13.0
+}

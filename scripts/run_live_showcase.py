@@ -38,11 +38,14 @@ def run_showcase() -> None:
 
         benchmark_path = settings.DATA_DIR / "benchmark_queries.json"
         benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        # The showcased question is one the pipeline answers from the named statement: a capex
+        # question that must reach the cash-flow line rather than the balance-sheet asset balance.
+        showcase_doc = "3M_2018_10K"
         q = next(
             item["question"]
             for item in benchmark
-            if item["doc_name"] == "AMD_2022_10K"
-            and "customer concentration" in item["question"].lower()
+            if item["doc_name"] == showcase_doc
+            and "capital expenditure" in item["question"].lower()
         )
 
         # 1. Cold query (full Hybrid RRF + Cross-Encoder Reranking)
@@ -50,7 +53,7 @@ def run_showcase() -> None:
             "/query",
             json={
                 "question": q,
-                "doc_name": "AMD_2022_10K",
+                "doc_name": showcase_doc,
                 "top_k": 3,
                 "use_cache": True,
             },
@@ -61,7 +64,7 @@ def run_showcase() -> None:
             "/query",
             json={
                 "question": q,
-                "doc_name": "AMD_2022_10K",
+                "doc_name": showcase_doc,
                 "top_k": 3,
                 "use_cache": True,
             },

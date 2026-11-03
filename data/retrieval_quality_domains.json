@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "description": "End-to-end citation set for the non-financial corpus: academic_ml, ai_governance, legal and public_health. The labels are the checked-in domain benchmark's own evidence pages and gold keywords, scored here through the answer pipeline rather than through retrieval, which is what the domain benchmark measures. This exists because every other labelled set covers financial filings only.",
+  "corpus_dirs": [
+    "data/domain_corpus_pdfs"
+  ],
+  "cases": [
+    {
+      "case_id": "public_health_hepatitis_deaths",
+      "domain": "public_health",
+      "question": "How many hepatitis A outbreak-related deaths were analyzed across 27 states during August 1, 2016 through October 31, 2022?",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        4
+      ],
+      "gold_answer": "315 deaths.",
+      "gold_keywords": [
+        "315"
+      ],
+      "source": "CDC MMWR 2023;72(42). End-to-end label corrected to the verbatim page: page 4 states 'Total no. of reported hepatitis A 315'; page 3 is the start of the table and does not carry the total"
+    },
+    {
+      "case_id": "public_health_male_percentage",
+      "domain": "public_health",
+      "question": "Among the reported hepatitis A outbreak-related deaths, what percentage were male?",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        4
+      ],
+      "gold_answer": "73.0%.",
+      "gold_keywords": [
+        "73.0"
+      ],
+      "source": "CDC MMWR 2023;72(42), Table 1. End-to-end label corrected to the verbatim page: the table prints the value as 73.0 under a 'No. (%)' column, without a percent sign"
+    },
+    {
+      "case_id": "public_health_death_certificate_not_listed",
+      "domain": "public_health",
+      "question": "Among decedents with available death certificates, what percentage had hepatitis A not listed on the death certificate?",
+      "doc_name": "CDC_MMWR_72_42",
+      "evidence_pages": [
+        5
+      ],
+      "gold_answer": "39.7%.",
+      "gold_keywords": [
+        "39.7"
+      ],
+      "source": "CDC MMWR 2023;72(42), Table 2. End-to-end label corrected to the verbatim page: the table prints the value as 39.7 under a 'No. (%)' column, without a percent sign"
+    },
+    {
+      "case_id": "nist_core_functions",
+      "domain": "ai_governance",
+      "question": "Which four functions make up the AI RMF Core?",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        8,
+        25
+      ],
+      "gold_answer": "GOVERN, MAP, MEASURE, and MANAGE.",
+      "gold_keywords": [
+        "GOVERN",
+        "MAP",
+        "MEASURE",
+        "MANAGE"
+      ],
+      "source": "NIST AI 100-1. Page 25 (section 5, AI RMF Core) states the same four functions as page 8, so both pages are accepted"
+    },
+    {
+      "case_id": "nist_risk_tolerance",
+      "domain": "ai_governance",
+      "question": "Does the AI RMF prescribe a specific risk tolerance for organizations?",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        12
+      ],
+      "gold_answer": "No. The AI RMF does not prescribe risk tolerance; tolerance is organization- and context-specific.",
+      "gold_keywords": [
+        "does not prescribe"
+      ],
+      "source": "NIST AI 100-1, section 1.2.2"
+    },
+    {
+      "case_id": "nist_trustworthy_characteristics",
+      "domain": "ai_governance",
+      "question": "What characteristics of trustworthy AI systems are listed in the AI RMF?",
+      "doc_name": "NIST_AI_RMF_1_0",
+      "evidence_pages": [
+        17
+      ],
+      "gold_answer": "Valid and reliable, safe, secure and resilient, accountable and transparent, explainable and interpretable, privacy-enhanced, and fair with harmful bias managed.",
+      "gold_keywords": [
+        "valid and reliable",
+        "safe",
+        "secure and resilient",
+        "accountable and transparent",
+        "explainable and interpretable",
+        "privacy-enhanced",
+        "fair"
+      ],
+      "source": "NIST AI 100-1, section 3"
+    },
+    {
+      "case_id": "scotus_303_creative_holding",
+      "domain": "legal",
+      "question": "What did the Supreme Court hold in 303 Creative LLC v. Elenis?",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        3
+      ],
+      "gold_answer": "The First Amendment prohibits Colorado from forcing a website designer to create expressive designs speaking messages with which the designer disagrees.",
+      "gold_keywords": [
+        "First Amendment",
+        "prohibits",
+        "expressive designs"
+      ],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "scotus_cada_maximum_fine",
+      "domain": "legal",
+      "question": "Under CADA, what is the maximum fine a court can order per violation?",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        13
+      ],
+      "gold_answer": "Up to $500 per violation.",
+      "gold_keywords": [
+        "$500"
+      ],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "scotus_cada_scope",
+      "domain": "legal",
+      "question": "What does CADA prohibit public accommodations from denying, and on what protected traits?",
+      "doc_name": "SCOTUS_303_Creative_v_Elenis",
+      "evidence_pages": [
+        2
+      ],
+      "gold_answer": "It prohibits denying the full and equal enjoyment of goods and services based on race, creed, disability, sexual orientation, or other statutorily enumerated traits.",
+      "gold_keywords": [
+        "full and equal enjoyment",
+        "sexual orientation"
+      ],
+      "source": "600 U.S. 570 (2023)"
+    },
+    {
+      "case_id": "academic_ml_llama_parameter_range",
+      "domain": "academic_ml",
+      "question": "What parameter range does the LLaMA collection cover?",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        1
+      ],
+      "gold_answer": "7B to 65B parameters.",
+      "gold_keywords": [
+        "7B",
+        "65B"
+      ],
+      "source": "arXiv:2302.13971"
+    },
+    {
+      "case_id": "academic_ml_llama_commoncrawl_share",
+      "domain": "academic_ml",
+      "question": "What percentage of LLaMA's pre-training data mixture is English CommonCrawl?",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        2
+      ],
+      "gold_answer": "67%.",
+      "gold_keywords": [
+        "67.0"
+      ],
+      "source": "arXiv:2302.13971. End-to-end label corrected to the page's verbatim form: the pre-training table prints 67.0%, not 67%"
+    },
+    {
+      "case_id": "academic_ml_llama_boolq_65b",
+      "domain": "academic_ml",
+      "question": "What zero-shot BoolQ accuracy does LLaMA-65B report?",
+      "doc_name": "ARXIV_LLaMA_Open_Efficient_Foundation_LMs",
+      "evidence_pages": [
+        4
+      ],
+      "gold_answer": "85.3.",
+      "gold_keywords": [
+        "85.3"
+      ],
+      "source": "arXiv:2302.13971, Table 3"
+    }
+  ]
+}

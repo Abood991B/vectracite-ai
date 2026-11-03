@@ -84,18 +84,6 @@ class FinancialNumber:
     def scaled_value(self) -> Decimal:
         return self.value * self.scale
 
-    @property
-    def display_scale(self) -> str:
-        if self.scale == Decimal("1000000000000"):
-            return "T"
-        if self.scale == Decimal("1000000000"):
-            return "B"
-        if self.scale == Decimal("1000000"):
-            return "M"
-        if self.scale == Decimal("1000"):
-            return "K"
-        return ""
-
     def canonical_values(self) -> Set[str]:
         """Return every structurally legitimate canonical form of this figure.
 
@@ -116,13 +104,6 @@ def _format_decimal(value: Decimal) -> str:
     if value == 0:
         value = abs(value)
     return format(value.normalize(), "f")
-
-
-def canonical_unscaled(number: FinancialNumber) -> str:
-    """Return the canonical value exactly as written, before scale expansion."""
-    if number.is_percentage:
-        return f"{_format_decimal(number.value)}%"
-    return _format_decimal(number.value)
 
 
 def _scale_and_strip(value: str) -> tuple[str, Decimal]:

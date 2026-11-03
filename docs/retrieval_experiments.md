@@ -6,7 +6,7 @@ Phase 2 used the domain benchmark to test changes before adopting them. The chec
 
 ## Method
 
-- Page-level suite: 17 cases, 9 real PDFs, 5,055 chunks.
+- Page-level suite: 17 cases, 9 real PDFs.
 - Passage-level suite: 60 RAGBench cases across five datasets.
 - Every variant uses the same cases and 2,000 bootstrap samples.
 - Pairwise comparisons resample cases, not documents.
@@ -14,9 +14,12 @@ Phase 2 used the domain benchmark to test changes before adopting them. The chec
 
 ## Results
 
+These are the Phase 2 experiment results on the index at that time; the current domain baseline is in
+`data/domain_benchmark_report.json`.
+
 | Change | PDF R@3 | RAGBench R@3 | Decision |
 |---|---:|---:|---|
-| Adaptive reranker baseline | 0.5294 | 0.8000 | Kept in production |
+| Adaptive reranker baseline | 0.5294 | 0.8000 | Kept as default |
 | Forced top-2 cross-encoder | **0.7647** | 0.8000 | Rejected: FinanceBench P@1 0.25 -> 0.125 |
 | Forced all candidates | 0.7059 | 0.7833 | Rejected: slower and weaker |
 | Top-1 cross-encoder | 0.7647 | 0.8000 | Rejected: lower P@1 |
@@ -30,7 +33,7 @@ Phase 2 used the domain benchmark to test changes before adopting them. The chec
 | E5-base embedding | not run on PDF | 0.7667 | Rejected on screen |
 | GTE-base embedding | not run on PDF | 0.8333 | Rejected: P@1/MRR tradeoff |
 
-## Production configuration
+## Default configuration
 
 ```text
 RERANKER_GATE=adaptive
@@ -55,7 +58,7 @@ behavior. The full top-2 matrix remains in the checked-in experiment report for 
 ## Deferred
 
 - Table-aware chunk-size sweep: the current parser already keeps Markdown table blocks intact, but
-  a 900/1200/1600-token sweep would require re-embedding the full 5,055-chunk corpus for each
+  a 900/1200/1600-token sweep would require re-embedding the full PDF corpus for each
   variant. It is deferred until a GPU embedding path is available.
 - BEIR retrieval subsets and query rewriting/HyDE were not executed in Phase 2.
 - A larger reranker (`bge-reranker-v2-m3`) was not tested; CPU cost is already the limiting factor.

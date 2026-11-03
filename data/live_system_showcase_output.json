@@ -3,7 +3,7 @@
     "status": "healthy",
     "service": "VectraCite-AI",
     "version": "1.0.0",
-    "indexed_chunks": 4494,
+    "indexed_chunks": 4154,
     "indexed_documents": 5,
     "cache": {
       "backend": "in_memory_fallback",
@@ -18,48 +18,174 @@
     }
   },
   "cold_hybrid_rag_query": {
-    "question": "Did AMD report customer concentration in FY22?",
-    "answer": "According to [AMD_2022_10K, Page 12]:\nOne customer accounted for 16% of our consolidated net revenue for the year ended December 31, 2022.\nSales to this customer consisted of sales of products\nA loss of this customer would have a material adverse effect on our business.",
-    "matched_cells": [],
+    "question": "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response to the question by relying on the details shown in the cash flow statement.",
+    "answer": "From [3M_2018_10K, Page 60]:\n- Cash Flows from Investing Activities Purchases of property, plant and equipment (PP&E) (1,577) (1,373) (1,420) Proceeds from sale of PP&E and other assets 262 49 58 Acquisitions, net of cash acquired 13 (2,023) (16) Purchases of marketable securities and investments (1,828) (2,152) (1,410) Proceeds from maturities and sale of marketable securities and investments 2,497 1,354 1,247 Proceeds from sale of businesses, net of cash sold 846 1,065 142 Other \u2014 net 9 (6) (4)",
+    "matched_cells": [
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Purchases of property, plant and equipment (PP&E)",
+        "col_header": "2018",
+        "value": "**(1,577)**",
+        "row_index": 13,
+        "col_index": 3
+      },
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Purchases of property, plant and equipment (PP&E)",
+        "col_header": "2017",
+        "value": "(1,373)",
+        "row_index": 13,
+        "col_index": 6
+      },
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Purchases of property, plant and equipment (PP&E)",
+        "col_header": "2016",
+        "value": "(1,420)",
+        "row_index": 13,
+        "col_index": 9
+      },
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Effect of exchange rate changes on cash and cash equivalents",
+        "col_header": "2018",
+        "value": "**(160)**",
+        "row_index": 29,
+        "col_index": 3
+      },
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Effect of exchange rate changes on cash and cash equivalents",
+        "col_header": "2017",
+        "value": "156",
+        "row_index": 29,
+        "col_index": 6
+      },
+      {
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "row_key": "Effect of exchange rate changes on cash and cash equivalents",
+        "col_header": "2016",
+        "value": "(33)",
+        "row_index": 29,
+        "col_index": 9
+      }
+    ],
     "computed_deltas": [],
     "citations": [
       {
-        "chunk_id": "97d58560857f",
-        "doc_name": "AMD_2022_10K",
-        "page_number": 12,
+        "chunk_id": "0668347e6339",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": true,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nEXTRACTED TABLES (PAGE 60)\n|(Millions)|Col2|Col3|2018|Col5|Col6|2017|Col8|Col9|2016|\n|---|---|---|---|---|---|---|---|---|---|\n|**Cash Flows from Operating Activities**||||||||||\n|Net income including noncontrolling interest|**$**|**$**|**5,363*"
+      },
+      {
+        "chunk_id": "313f15256960",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
         "contains_table": false,
-        "rerank_score": 0.0156,
-        "excerpt": "[DOCUMENT: AMD_2022_10K | PAGE: 12]\nTable of Contents\n\nWe also work with our customers to create differentiated products that leverage our CPU, GPU and APU technology. Certain customers pay us non-recurring\nengineering fees for design and development services and a purchase price"
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nTable of Contents\n\n3M Company and Subsidiaries\nConsolidated Statement of Cash Flow s\nYears ended December 31"
+      },
+      {
+        "chunk_id": "635fe235ea4a",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\n(Millions)                                                                                      2018                 2017                 2016 Cash Flows from Operating Activities Net income including noncontrolling interest                     "
+      },
+      {
+        "chunk_id": "4410e99b1040",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nDeferred income taxes                                                                               (57)              107                 7 Changes in assets and liabilities Accounts receivable                                                    "
+      },
+      {
+        "chunk_id": "0f95e7674d99",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nCash Flows from Investing Activities Purchases of property, plant and equipment (PP&E)                                                  (1,577)              (1,373)              (1,420) Proceeds from sale of PP&E and other assets                "
+      },
+      {
+        "chunk_id": "771b53853c8b",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nNet cash provided by (used in) investing activities                                              222               (3,086)              (1,403)"
+      },
+      {
+        "chunk_id": "b1f2db49cc6f",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nCash Flows from Financing Activities Change in short-term debt \u2014 net                                                                    (284)              578                (797) Repayment of debt (maturities greater than 90 days)              "
+      },
+      {
+        "chunk_id": "a673983971ca",
+        "doc_name": "3M_2018_10K",
+        "page_number": 60,
+        "contains_table": false,
+        "rerank_score": 0.0,
+        "excerpt": "[DOCUMENT: 3M_2018_10K | PAGE: 60]\nNet cash provided by (used in) financing activities                                                    (6,701)              (2,655)              (4,626)\n\nEffect of exchange rate changes on cash and cash equivalents                               "
       }
     ],
     "verification": {
       "is_fully_grounded": true,
       "numeric_grounding_score": 1.0,
       "verified_figures": [
-        "16%",
-        "31,",
-        "2022"
+        "(1,577)",
+        "(1,373)",
+        "(1,420)",
+        "262",
+        "49",
+        "58",
+        "13",
+        "(2,023)",
+        "(16)",
+        "(1,828)",
+        "(2,152)",
+        "(1,410)",
+        "2,497",
+        "1,354",
+        "1,247",
+        "846",
+        "1,065",
+        "142"
       ],
       "unverified_figures": [],
       "verification_applicable": true
     },
     "cache_hit": false,
     "cache_similarity": null,
-    "latency_ms": 93.0,
+    "latency_ms": 348.67,
     "guardrail_flags": [],
     "metadata": {
       "retrieval_strategy": "hybrid_rrf_plus_table_schema_cross_encoder",
       "candidates_evaluated": 6,
-      "document_scope": "AMD_2022_10K",
+      "document_scope": "3M_2018_10K",
       "answer_provider": "local_deterministic",
       "provider_error": null
     }
   },
   "warm_semantic_cache_hit": {
-    "question": "Did AMD report customer concentration in FY22?",
+    "question": "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response to the question by relying on the details shown in the cash flow statement.",
     "cache_hit": true,
     "cache_similarity": 1.0,
-    "latency_ms": 0.05
+    "latency_ms": 0.7
   },
   "guardrail_interception": {
     "http_status": 400,

@@ -52,6 +52,9 @@ jobs:
       - name: Enforce Dependency Rule
         run: python scripts/check_layers.py
 
+      - name: Check Documentation Links
+        run: python scripts/check_docs.py
+
       - name: Check Hot-Path Budgets
         run: python scripts/bench_hot_paths.py --mode inproc --iterations 3 --warmup 1 --gate
 

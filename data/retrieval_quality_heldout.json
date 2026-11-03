@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "description": "Held-out set for the statement/comparison selection rules. Every rule in the tuning set (data/retrieval_quality_cases.json) was written against net sales and revenue wording, so those scores are in-sample. These cases use metrics the rules never saw - gross profit, operating income, research and development expense, operating cash flow, total assets - quoted with the wording each filing actually uses. Labelling standard: the page must be the consolidated primary financial statement (statement of operations / balance sheet / cash flows), not a selected-financial-data summary, an MD&A reproduction, or a note. Labels were written before any scoring run. The attribute_headcount family has no held-out capacity: the corpus has five documents and the tuning set already covers a headcount question in every one.",
+  "corpus_dirs": ["data/corpus_pdfs"],
+  "cases": [
+    {
+      "case_id": "ho_table_adobe_gross_profit",
+      "domain": "table_statement",
+      "question": "What was Adobe's gross profit in 2022?",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "15,441",
+      "gold_keywords": ["15,441"],
+      "source": "hand-labelled from ADOBE_2022_10K page 54 (CONSOLIDATED STATEMENTS OF INCOME): Gross profit 15,441 13,920 11,146"
+    },
+    {
+      "case_id": "ho_table_amd_gross_profit",
+      "domain": "table_statement",
+      "question": "What was AMD's gross profit in 2022?",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "10,603",
+      "gold_keywords": ["10,603"],
+      "source": "hand-labelled from AMD_2022_10K page 54 (Consolidated Statements of Operations): Gross profit 10,603 7,929 4,347"
+    },
+    {
+      "case_id": "ho_cmp_adobe_gross_profit",
+      "domain": "comparison_metric",
+      "question": "Compare gross profit for Adobe and AMD in 2022.",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "15,441",
+      "gold_keywords": ["15,441"],
+      "source": "hand-labelled from ADOBE_2022_10K page 54 (CONSOLIDATED STATEMENTS OF INCOME), 2022 column"
+    },
+    {
+      "case_id": "ho_cmp_amd_gross_profit",
+      "domain": "comparison_metric",
+      "question": "Compare gross profit for Adobe and AMD in 2022.",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "10,603",
+      "gold_keywords": ["10,603"],
+      "source": "hand-labelled from AMD_2022_10K page 54 (Consolidated Statements of Operations), 2022 column"
+    },
+    {
+      "case_id": "ho_table_activision_operating_income",
+      "domain": "table_statement",
+      "question": "What was Activision Blizzard's operating income in 2019?",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [70, 37],
+      "gold_answer": "1,607",
+      "gold_keywords": ["1,607"],
+      "source": "hand-labelled from ACTIVISIONBLIZZARD_2019_10K page 70 (CONSOLIDATED STATEMENTS OF OPERATIONS): Operating income 1,607 1,988 1,309. Page 37 (Consolidated Statements of Operations Data) states the same figure and also meets the labelling standard, so both pages are accepted"
+    },
+    {
+      "case_id": "ho_table_amd_rd_expense",
+      "domain": "table_statement",
+      "question": "What was AMD's research and development expense in 2022?",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "5,005",
+      "gold_keywords": ["5,005"],
+      "source": "hand-labelled from AMD_2022_10K page 54 (Consolidated Statements of Operations): Research and development 5,005 2,845 1,983"
+    },
+    {
+      "case_id": "ho_table_activision_operating_cash_flow",
+      "domain": "table_statement",
+      "question": "What was Activision Blizzard's net cash provided by operating activities in 2019?",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [73],
+      "gold_answer": "1,831",
+      "gold_keywords": ["1,831"],
+      "source": "hand-labelled from ACTIVISIONBLIZZARD_2019_10K page 73 (CONSOLIDATED STATEMENTS OF CASH FLOWS): Net cash provided by operating activities 1,831 1,790 2,213"
+    },
+    {
+      "case_id": "ho_table_activision_total_assets",
+      "domain": "table_statement",
+      "question": "What were Activision Blizzard's total assets at December 31, 2019?",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [69],
+      "gold_answer": "19,845",
+      "gold_keywords": ["19,845"],
+      "source": "hand-labelled from ACTIVISIONBLIZZARD_2019_10K page 69 (CONSOLIDATED BALANCE SHEETS): Total assets $ 19,845 $ 17,890"
+    }
+  ]
+}

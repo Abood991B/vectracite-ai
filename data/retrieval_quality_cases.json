@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "description": "Labelled page-level set for the two known retrieval-quality gaps: vague attribute questions (headcount) and table/statement selection for comparison questions. Evidence pages are physical PDF page numbers verified against data/corpus_index.json; gold_answer is the verbatim value on that page. Labelling standard: the page must be the consolidated primary financial statement (statement of operations / income / cash flows / balance sheets), not an MD&A reproduction, a selected-financial-data summary, or a note. Used as a held-out validation set: the reranker-gate change was selected on data/domain_benchmark_cases.json, not on these cases.",
+  "corpus_dirs": ["data/corpus_pdfs"],
+  "cases": [
+    {
+      "case_id": "attr_3m_2018_headcount",
+      "domain": "attribute_headcount",
+      "question": "How many employees did 3M have at the end of 2018?",
+      "doc_name": "3M_2018_10K",
+      "evidence_pages": [4],
+      "gold_answer": "93,516",
+      "gold_keywords": ["93,516"],
+      "source": "hand-labelled from 3M_2018_10K page 4 (Human Capital)"
+    },
+    {
+      "case_id": "attr_3m_2022_headcount",
+      "domain": "attribute_headcount",
+      "question": "What is 3M's employee count in FY2022?",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [6],
+      "gold_answer": "92,000",
+      "gold_keywords": ["92,000"],
+      "source": "hand-labelled from 3M_2022_10K page 6 (Human Capital)"
+    },
+    {
+      "case_id": "attr_adobe_2022_headcount",
+      "domain": "attribute_headcount",
+      "question": "How many people work at Adobe?",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [16],
+      "gold_answer": "29,239",
+      "gold_keywords": ["29,239"],
+      "source": "hand-labelled from ADOBE_2022_10K page 16 (Human Capital)"
+    },
+    {
+      "case_id": "attr_amd_2022_headcount",
+      "domain": "attribute_headcount",
+      "question": "How many employees does AMD have?",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [14],
+      "gold_answer": "25,000",
+      "gold_keywords": ["25,000"],
+      "source": "hand-labelled from AMD_2022_10K page 14 (Human Capital)"
+    },
+    {
+      "case_id": "attr_activision_2019_headcount",
+      "domain": "attribute_headcount",
+      "question": "How many employees does Activision Blizzard have?",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [9],
+      "gold_answer": "9,200",
+      "gold_keywords": ["9,200"],
+      "source": "hand-labelled from ACTIVISIONBLIZZARD_2019_10K page 9 (Human Capital)"
+    },
+    {
+      "case_id": "cmp_3m_2022_net_sales",
+      "domain": "comparison_net_sales",
+      "question": "Compare net sales for 3M and AMD in 2022.",
+      "doc_name": "3M_2022_10K",
+      "evidence_pages": [48],
+      "gold_answer": "34,229",
+      "gold_keywords": ["34,229"],
+      "source": "hand-labelled from 3M_2022_10K page 48 (contains_table=false)"
+    },
+    {
+      "case_id": "cmp_amd_2022_net_sales",
+      "domain": "comparison_net_sales",
+      "question": "Compare net sales for 3M and AMD in 2022.",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "23,601",
+      "gold_keywords": ["23,601"],
+      "source": "hand-labelled from AMD_2022_10K page 54 (Consolidated Statements of Operations): Net revenue $ 23,601 $ 16,434 $ 9,763. Page 48 is the MD&A results-of-operations table that restates it"
+    },
+    {
+      "case_id": "cmp_adobe_2022_revenue",
+      "domain": "comparison_net_sales",
+      "question": "Compare total revenue for Adobe and AMD in 2022.",
+      "doc_name": "ADOBE_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "17,606",
+      "gold_keywords": ["17,606"],
+      "source": "hand-labelled from ADOBE_2022_10K page 54 (CONSOLIDATED STATEMENTS OF INCOME): Total revenue 17,606 15,785 12,868. Page 40 is the MD&A financial-performance summary that restates it"
+    },
+    {
+      "case_id": "cmp_amd_2022_revenue",
+      "domain": "comparison_net_sales",
+      "question": "Compare total revenue for Adobe and AMD in 2022.",
+      "doc_name": "AMD_2022_10K",
+      "evidence_pages": [54],
+      "gold_answer": "23,601",
+      "gold_keywords": ["23,601"],
+      "source": "hand-labelled from AMD_2022_10K page 54 (Consolidated Statements of Operations): Net revenue $ 23,601 $ 16,434 $ 9,763"
+    },
+    {
+      "case_id": "table_3m_2018_net_sales",
+      "domain": "table_statement",
+      "question": "What were 3M's net sales in 2018?",
+      "doc_name": "3M_2018_10K",
+      "evidence_pages": [56],
+      "gold_answer": "32,765",
+      "gold_keywords": ["32,765"],
+      "source": "hand-labelled from 3M_2018_10K page 56 (Consolidated Statement of Income, extracted as 'Consolidated Statement of Incom e'): Net sales $ 32,765 $ 31,657 $ 30,109. Page 14 is the Item 6 selected-financial-data summary that restates it"
+    },
+    {
+      "case_id": "table_activision_2019_net_revenue",
+      "domain": "table_statement",
+      "question": "What were Activision Blizzard's net revenues in 2019?",
+      "doc_name": "ACTIVISIONBLIZZARD_2019_10K",
+      "evidence_pages": [37],
+      "gold_answer": "6,489",
+      "gold_keywords": ["6,489"],
+      "source": "hand-labelled from ACTIVISIONBLIZZARD_2019_10K page 37 (Consolidated Statements of Operations Data); page 30 is a duplicate selected-financial-data summary of the same figure"
+    }
+  ]
+}

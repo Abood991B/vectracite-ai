@@ -1,0 +1,138 @@
+{
+  "cases_path": "data/retrieval_quality_confirmation.json",
+  "top_k": 4,
+  "chunks": 4154,
+  "documents": [
+    "3M_2018_10K",
+    "3M_2022_10K",
+    "ACTIVISIONBLIZZARD_2019_10K",
+    "ADOBE_2022_10K",
+    "AMD_2022_10K"
+  ],
+  "gates": {
+    "adaptive": {
+      "overall": {
+        "cases": 6,
+        "recall_at_1": 0.0,
+        "recall_at_3": 0.3333,
+        "mrr": 0.1711,
+        "cited_hit": 1.0,
+        "value_hit": 1.0
+      },
+      "families": {
+        "table_statement": {
+          "cases": 6,
+          "recall_at_1": 0.0,
+          "recall_at_3": 0.3333,
+          "mrr": 0.1711,
+          "cited_hit": 1.0,
+          "value_hit": 1.0
+        }
+      },
+      "per_case": [
+        {
+          "case_id": "cf_adobe_operating_income",
+          "family": "table_statement",
+          "question": "What was Adobe's operating income in 2022?",
+          "gold": "ADOBE_2022_10K p[54]",
+          "retrieval_rank": 2,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54"
+          ],
+          "answer": "From [ADOBE_2022_10K, Page 54]: - Operating income (Col2): 6,098 - Operating income (YearsEnded): 5,802 - Operating income (Col6): 4,237 - Total non-operating income (expense), net (Col2): (90) - Total non-operating inco"
+        },
+        {
+          "case_id": "cf_amd_operating_income",
+          "family": "table_statement",
+          "question": "What was AMD's operating income in 2022?",
+          "gold": "AMD_2022_10K p[54]",
+          "retrieval_rank": 12,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54",
+            "AMD_2022_10K p54"
+          ],
+          "answer": "From [AMD_2022_10K, Page 54]: - Operating income 1,264 3,648 1,369"
+        },
+        {
+          "case_id": "cf_3m_2018_operating_income",
+          "family": "table_statement",
+          "question": "What was 3M's operating income in 2018?",
+          "gold": "3M_2018_10K p[56]",
+          "retrieval_rank": 36,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56",
+            "3M_2018_10K p56"
+          ],
+          "answer": "From [3M_2018_10K, Page 56]: - Operating income (2018): **7,207** - Net income attributable to 3M<br> (2018): **5,349** - Operating income (2017): 7,692 - Operating income (2016): 7,027 - Net income attributable to 3M<br"
+        },
+        {
+          "case_id": "cf_3m_2022_operating_income",
+          "family": "table_statement",
+          "question": "What was 3M's operating income in 2022?",
+          "gold": "3M_2022_10K p[48]",
+          "retrieval_rank": 3,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48"
+          ],
+          "answer": "From [3M_2022_10K, Page 48]: - Operating income 6,539 7,369 7,161"
+        },
+        {
+          "case_id": "cf_adobe_rd_expense",
+          "family": "table_statement",
+          "question": "What was Adobe's research and development expense in 2022?",
+          "gold": "ADOBE_2022_10K p[54]",
+          "retrieval_rank": 20,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54",
+            "ADOBE_2022_10K p54"
+          ],
+          "answer": "From [ADOBE_2022_10K, Page 54]: - Research and development (Col2): 2,987 - Research and development (YearsEnded): 2,540 - Research and development (Col6): 2,188 - **December 2,**<br>**2022** (Col3): **December 3,**<br>**"
+        },
+        {
+          "case_id": "cf_3m_2022_rd_expense",
+          "family": "table_statement",
+          "question": "What was 3M's research and development expense in 2022?",
+          "gold": "3M_2022_10K p[48]",
+          "retrieval_rank": 31,
+          "cited": true,
+          "value_found": true,
+          "cited_pages": [
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48",
+            "3M_2022_10K p48"
+          ],
+          "answer": "From [3M_2022_10K, Page 48]: - Research, development and related expenses ($): **1,862** - Research, development and related expenses (34229<br>,): **1,862** - Research, development and related expenses ($): 1,994 - Rese"
+        }
+      ]
+    }
+  },
+  "elapsed_s": 11.1
+}

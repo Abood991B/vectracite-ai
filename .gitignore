@@ -46,3 +46,11 @@ docs/superpowers/
 .windsurf/
 CLAUDE.md
 AGENTS.md
+
+# Internal working documents (local only, never published)
+docs/SESSION-HANDOFF.md
+docs/ARCHITECTURE-OPTIMIZATION-PLAN.md
+docs/TECH-DEBT.md
+docs/production_readiness.md
+CODE_REVIEW.md
+VERIFICATION.md

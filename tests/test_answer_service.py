@@ -48,9 +48,13 @@ class FakeRetriever:
         self,
         chunks: List[RetrievedDocument],
         table_chunks: List[RetrievedDocument] | None = None,
+        attribute_chunks: List[RetrievedDocument] | None = None,
+        statement_chunks: List[RetrievedDocument] | None = None,
     ) -> None:
         self.chunks_store = chunks
         self.table_chunks = list(table_chunks or [])
+        self.attribute_chunks = list(attribute_chunks or [])
+        self.statement_chunks = list(statement_chunks or [])
         self.calls = 0
         self.queries: List[str] = []
 
@@ -62,6 +66,20 @@ class FakeRetriever:
     def table_candidates(self, doc_name: str, terms, limit: int = 40):
         del terms, limit
         return [chunk for chunk in self.table_chunks if chunk.doc_name == doc_name]
+
+    def attribute_candidates(self, doc_name: str, terms, limit: int = 5):
+        del terms, limit
+        return [
+            chunk
+            for chunk in self.attribute_chunks
+            if chunk.doc_name == doc_name
+        ]
+
+    def statement_candidates(self, doc_name: str, limit_pages: int = 6):
+        del limit_pages
+        return [
+            chunk for chunk in self.statement_chunks if chunk.doc_name == doc_name
+        ]
 
     def indexed_document_names(self) -> List[str]:
         return sorted({chunk.doc_name for chunk in self.chunks_store})
@@ -125,8 +143,9 @@ def _service(
     answer: str,
     tokens: List[str] | None = None,
     table_chunks: List[RetrievedDocument] | None = None,
+    attribute_chunks: List[RetrievedDocument] | None = None,
 ) -> tuple[AnswerService, FakeRetriever, FakeCache]:
-    retriever = FakeRetriever(chunks, table_chunks)
+    retriever = FakeRetriever(chunks, table_chunks, attribute_chunks)
     cache = FakeCache()
     service = AnswerService(
         retriever=retriever,
@@ -176,18 +195,27 @@ async def test_a_table_question_passes_the_documents_table_chunks_to_synthesis()
     assert any(chunk.page_number == 14 for chunk in service.llm_client.seen_chunks)
 
 
-async def test_execute_caches_an_answer_without_citations_when_chunks_were_reranked() -> None:
-    """Current behavior: the cache guard is "some chunks were reranked", not "the answer cited them".
-
-    Pinned as-is rather than fixed here â€” see the internal debt ledger.
-    """
+async def test_execute_does_not_cache_an_answer_that_cited_nothing() -> None:
+    """A citation-free answer is a degraded result; caching it would replay it for a full TTL."""
     chunks = [_chunk(5, "Revenue grew.")]
     service, _, cache = _service(chunks, answer="Revenue grew without a page reference.")
 
     await service.execute(QueryRequest(question="How did revenue change?"))
 
-    stored = next(iter(cache.entries.values()))
-    assert stored["citations"] == []
+    assert cache.entries == {}
+
+
+async def test_stream_does_not_cache_an_answer_that_cited_nothing() -> None:
+    chunks = [_chunk(5, "Revenue grew.")]
+    service, _, cache = _service(
+        chunks,
+        answer="Revenue grew without a page reference.",
+        tokens=["Revenue grew without a page reference."],
+    )
+
+    _ = [event async for event in service.stream(QueryRequest(question="How did revenue change?"))]
+
+    assert cache.entries == {}
 
 
 async def test_execute_stores_a_cache_entry_for_cited_evidence() -> None:
