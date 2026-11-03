@@ -1,7 +1,7 @@
 import re
 from dataclasses import asdict, dataclass
 from decimal import Decimal
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, Iterable, List, Set
 
 from src.retrieval.financial_numbers import (
     FinancialNumber,
@@ -10,14 +10,36 @@ from src.retrieval.financial_numbers import (
     parse_financial_number,
 )
 
+ENTITY_TOKEN_RE = re.compile(r"[^a-z0-9]+")
+_QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
 
-KNOWN_ENTITY_ALIASES: Dict[str, set[str]] = {
-    "amd": {"amd"},
-    "msft": {"msft", "microsoft"},
-    "jpm": {"jpm", "jpmorgan"},
-    "oncology": {"oncology"},
-    "cardiology": {"cardiology"},
-}
+
+def document_entity_terms(doc_name: str) -> Set[str]:
+    """The tokens that name the filing's entity, taken from its document name.
+
+    ``AMD_2022_10K`` yields ``{"amd"}``; ``3M_2018_10K`` yields ``{"3m"}``. The corpus names its
+    documents after the entity, so this needs no table of company names in code.
+    """
+    stem = doc_name.split("_", maxsplit=1)[0].lower()
+    return {token for token in ENTITY_TOKEN_RE.split(stem) if len(token) >= 2}
+
+
+def named_entities(query: str, doc_names: Iterable[str]) -> Set[str]:
+    """The corpus entities the query names, derived from the documents that exist.
+
+    A query mentioning a company that the corpus does not hold yields nothing, which is correct:
+    there is no entity in the index to anchor it to.
+    """
+    tokens = set(_QUERY_TOKEN_RE.findall(query.casefold()))
+    folded = query.casefold()
+    found: Set[str] = set()
+    for doc_name in doc_names:
+        found.update(
+            term
+            for term in document_entity_terms(doc_name)
+            if term in tokens or term in folded
+        )
+    return found
 
 
 @dataclass
@@ -134,10 +156,19 @@ class TableASTParser:
         return [item[1] for item in scored_cells[:6]]
 
     @classmethod
-    def compute_ast_alignment_score(cls, query: str, text: str) -> float:
+    def compute_ast_alignment_score(
+        cls,
+        query: str,
+        text: str,
+        query_entities: Set[str] | None = None,
+    ) -> float:
         """
         Computes structural alignment between query tokens and strictly the 2D table headers
         and row keys (ignoring narrative footnote sentences outside the table).
+
+        ``query_entities`` holds the corpus entities the query names. A table that does not name
+        one of them cannot be the table the question is about, however many metric words it
+        shares, so it scores zero. The caller derives those entities from the indexed documents.
         """
         cells = cls.extract_cells(text)
         if not cells:
@@ -161,23 +192,19 @@ class TableASTParser:
         subject_tokens = cls._tokens(subject_text)
         subject_folded = subject_text.casefold()
 
-        explicit_entities = [
-            aliases
-            for aliases in KNOWN_ENTITY_ALIASES.values()
-            if any(alias in query_tokens or alias in query.casefold() for alias in aliases)
-        ]
-        for aliases in explicit_entities:
-            if not any(alias in subject_tokens or alias in subject_folded for alias in aliases):
+        explicit_entities = sorted(query_entities or set())
+        for entity in explicit_entities:
+            if entity not in subject_tokens and entity not in subject_folded:
                 return 0.0
 
         alignment = len(query_tokens & schema_tokens) / len(query_tokens)
         if explicit_entities:
-            header_overlap = sum(
+            named = sum(
                 1
-                for aliases in explicit_entities
-                if any(alias in subject_tokens or alias in subject_folded for alias in aliases)
+                for entity in explicit_entities
+                if entity in subject_tokens or entity in subject_folded
             )
-            alignment *= header_overlap / len(explicit_entities)
+            alignment *= named / len(explicit_entities)
         return alignment
 
     @classmethod

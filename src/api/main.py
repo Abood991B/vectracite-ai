@@ -73,18 +73,15 @@ semantic_cache = SemanticCache()
 guardrails = EnterpriseGuardrails()
 numeric_verifier = DeterministicNumericVerifier()
 llm_client = UnifiedLLMClient()
-DEMO_DOCUMENT_NAMES = frozenset(
-    {
-        "AMD_2022_10K",
-        "MSFT_2023_10K",
-        "JPM_2022_10K",
-        "ONCOLOGY_TRIAL_2025",
-    }
-)
 
 
 def demo_document_names() -> frozenset[str]:
-    """Return the demo shelf from the corpus manifest, with a safe fallback."""
+    """Return the documents that ship with the corpus, taken from disk.
+
+    A hardcoded fallback used to sit here. It listed a different corpus than the one that ships,
+    so an install with no manifest and no PDFs advertised documents it could not answer about.
+    An empty result is the truthful answer, and the demo routes treat it as "nothing to clear".
+    """
     manifest_path = settings.CORPUS_PDF_DIR / "manifest.json"
     if manifest_path.exists():
         try:
@@ -94,8 +91,7 @@ def demo_document_names() -> frozenset[str]:
                 return frozenset(str(name) for name in documents)
         except (OSError, ValueError, json.JSONDecodeError):
             logger.warning("Ignoring malformed corpus manifest %s", manifest_path)
-    stems = frozenset(path.stem for path in settings.CORPUS_PDF_DIR.glob("*.pdf"))
-    return stems or DEMO_DOCUMENT_NAMES
+    return frozenset(path.stem for path in settings.CORPUS_PDF_DIR.glob("*.pdf"))
 
 
 T = TypeVar("T")

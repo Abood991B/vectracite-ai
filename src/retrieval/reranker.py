@@ -5,7 +5,7 @@ from sentence_transformers import CrossEncoder
 
 from src.config import settings
 from src.retrieval.hybrid_retriever import RetrievedDocument
-from src.retrieval.table_ast import TableASTParser
+from src.retrieval.table_ast import TableASTParser, named_entities
 
 _SHARED_CROSS_ENCODER: CrossEncoder | None = None
 _SHARED_LIGHTWEIGHT_CROSS_ENCODER: "LightweightCrossEncoder | None" = None
@@ -110,7 +110,11 @@ class CrossEncoderReranker:
             return []
 
         max_rrf = max((c.rrf_score for c in candidates), default=1.0) or 1.0
-        ast_scores = [TableASTParser.compute_ast_alignment_score(query, c.text) for c in candidates]
+        query_entities = named_entities(query, {c.doc_name for c in candidates})
+        ast_scores = [
+            TableASTParser.compute_ast_alignment_score(query, c.text, query_entities)
+            for c in candidates
+        ]
         ordered_ast = sorted(ast_scores, reverse=True)
         top_ast = ordered_ast[0] if ordered_ast else 0.0
         second_ast = ordered_ast[1] if len(ordered_ast) > 1 else 0.0

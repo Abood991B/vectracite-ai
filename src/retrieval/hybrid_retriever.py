@@ -17,7 +17,7 @@ from src.domain.financial_statements import is_statement_heading
 from src.retrieval.embedding_cache import load_embeddings, save_embeddings
 from src.retrieval.lexical_index import LexicalIndex, tokenize
 from src.usecases.query_normalization import vocabulary_from_texts
-from src.retrieval.table_ast import KNOWN_ENTITY_ALIASES
+from src.retrieval.table_ast import named_entities
 
 logger = logging.getLogger(__name__)
 
@@ -299,23 +299,15 @@ class HybridRetriever:
     def _tokenize(text: str) -> List[str]:
         return tokenize(text)
 
-    @classmethod
-    def _query_entities(cls, query: str) -> List[set[str]]:
-        tokens = set(cls._tokenize(query))
-        folded = query.casefold()
-        return [
-            aliases
-            for aliases in KNOWN_ENTITY_ALIASES.values()
-            if any(alias in tokens or alias in folded for alias in aliases)
-        ]
+    def _query_entities(self, query: str) -> set[str]:
+        """The corpus entities this query names, derived from the indexed document names."""
+        return named_entities(query, self._by_document)
 
     @classmethod
-    def _chunk_matches_entity(
-        cls, chunk: DocumentChunk, entity_aliases: set[str]
-    ) -> bool:
+    def _chunk_matches_entity(cls, chunk: DocumentChunk, entity: str) -> bool:
         doc_name = chunk.doc_name.casefold()
         text_tokens = set(cls._tokenize(chunk.text))
-        return any(alias in text_tokens or alias in doc_name for alias in entity_aliases)
+        return entity in text_tokens or entity in doc_name
 
     @staticmethod
     def _point_uuid(chunk: DocumentChunk) -> str:
@@ -673,7 +665,7 @@ class HybridRetriever:
 
         all_candidate_ids = set(dense_ranks.keys()) | set(bm25_ranks.keys())
         fused_results: List[RetrievedDocument] = []
-        query_entities = self._query_entities(query) if scope is None else []
+        query_entities = self._query_entities(query) if scope is None else set()
 
         for cid in all_candidate_ids:
             chunk = chunk_lookup.get(cid)
@@ -693,8 +685,8 @@ class HybridRetriever:
             anchor_multiplier = (
                 1.35
                 if any(
-                    self._chunk_matches_entity(chunk, entity_aliases)
-                    for entity_aliases in query_entities
+                    self._chunk_matches_entity(chunk, entity)
+                    for entity in query_entities
                 )
                 else 1.0
             )
