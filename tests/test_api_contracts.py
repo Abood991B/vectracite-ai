@@ -43,6 +43,29 @@ def test_metrics_reports_index_cache_and_provider_state() -> None:
     assert 0.0 <= cache["hit_rate"] <= 1.0
 
 
+def test_a_non_json_body_is_a_readable_422_not_a_server_error() -> None:
+    """A multipart body sent to a JSON endpoint used to fail while encoding the error itself."""
+    response = client.post(
+        "/ingest/pdf",
+        content=b"%PDF-1.7 not really json",
+        headers={"Content-Type": "multipart/form-data; boundary=x"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body"]
+
+
+def test_a_binary_query_body_is_a_readable_422() -> None:
+    response = client.post(
+        "/query",
+        content=b"\xff\xfe\x00binary",
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code in (400, 422)
+    assert "detail" in response.json()
+
+
 def test_evaluate_runs_the_ablation_and_returns_a_signature() -> None:
     response = client.post("/evaluate")
 

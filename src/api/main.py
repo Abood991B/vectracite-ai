@@ -9,8 +9,15 @@ import logging
 import threading
 from typing import Any, AsyncIterator, Callable, Dict, List, TypeVar
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+)
 from src.api.answer_service import AnswerService
 from src.api.distributed_lock import DistributedMutationLock, distributed_mutation_lock
 from src.api.index_state import bump_index_generation, read_index_generation
@@ -365,6 +372,25 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 app.add_middleware(BodySizeLimitMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Answer a malformed request body with a readable 422 instead of a 500.
+
+    FastAPI's default handler encodes the failing input for the response, and its byte encoder
+    decodes as UTF-8. A binary body (a multipart upload sent to a JSON endpoint, for instance) then
+    raises inside the error handler, so the client sees 500 and the server logs the whole file.
+    """
+    errors = [
+        {
+            "type": str(error.get("type", "value_error")),
+            "loc": [str(part) for part in error.get("loc", ())],
+            "msg": str(error.get("msg", "")),
+        }
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 

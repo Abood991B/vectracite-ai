@@ -19,7 +19,7 @@ Live-HTTP baseline, 2026-11-04, 10 iterations after 2 warmups, real `BAAI/bge-sm
 | Cold start → first answered request | 660 s before cache fix; **20.0 s** (2026-11-04) | ≤ 120 s | manual / dashboard (process start is not timed in CI) |
 | `/evaluate/latest` p95 | 17.38 ms (2026-11-04) | ≤ 50 ms | CI budget gate (inproc) |
 | Workbench `GET /` p95 | 1.76 ms (2026-11-04) | ≤ 20 ms | CI budget gate (inproc) |
-| Default `pytest` suite | ~54 min before cache fix; 149.6 s for 97 tests (2026-11-02); **67.3 s for 146 tests** (2026-11-03); **192 passed, 2 skipped in 62.1 s** (2026-11-04) | ≤ 10 min | CI gate |
+| Default `pytest` suite | ~54 min before cache fix; 149.6 s for 97 tests (2026-11-02); **67.3 s for 146 tests** (2026-11-03); **194 passed, 2 skipped in 61.1 s** (2026-11-04) | ≤ 10 min | CI gate |
 
 In-process baseline, same date, 15 iterations after 3 warmups, lightweight models, fixture corpus.
 Kept because it isolates code cost from model and corpus cost:
