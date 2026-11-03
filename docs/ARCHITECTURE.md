@@ -88,8 +88,10 @@ Redis, PyMuPDF, httpx) and the rest of the code — that is what the ports in V3
 - **Redis Stack** holds the semantic cache (exact hash + HNSW) and the index-generation counter.
   Cache keys are namespaced `vectracite:semcache:physical-pages-v4:`; old entries expire by TTL.
 - **Filesystem** holds the parsed-corpus caches (`data/*_index.json`), embeddings
-  (`data/corpus_embeddings.npz`), and uploads. Caches are content-addressed by PDF SHA256 plus the
-  parser signature, and gated by `tests/test_corpus_cache.py`.
+  (`data/corpus_embeddings.npz`), and uploads. Parsed caches are content-addressed by PDF SHA256 plus
+  the parser signature and gated by `tests/test_corpus_cache.py`. Embedding vectors are cached per
+  chunk id, so a user upload reuses every corpus vector and only its own chunks are encoded; startup
+  never writes that file, which belongs to `scripts/build_corpus_index.py`.
 - **System of record** is the PDF corpus plus uploads; chunks, vectors, and cache entries are derived
   data rebuilt from it.
 - **Concurrency and isolation.** There is no relational database and therefore no database isolation
