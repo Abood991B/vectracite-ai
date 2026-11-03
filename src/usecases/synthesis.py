@@ -96,6 +96,17 @@ TABLE_INTENT_RE = re.compile(
     r"fy\s?\d{2,4}|\d{4}|%)\b",
     flags=re.IGNORECASE,
 )
+# A row that starts with a revenue or income statement line is stronger evidence than an expense
+# or segment table that merely mentions the same word ("Sales and marketing"). The family is chosen
+# by what the question asks for, so "net income" rows cannot satisfy a "net sales" question.
+REVENUE_STATEMENT_RE = re.compile(
+    r"^(net sales|total net sales|total revenue|net revenue)\b",
+    flags=re.IGNORECASE,
+)
+INCOME_STATEMENT_RE = re.compile(
+    r"^(gross profit|operating income|net income|operating profit|net earnings)\b",
+    flags=re.IGNORECASE,
+)
 META_QUESTION_RE = re.compile(
     r"\b(what model|which model|who are you|what are you|how do you work|"
     r"how does (?:this|it) work|what llm|privacy|is my data private|"
@@ -168,9 +179,9 @@ def is_comparison_question(question: str) -> bool:
 
 
 def mentioned_documents(question: str, indexed_docs: list[str]) -> list[str]:
-    """Return indexed documents whose name or first token appears in the question."""
+    """Return indexed documents named in the question, preferring a matching filing year."""
     folded = question.casefold()
-    return [
+    matches = [
         doc_name
         for doc_name in indexed_docs
         if re.search(
@@ -178,6 +189,47 @@ def mentioned_documents(question: str, indexed_docs: list[str]) -> list[str]:
             folded,
         )
     ]
+    years = set(re.findall(r"\b(?:19|20)\d{2}\b", folded))
+    if not years or not matches:
+        return matches
+    dated = [doc_name for doc_name in matches if any(year in doc_name for year in years)]
+    entities = {doc_name.split("_", maxsplit=1)[0] for doc_name in matches}
+    if len(entities) == 1:
+        return dated or matches
+    # Drop a filing only when its entity has a year-matching filing; keep entities that do not.
+    dated_entities = {doc_name.split("_", maxsplit=1)[0] for doc_name in dated}
+    return [
+        doc_name
+        for doc_name in matches
+        if doc_name in dated
+        or doc_name.split("_", maxsplit=1)[0] not in dated_entities
+    ]
+
+
+def query_terms(question: str) -> set[str]:
+    """Return the normalized terms used for table and narrative matching."""
+    cleaned = re.sub(r"['\u2019]s\b", "", question.lower())
+    cleaned = cleaned.replace("top line", "topline").replace(
+        "bottom line", "bottomline"
+    )
+    words = re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
+    terms: set[str] = set()
+    for word in words:
+        if len(word) > 2 and word not in QUERY_STOPWORDS:
+            terms.add(word)
+        parts = re.findall(r"[a-z]+|\d+", word)
+        if len(parts) > 1:
+            terms.update(
+                part
+                for part in parts
+                if len(part) > 2 and part not in QUERY_STOPWORDS
+            )
+        terms.update(QUERY_TERM_SYNONYMS.get(word, set()))
+        fiscal_year = re.fullmatch(r"fy(\d{2,4})", word)
+        if fiscal_year:
+            digits = fiscal_year.group(1)
+            terms.add(digits if len(digits) == 4 else f"20{digits}")
+    return terms
 
 
 class LocalSynthesizer:
@@ -213,30 +265,6 @@ class LocalSynthesizer:
     def build_evidence(self, question: str, chunks: List[RetrievedDocument]) -> str:
         """Render the evidence block a remote provider receives."""
         return self._build_evidence(question, chunks)
-    @staticmethod
-    def _query_terms(question: str) -> set[str]:
-        cleaned = re.sub(r"['\u2019]s\b", "", question.lower())
-        cleaned = cleaned.replace("top line", "topline").replace(
-            "bottom line", "bottomline"
-        )
-        words = re.findall(r"[\w]+", cleaned, flags=re.UNICODE)
-        terms: set[str] = set()
-        for word in words:
-            if len(word) > 2 and word not in QUERY_STOPWORDS:
-                terms.add(word)
-            parts = re.findall(r"[a-z]+|\d+", word)
-            if len(parts) > 1:
-                terms.update(
-                    part
-                    for part in parts
-                    if len(part) > 2 and part not in QUERY_STOPWORDS
-                )
-            terms.update(QUERY_TERM_SYNONYMS.get(word, set()))
-            fiscal_year = re.fullmatch(r"fy(\d{2,4})", word)
-            if fiscal_year:
-                digits = fiscal_year.group(1)
-                terms.add(digits if len(digits) == 4 else f"20{digits}")
-        return terms
     @classmethod
     def _is_cross_document_request(
         cls, question: str, indexed_docs: List[str] | None = None
@@ -283,14 +311,14 @@ class LocalSynthesizer:
         if not cls._is_cross_document_request(question, indexed_docs):
             return selected
 
-        query_terms = cls._query_terms(question)
+        terms = query_terms(question)
         for chunk in chunks:
-            if chunk.doc_name == primary_doc or not query_terms:
+            if chunk.doc_name == primary_doc or not terms:
                 continue
             chunk_terms = set(
                 re.findall(r"[\w]+", chunk.text.casefold(), flags=re.UNICODE)
             )
-            coverage = len(query_terms & chunk_terms) / len(query_terms)
+            coverage = len(terms & chunk_terms) / len(terms)
             score = float(chunk.rerank_score or 0.0)
             if score >= 0.60 and coverage >= 0.50:
                 selected.append(chunk)
@@ -422,7 +450,14 @@ class LocalSynthesizer:
 
         if not TABLE_INTENT_RE.search(question):
             return None
-        query_terms = cls._query_terms(question)
+        terms = query_terms(question)
+        folded_question = question.casefold()
+        wants_revenue = bool(
+            re.search(r"\b(sales|revenue|turnover|top ?line|topline)\b", folded_question)
+        )
+        wants_income = bool(
+            re.search(r"\b(income|profit|earnings|margin|eps)\b", folded_question)
+        )
         ordered = sorted(
             chunks,
             key=lambda chunk: (
@@ -430,9 +465,12 @@ class LocalSynthesizer:
                 -(float(chunk.rerank_score or chunk.rrf_score or 0.0)),
             ),
         )
+        best_score: tuple[float, float, float] | None = None
+        best_chunk: RetrievedDocument | None = None
+        best_cells = []
         for chunk in ordered:
             matched_cells = TableASTParser.match_query_cells(
-                f"{question} {' '.join(sorted(query_terms))}",
+                f"{question} {' '.join(sorted(terms))}",
                 chunk.text,
                 doc_name=chunk.doc_name,
                 page_number=chunk.page_number,
@@ -444,43 +482,63 @@ class LocalSynthesizer:
             )
             metric_terms = {
                 term
-                for term in query_terms - entity_terms
+                for term in terms - entity_terms
                 if term not in QUERY_STOPWORDS and len(term) >= 3
             }
-            has_metric_overlap = any(
-                metric_terms
-                & (
-                    set(re.findall(r"[a-z0-9]+", cell.row_key.lower()))
-                    | set(re.findall(r"[a-z0-9]+", cell.col_header.lower()))
+            best_cell_overlap = 0
+            statement_rows: set[str] = set()
+            for cell in matched_cells:
+                row_terms = set(re.findall(r"[a-z0-9]+", cell.row_key.lower()))
+                header_terms = set(
+                    re.findall(r"[a-z0-9]+", cell.col_header.lower())
                 )
-                for cell in matched_cells
-            )
-            if metric_terms and not has_metric_overlap:
+                best_cell_overlap = max(
+                    best_cell_overlap,
+                    len(metric_terms & (row_terms | header_terms)),
+                )
+                if (wants_revenue and REVENUE_STATEMENT_RE.search(cell.row_key)) or (
+                    wants_income and INCOME_STATEMENT_RE.search(cell.row_key)
+                ):
+                    statement_rows.add(cell.row_key.casefold())
+            if metric_terms and best_cell_overlap == 0:
                 continue
-            cell_lines = [
-                f"- {cell.row_key} ({cell.col_header}): {cell.value}"
-                for cell in matched_cells[:8]
-            ]
-            delta_lines = [
-                f"- Period change - {delta['row_key']} ({delta['comparison']}): "
-                f"{delta['absolute_change']} ({delta['pct_change']})"
-                for delta in TableASTParser.compute_row_deltas(matched_cells)[:4]
-            ]
-            answer = (
-                f"From [{chunk.doc_name}, Page {chunk.page_number}]:\n"
-                + "\n".join(cell_lines)
+            # Score the best single cell, not the union of all cells: an expense table with a
+            # "Sales and marketing" row and a "Percentage of total revenue" row must not outrank
+            # an income statement's "Total revenue" row. Statement lines break a tie in favour of
+            # the statement, and a segment table still wins when its row covers more query terms.
+            score = (
+                float(best_cell_overlap),
+                float(len(statement_rows)),
+                float(chunk.contains_table),
+                float(chunk.rerank_score or chunk.rrf_score or 0.0),
             )
-            if delta_lines:
-                answer += "\n\nCalculated comparisons:\n" + "\n".join(delta_lines)
-            return answer
-        return None
+            if best_score is None or score > best_score:
+                best_score, best_chunk, best_cells = score, chunk, matched_cells
+        if best_chunk is None:
+            return None
+        cell_lines = [
+            f"- {cell.row_key} ({cell.col_header}): {cell.value}"
+            for cell in best_cells[:8]
+        ]
+        delta_lines = [
+            f"- Period change - {delta['row_key']} ({delta['comparison']}): "
+            f"{delta['absolute_change']} ({delta['pct_change']})"
+            for delta in TableASTParser.compute_row_deltas(best_cells)[:4]
+        ]
+        answer = (
+            f"From [{best_chunk.doc_name}, Page {best_chunk.page_number}]:\n"
+            + "\n".join(cell_lines)
+        )
+        if delta_lines:
+            answer += "\n\nCalculated comparisons:\n" + "\n".join(delta_lines)
+        return answer
     @classmethod
     def _narrative_lines(
         cls,
         question: str,
         chunks: List[RetrievedDocument],
     ) -> Dict[str, tuple[RetrievedDocument, List[str]]]:
-        terms = cls._query_terms(question)
+        terms = query_terms(question)
         grouped: Dict[str, tuple[RetrievedDocument, List[str]]] = {}
         scores: Dict[str, int] = {}
         for chunk in cls._ordered_chunks(chunks):

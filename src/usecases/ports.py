@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator, Dict, List, Protocol, Sequence
 
-from src.domain.documents import RetrievedDocument
+from src.domain.documents import DocumentChunk, RetrievedDocument
 
 
 class QueryBlockedError(Exception):
@@ -34,6 +34,10 @@ class RetrieverPort(Protocol):
     def get_document_chunks(self, doc_name: str) -> List[Dict[str, Any]]: ...
 
     def corpus_vocabulary(self) -> Dict[str, int]: ...
+
+    def table_candidates(
+        self, doc_name: str, terms: set[str], limit: int = 40
+    ) -> List[DocumentChunk]: ...
 
 
 class RerankerPort(Protocol):

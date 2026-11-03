@@ -756,6 +756,28 @@ class HybridRetriever:
             with self._mutation_lock:
                 return any(chunk.doc_name == doc_name for chunk in self.chunks_store)
 
+    def table_candidates(
+        self, doc_name: str, terms: set[str], limit: int = 40
+    ) -> List[DocumentChunk]:
+        """Return the document's table chunks that mention at least one query term.
+
+        Retrieval's top-k can miss an income statement the document contains (3M 2018 keeps it
+        on page 14 while narrative segment sales rank higher), so table synthesis searches the
+        document's own table chunks instead of only the reranked candidates.
+        """
+        normalized = {term.casefold() for term in terms if term}
+        matches: List[DocumentChunk] = []
+        with self._mutation_lock:
+            for chunk in self.chunks_store:
+                if chunk.doc_name != doc_name or not chunk.contains_table:
+                    continue
+                if normalized and not normalized.intersection(tokenize(chunk.text)):
+                    continue
+                matches.append(chunk)
+                if len(matches) >= limit:
+                    break
+        return matches
+
     @staticmethod
     def _payload_epoch(payload: Dict[str, Any]) -> int:
         try:

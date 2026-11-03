@@ -29,9 +29,11 @@ from src.usecases.ports import (
     SynthesizerPort,
 )
 from src.usecases.synthesis import (
+    TABLE_INTENT_RE,
     expand_query,
     is_comparison_question,
     mentioned_documents,
+    query_terms,
 )
 from src.usecases.query_normalization import correct_query_terms
 from src.domain.citations import parse_citations
@@ -108,43 +110,13 @@ class AnswerPipeline:
             input_check.sanitized_text, vocabulary
         )
         retrieval_query = expand_query(normalized_question)
-        comparison_mode = is_comparison_question(normalized_question) and scope is None
-        if comparison_mode:
-            targets = mentioned_documents(normalized_question, indexed_docs) or indexed_docs
-            by_doc: dict[str, list[RetrievedDocument]] = {}
-            for doc_name in targets:
-                hits = self.retriever.retrieve_hybrid(
-                    query=retrieval_query,
-                    top_k=max(payload.top_k * 2, 8),
-                    doc_name=doc_name,
-                )
-                if hits:
-                    by_doc[doc_name] = hits
-            hybrid_candidates = [chunk for hits in by_doc.values() for chunk in hits]
-            reranked_chunks = []
-            for hits in by_doc.values():
-                reranked_chunks.extend(
-                    self.reranker.rerank(
-                        query=retrieval_query,
-                        candidates=hits,
-                        top_n=6,
-                    )
-                )
-        else:
-            hybrid_candidates = self.retriever.retrieve_hybrid(
-                query=retrieval_query,
-                top_k=max(payload.top_k * 2, 6),
-                doc_name=scope,
-            )
-            reranked_chunks = self.reranker.rerank(
-                query=retrieval_query,
-                candidates=hybrid_candidates,
-                top_n=payload.top_k,
-            )
-        if scope:
-            reranked_chunks = [
-                chunk for chunk in reranked_chunks if chunk.doc_name == scope
-            ]
+        hybrid_candidates, reranked_chunks = self._select_evidence(
+            question=normalized_question,
+            retrieval_query=retrieval_query,
+            payload=payload,
+            scope=scope,
+            indexed_docs=indexed_docs,
+        )
 
         raw_answer = await self.llm_client.generate_answer(
             normalized_question,
@@ -162,6 +134,95 @@ class AnswerPipeline:
         if payload.use_cache and reranked_chunks:
             self.semantic_cache.store(cache_key, response.model_dump())
         return response
+
+    def _select_evidence(
+        self,
+        *,
+        question: str,
+        retrieval_query: str,
+        payload: QueryRequest,
+        scope: str | None,
+        indexed_docs: List[str],
+    ) -> tuple[List[RetrievedDocument], List[RetrievedDocument]]:
+        """Retrieve, rerank, then add each document's matching tables for table questions."""
+        comparison_mode = is_comparison_question(question) and scope is None
+        if comparison_mode:
+            targets = mentioned_documents(question, indexed_docs) or indexed_docs
+            by_doc: dict[str, List[RetrievedDocument]] = {}
+            for doc_name in targets:
+                hits = self.retriever.retrieve_hybrid(
+                    query=retrieval_query,
+                    top_k=max(payload.top_k * 2, 8),
+                    doc_name=doc_name,
+                )
+                if hits:
+                    by_doc[doc_name] = hits
+            hybrid_candidates = [chunk for hits in by_doc.values() for chunk in hits]
+            reranked_chunks: List[RetrievedDocument] = []
+            for hits in by_doc.values():
+                reranked_chunks.extend(
+                    self.reranker.rerank(
+                        query=retrieval_query,
+                        candidates=hits,
+                        top_n=6,
+                    )
+                )
+            table_docs = list(by_doc)
+        else:
+            hybrid_candidates = self.retriever.retrieve_hybrid(
+                query=retrieval_query,
+                top_k=max(payload.top_k * 2, 6),
+                doc_name=scope,
+            )
+            reranked_chunks = self.reranker.rerank(
+                query=retrieval_query,
+                candidates=hybrid_candidates,
+                top_n=payload.top_k,
+            )
+            if scope:
+                reranked_chunks = [
+                    chunk for chunk in reranked_chunks if chunk.doc_name == scope
+                ]
+                table_docs = [scope]
+            else:
+                table_docs = mentioned_documents(question, indexed_docs) or sorted(
+                    {chunk.doc_name for chunk in hybrid_candidates}
+                )
+        return hybrid_candidates, self._add_table_candidates(
+            question, table_docs, reranked_chunks
+        )
+
+    def _add_table_candidates(
+        self,
+        question: str,
+        doc_names: List[str],
+        chunks: List[RetrievedDocument],
+    ) -> List[RetrievedDocument]:
+        """Append matching table chunks so an income statement can outrank retrieved narrative."""
+        if not TABLE_INTENT_RE.search(question):
+            return chunks
+        terms = query_terms(question)
+        seen = {(chunk.doc_name, chunk.chunk_id) for chunk in chunks}
+        augmented = list(chunks)
+        for doc_name in doc_names:
+            for chunk in self.retriever.table_candidates(doc_name, terms):
+                key = (chunk.doc_name, chunk.chunk_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+                augmented.append(
+                    RetrievedDocument(
+                        chunk_id=chunk.chunk_id,
+                        doc_name=chunk.doc_name,
+                        page_number=chunk.page_number,
+                        text=chunk.text,
+                        contains_table=chunk.contains_table,
+                        dense_score=0.0,
+                        bm25_score=0.0,
+                        rrf_score=0.0,
+                    )
+                )
+        return augmented
 
     def _build_response(
         self,
@@ -274,43 +335,13 @@ class AnswerPipeline:
         vocabulary = self.retriever.corpus_vocabulary()
         normalized_question = correct_query_terms(question, vocabulary)
         retrieval_query = expand_query(normalized_question)
-        comparison_mode = is_comparison_question(normalized_question) and scope is None
-        if comparison_mode:
-            targets = mentioned_documents(normalized_question, indexed_docs) or indexed_docs
-            by_doc: dict[str, list[RetrievedDocument]] = {}
-            for doc_name in targets:
-                hits = self.retriever.retrieve_hybrid(
-                    query=retrieval_query,
-                    top_k=max(payload.top_k * 2, 8),
-                    doc_name=doc_name,
-                )
-                if hits:
-                    by_doc[doc_name] = hits
-            hybrid_candidates = [chunk for hits in by_doc.values() for chunk in hits]
-            reranked_chunks = []
-            for hits in by_doc.values():
-                reranked_chunks.extend(
-                    self.reranker.rerank(
-                        query=retrieval_query,
-                        candidates=hits,
-                        top_n=6,
-                    )
-                )
-        else:
-            hybrid_candidates = self.retriever.retrieve_hybrid(
-                query=retrieval_query,
-                top_k=max(payload.top_k * 2, 6),
-                doc_name=scope,
-            )
-            reranked_chunks = self.reranker.rerank(
-                query=retrieval_query,
-                candidates=hybrid_candidates,
-                top_n=payload.top_k,
-            )
-        if scope:
-            reranked_chunks = [
-                chunk for chunk in reranked_chunks if chunk.doc_name == scope
-            ]
+        hybrid_candidates, reranked_chunks = self._select_evidence(
+            question=normalized_question,
+            retrieval_query=retrieval_query,
+            payload=payload,
+            scope=scope,
+            indexed_docs=indexed_docs,
+        )
         redactor = self.guardrails.streaming_redactor()
         async for token in self.llm_client.stream_answer(
             normalized_question,

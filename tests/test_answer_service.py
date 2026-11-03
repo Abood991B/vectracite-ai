@@ -22,13 +22,20 @@ from src.usecases.answer_pipeline import AnswerPipeline
 from src.usecases.ports import QueryBlockedError
 
 
-def _chunk(page: int, text: str, *, doc_name: str = "AMD_2022_10K", score: float = 0.5) -> RetrievedDocument:
+def _chunk(
+    page: int,
+    text: str,
+    *,
+    doc_name: str = "AMD_2022_10K",
+    score: float = 0.5,
+    contains_table: bool = False,
+) -> RetrievedDocument:
     return RetrievedDocument(
         chunk_id=f"{doc_name}-{page}",
         doc_name=doc_name,
         page_number=page,
         text=text,
-        contains_table=False,
+        contains_table=contains_table,
         dense_score=score,
         bm25_score=score,
         rrf_score=score,
@@ -37,8 +44,13 @@ def _chunk(page: int, text: str, *, doc_name: str = "AMD_2022_10K", score: float
 
 
 class FakeRetriever:
-    def __init__(self, chunks: List[RetrievedDocument]) -> None:
+    def __init__(
+        self,
+        chunks: List[RetrievedDocument],
+        table_chunks: List[RetrievedDocument] | None = None,
+    ) -> None:
         self.chunks_store = chunks
+        self.table_chunks = list(table_chunks or [])
         self.calls = 0
         self.queries: List[str] = []
 
@@ -46,6 +58,10 @@ class FakeRetriever:
         self.calls += 1
         self.queries.append(query)
         return list(self.chunks_store)
+
+    def table_candidates(self, doc_name: str, terms, limit: int = 40):
+        del terms, limit
+        return [chunk for chunk in self.table_chunks if chunk.doc_name == doc_name]
 
     def indexed_document_names(self) -> List[str]:
         return sorted({chunk.doc_name for chunk in self.chunks_store})
@@ -87,9 +103,11 @@ class FakeLLM:
     def __init__(self, answer: str, tokens: List[str] | None = None) -> None:
         self.answer = answer
         self.tokens = tokens or answer.split(" ")
+        self.seen_chunks: List[Any] = []
 
     async def generate_answer(self, question: str, chunks: List[Any], indexed_docs=None) -> str:
-        del question, chunks, indexed_docs
+        del question, indexed_docs
+        self.seen_chunks = list(chunks)
         return self.answer
 
     async def stream_answer(self, question: str, chunks: List[Any], indexed_docs=None) -> AsyncGenerator[str, None]:
@@ -106,8 +124,9 @@ def _service(
     *,
     answer: str,
     tokens: List[str] | None = None,
+    table_chunks: List[RetrievedDocument] | None = None,
 ) -> tuple[AnswerService, FakeRetriever, FakeCache]:
-    retriever = FakeRetriever(chunks)
+    retriever = FakeRetriever(chunks, table_chunks)
     cache = FakeCache()
     service = AnswerService(
         retriever=retriever,
@@ -135,6 +154,26 @@ async def test_execute_cites_only_pages_named_in_the_answer() -> None:
     assert [citation.page_number for citation in response.citations] == [12]
     assert response.metadata["answer_provider"] == "fake"
     assert response.latency_ms >= 0
+
+
+async def test_a_table_question_passes_the_documents_table_chunks_to_synthesis() -> None:
+    """Reranked narrative can outrank an income statement; the document's table must still be offered."""
+    narrative = _chunk(
+        33, "Sales in Industrial totaled $12.3 billion.", doc_name="3M_2018_10K"
+    )
+    table = _chunk(
+        14,
+        "EXTRACTED TABLES (PAGE 14)\n| Metric | 2018 |\n| Net sales | 32,765 |",
+        doc_name="3M_2018_10K",
+        contains_table=True,
+    )
+    service, _, _ = _service([narrative], answer="ok", table_chunks=[table])
+
+    await service.execute(
+        QueryRequest(question="What were 3M's net sales in 2018?", use_cache=False)
+    )
+
+    assert any(chunk.page_number == 14 for chunk in service.llm_client.seen_chunks)
 
 
 async def test_execute_caches_an_answer_without_citations_when_chunks_were_reranked() -> None:
