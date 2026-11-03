@@ -1260,6 +1260,67 @@ def test_mutation_route_goes_through_the_cross_replica_lease(monkeypatch) -> Non
     assert "Timed out waiting for the index mutation lock" in response.json()["detail"]
 
 
+def test_a_slow_commit_keeps_the_lease_across_the_http_route(monkeypatch) -> None:
+    """A commit that outlives one lease TTL must still exclude other replicas.
+
+    This is the HTTP-level counterpart to the lease unit tests: the route runs the real
+    ``_mutation_guard`` against real Redis and the commit is slowed past the TTL. Without the
+    heartbeat the lease would expire mid-commit and ``SET NX`` would succeed.
+    """
+    import time
+
+    import pytest
+    import redis
+    import src.api.main as main_module
+
+    broker = redis.Redis.from_url(
+        settings.REDIS_URL, socket_connect_timeout=0.5, socket_timeout=2.0
+    )
+    try:
+        broker.ping()
+    except redis.RedisError:
+        pytest.skip(f"Redis is not reachable at {settings.REDIS_URL}")
+
+    key = "vectracite:index:mutation"
+    broker.delete(key)
+    observed = {}
+
+    def slow_commit(clean_name, chunks, pdf_bytes):
+        observed["held_at_start"] = bool(broker.exists(key))
+        time.sleep(1.6)
+        observed["intruder"] = broker.set(key, "intruder", nx=True, px=5000)
+        observed["held_at_end"] = bool(broker.exists(key))
+        return 0
+
+    monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
+    monkeypatch.setattr(settings, "MUTATION_LEASE_TTL_SECONDS", 1.0)
+    monkeypatch.setattr(settings, "MUTATION_LEASE_ACQUIRE_TIMEOUT_SECONDS", 5.0)
+    monkeypatch.setattr(main_module, "_commit_document", slow_commit)
+
+    try:
+        response = client.put(
+            "/documents/LEASE_SLOW_COMMIT",
+            json={
+                "doc_name": "LEASE_SLOW_COMMIT",
+                "pages": [
+                    {
+                        "page_number": 1,
+                        "text": "Lease probe page with revenue 1000 and a margin of 40 percent.",
+                    }
+                ],
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert observed == {
+            "held_at_start": True,
+            "intruder": None,
+            "held_at_end": True,
+        }
+    finally:
+        broker.delete(key)
+        broker.close()
+
+
 def test_semantic_cache_marks_unobserved_redis_loss_as_degraded(monkeypatch) -> None:
     """A Redis outage before the next cache operation must be visible to readiness."""
     import redis

@@ -15,6 +15,7 @@ import redis
 from fastapi import HTTPException
 
 from src.api.distributed_lock import (
+    _LEASE_BREAKER,
     DistributedMutationLock,
     distributed_mutation_lock,
 )
@@ -23,12 +24,21 @@ from src.config import settings
 LOCK_KEY = "vectracite:index:mutation"
 
 
+@pytest.fixture(autouse=True)
+def _reset_lease_breaker():
+    """Each test starts from a closed breaker; failures must not leak between tests."""
+    _LEASE_BREAKER.reset()
+    yield
+    _LEASE_BREAKER.reset()
+
+
 class FakeRedis:
     """Minimal Redis double: NX/PX SET, compare-and-pexpire, compare-and-delete, real TTL."""
 
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
         self.expires_at: dict[str, float] = {}
+        self.set_attempts = 0
         self.set_calls = 0
         self.renew_calls = 0
         self.release_calls = 0
@@ -48,6 +58,7 @@ class FakeRedis:
         self.expires_at[key] = time.monotonic() + seconds
 
     def set(self, key, value, nx=False, px=None):
+        self.set_attempts += 1
         if self.fail_set:
             raise redis.RedisError("connection refused")
         self.set_calls += 1
@@ -207,6 +218,27 @@ def test_redis_outage_during_acquire_is_a_clean_503(monkeypatch) -> None:
     assert blocked.value.status_code == 503
     assert "unavailable" in blocked.value.detail
     assert fake.closed
+
+
+def test_breaker_skips_the_redis_timeout_after_repeated_failures(monkeypatch) -> None:
+    """Two failed acquisitions open the breaker, so the third never pays the connect timeout."""
+    monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
+    fake = FakeRedis()
+    fake.fail_set = True
+
+    async def scenario() -> list[int]:
+        statuses = []
+        for _ in range(3):
+            with pytest.raises(HTTPException) as blocked:
+                await DistributedMutationLock(
+                    client_factory=lambda: fake
+                ).__aenter__()
+            statuses.append(blocked.value.status_code)
+        return statuses
+
+    assert asyncio.run(scenario()) == [503, 503, 503]
+    assert fake.set_attempts == 2
+    assert not _LEASE_BREAKER.allow()
 
 
 def test_a_failed_renewal_keeps_the_lease_and_retries(monkeypatch) -> None:
