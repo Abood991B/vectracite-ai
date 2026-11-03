@@ -1,13 +1,17 @@
 """Cross-replica mutation serialization using Redis when enabled."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
 import uuid
+from typing import Any, Callable
 
 import redis
 from fastapi import HTTPException
 
+from src.adapters.redis_clients import LOCK_TIMEOUT_SECONDS, build_redis_client
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -19,31 +23,68 @@ end
 return 0
 """
 
+# Renew only a lease this holder still owns. Recreating a lost lease would let two replicas write,
+# which is the exact failure the lease exists to prevent.
+_RENEW_SCRIPT = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('pexpire', KEYS[1], ARGV[2])
+end
+return 0
+"""
+
+_RETRY_INTERVAL_SECONDS = 0.05
+
 
 class DistributedMutationLock:
-    """Best-effort global lease so multiple API replicas do not interleave writes."""
+    """Best-effort global lease so multiple API replicas do not interleave writes.
+
+    A heartbeat renews the lease every third of its TTL while a mutation is in flight, so a write
+    that outlives one TTL keeps its exclusivity instead of being overtaken. The TTL still bounds
+    recovery: a crashed holder stops renewing, and the lease expires for the next writer.
+    """
 
     def __init__(
         self,
         *,
         key: str = "vectracite:index:mutation",
-        ttl_seconds: int = 300,
+        ttl_seconds: float = 300.0,
         acquire_timeout_seconds: float = 30.0,
+        client_factory: Callable[[], Any] | None = None,
     ) -> None:
         self.key = key
-        self.ttl_ms = ttl_seconds * 1000
+        self.ttl_ms = max(1, int(ttl_seconds * 1000))
         self.acquire_timeout_seconds = acquire_timeout_seconds
         self.token = uuid.uuid4().hex
-        self._client: redis.Redis | None = None
+        self._client_factory = client_factory or self._build_client
+        self._client: Any = None
+        self._heartbeat: asyncio.Task[None] | None = None
+        self._lease_lost = False
+
+    @staticmethod
+    def _build_client() -> Any:
+        return build_redis_client(
+            settings.REDIS_URL,
+            timeout=LOCK_TIMEOUT_SECONDS,
+            decode_responses=False,
+        )
+
+    @property
+    def lease_lost(self) -> bool:
+        """True when another replica took the lease while this holder was still writing."""
+        return self._lease_lost
+
+    def require_lease(self) -> None:
+        """Refuse a write once the lease belongs to another replica."""
+        if self._lease_lost:
+            raise HTTPException(
+                status_code=503,
+                detail="The index mutation lease was lost to another replica. Retry shortly.",
+            )
 
     async def __aenter__(self) -> "DistributedMutationLock":
         if not settings.REQUIRE_REDIS:
             return self
-        self._client = redis.Redis.from_url(
-            settings.REDIS_URL,
-            socket_timeout=2.0,
-            socket_connect_timeout=2.0,
-        )
+        self._client = self._client_factory()
         deadline = time.monotonic() + self.acquire_timeout_seconds
         while True:
             try:
@@ -55,23 +96,33 @@ class DistributedMutationLock:
                     px=self.ttl_ms,
                 )
             except redis.RedisError as exc:
+                self._close()
                 raise HTTPException(
                     status_code=503,
                     detail="Index mutation lock is unavailable. Retry shortly.",
                 ) from exc
             if acquired:
+                self._heartbeat = asyncio.create_task(self._renew_until_released())
                 return self
             if time.monotonic() >= deadline:
+                self._close()
                 raise HTTPException(
                     status_code=503,
                     detail="Timed out waiting for the index mutation lock.",
                 )
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(_RETRY_INTERVAL_SECONDS)
 
     async def __aexit__(self, exc_type, exc, traceback) -> None:
         del exc_type, exc, traceback
         if self._client is None:
             return
+        heartbeat, self._heartbeat = self._heartbeat, None
+        if heartbeat is not None:
+            heartbeat.cancel()
+            try:
+                await heartbeat
+            except asyncio.CancelledError:
+                pass
         try:
             await asyncio.to_thread(
                 self._client.eval,
@@ -83,9 +134,51 @@ class DistributedMutationLock:
         except redis.RedisError:
             logger.warning("Unable to release the distributed mutation lock")
         finally:
-            self._client.close()
+            self._close()
+
+    def _renew_interval(self) -> float:
+        """Renew well inside the TTL so one slow round trip cannot drop the lease."""
+        return max(self.ttl_ms / 3000.0, 0.05)
+
+    async def _renew_until_released(self) -> None:
+        while True:
+            await asyncio.sleep(self._renew_interval())
+            try:
+                renewed = await asyncio.to_thread(
+                    self._client.eval,
+                    _RENEW_SCRIPT,
+                    1,
+                    self.key,
+                    self.token,
+                    self.ttl_ms,
+                )
+            except redis.RedisError as exc:
+                logger.warning(
+                    "Mutation lease renewal failed: %s", type(exc).__name__
+                )
+                continue
+            if not renewed:
+                self._lease_lost = True
+                logger.error(
+                    "Lost the index mutation lease %s before the write finished; "
+                    "another replica may now be writing",
+                    self.key,
+                )
+                return
+
+    def _close(self) -> None:
+        client, self._client = self._client, None
+        if client is None:
+            return
+        try:
+            client.close()
+        except redis.RedisError:
+            logger.debug("Unable to close the mutation lock Redis client")
 
 
 def distributed_mutation_lock() -> DistributedMutationLock:
     """Create one per-request lease; no-op unless Redis is required."""
-    return DistributedMutationLock()
+    return DistributedMutationLock(
+        ttl_seconds=settings.MUTATION_LEASE_TTL_SECONDS,
+        acquire_timeout_seconds=settings.MUTATION_LEASE_ACQUIRE_TIMEOUT_SECONDS,
+    )

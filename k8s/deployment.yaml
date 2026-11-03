@@ -37,6 +37,10 @@ spec:
               value: "http://mlflow-service:5000"
             - name: REQUIRE_REDIS
               value: "true"
+            - name: MUTATION_LEASE_TTL_SECONDS
+              value: "300"
+            - name: MUTATION_LEASE_ACQUIRE_TIMEOUT_SECONDS
+              value: "30"
             - name: AUTH_REQUIRED
               value: "true"
             - name: API_READ_KEY

@@ -1233,6 +1233,33 @@ def test_readiness_separates_liveness_from_required_dependencies(monkeypatch) ->
         monkeypatch.setattr(settings, "REQUIRE_REDIS", False)
 
 
+def test_mutation_route_goes_through_the_cross_replica_lease(monkeypatch) -> None:
+    """A route that bypassed `_mutation_guard` would write without the Redis lease."""
+    import src.api.main as main_module
+    from src.api.distributed_lock import DistributedMutationLock
+
+    class LeaseHeldElsewhere:
+        def set(self, *args, **kwargs):
+            return None
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(settings, "REQUIRE_REDIS", True)
+    monkeypatch.setattr(
+        main_module,
+        "distributed_mutation_lock",
+        lambda: DistributedMutationLock(
+            acquire_timeout_seconds=0.01,
+            client_factory=LeaseHeldElsewhere,
+        ),
+    )
+
+    response = client.delete("/documents/LEASE_PROBE_MISSING")
+    assert response.status_code == 503
+    assert "Timed out waiting for the index mutation lock" in response.json()["detail"]
+
+
 def test_semantic_cache_marks_unobserved_redis_loss_as_degraded(monkeypatch) -> None:
     """A Redis outage before the next cache operation must be visible to readiness."""
     import redis

@@ -13,6 +13,7 @@ import redis
 
 CACHE_TIMEOUT_SECONDS = 1.5
 INDEX_TIMEOUT_SECONDS = 1.0
+LOCK_TIMEOUT_SECONDS = 2.0
 
 
 def build_redis_client(url: str, *, timeout: float, decode_responses: bool = True) -> Any:

@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     MAX_REQUEST_BYTES: int = 0
     MAX_RENDERED_PDF_PAGES: int = 5000
     REQUIRE_REDIS: bool = False
+    # Cross-replica mutation lease. The TTL bounds how long a crashed holder blocks writers; the
+    # heartbeat renews it every third of that while a write is in flight.
+    MUTATION_LEASE_TTL_SECONDS: float = 300.0
+    MUTATION_LEASE_ACQUIRE_TIMEOUT_SECONDS: float = 30.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

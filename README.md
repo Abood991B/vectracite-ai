@@ -273,6 +273,10 @@ kubectl apply -f k8s/deployment.yaml
 liveness, HPA, and `/ready` checks. The uploads PVC requires a `ReadWriteMany` storage class; change
 it to `ReadWriteOnce` if you run a single replica or provide shared object storage.
 
+With `REQUIRE_REDIS=true`, every mutation takes a renewed Redis lease, so conflicting writes from
+different replicas serialize (or fail with `503`) instead of interleaving. Without Redis, run a single
+replica: the in-process lock cannot coordinate writers in another process.
+
 ---
 
 ## 5. API summary
