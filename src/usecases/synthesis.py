@@ -19,7 +19,7 @@ from src.domain.attributes import (
     person_count_value,
 )
 from src.domain.documents import RetrievedDocument
-from src.domain.financial_statements import is_statement_heading
+from src.domain.financial_statements import asked_statement_families, statement_family
 from src.domain.sections import SECTION_HEADER_REGEX
 from src.retrieval.table_ast import TableASTParser
 
@@ -108,6 +108,11 @@ TABLE_INTENT_RE = re.compile(
     r"fy\s?\d{2,4}|\d{4}|%)\b",
     flags=re.IGNORECASE,
 )
+# A yes/no question asks for the sentence that supports the answer, not for a row of figures.
+YES_NO_OPENING_RE = re.compile(
+    r"^\s*(?:did|does|do|is|are|was|were|has|have|had|can|could|should|would|will)\b",
+    flags=re.IGNORECASE,
+)
 # A row that starts with a revenue or income statement line is stronger evidence than an expense
 # or segment table that merely mentions the same word ("Sales and marketing"). The family is chosen
 # by what the question asks for, so "net income" rows cannot satisfy a "net sales" question.
@@ -137,6 +142,9 @@ INCOME_FAMILY_RE = re.compile(r"\b(income|profit|earnings)\b", flags=re.IGNORECA
 # "Total cost of sales" contains the word "sales" without being revenue, so it cannot take the
 # consolidated-total bonus on a revenue question.
 COST_ROW_RE = re.compile(r"\bcost of\b", flags=re.IGNORECASE)
+# Filings name capital spending "purchases of property, plant and equipment", so a capex question
+# needs those line words to reach the cash-flow line it is asking about.
+CAPITAL_EXPENDITURE_RE = re.compile(r"capital expenditure|\bcapex\b", flags=re.IGNORECASE)
 NUMBER_TOKEN_RE = re.compile(r"\d[\d,.]*\d")
 
 
@@ -145,7 +153,12 @@ def wants_table_evidence(question: str) -> bool:
 
     A count question that names no statement metric ("employee count in FY2022") is a narrative
     fact question; TABLE_INTENT_RE would otherwise match the bare year and answer it from a table.
+    A yes/no question wants a sentence that supports the yes or the no, and its year token is not
+    a table request either: "Did AMD report customer concentration in FY22?" is answered from the
+    risk-factor paragraph, not from whichever table repeats the word "customer".
     """
+    if YES_NO_OPENING_RE.match(question):
+        return False
     if asks_for_people_count(question):
         return bool(FINANCIAL_METRIC_RE.search(question))
     return bool(TABLE_INTENT_RE.search(question))
@@ -534,9 +547,11 @@ class LocalSynthesizer:
     @classmethod
     def _statement_line_answer(
         cls,
+        question: str,
         terms: set[str],
         chunks: List[RetrievedDocument],
-        statement_pages: set[tuple[str, int]],
+        statement_pages: Dict[tuple[str, int], str],
+        asked_families: frozenset[str],
     ) -> tuple[str, int] | None:
         """The reporting line on a consolidated statement page that matches the question.
 
@@ -545,7 +560,7 @@ class LocalSynthesizer:
         metric works - gross profit, research and development, operating cash flow, total
         assets - because the match is on the question's own terms, not a fixed family list.
         """
-        best: tuple[tuple[int, int, int], RetrievedDocument, str] | None = None
+        best: tuple[tuple[int, ...], RetrievedDocument, str] | None = None
         for chunk in chunks:
             if (chunk.doc_name, chunk.page_number) not in statement_pages:
                 continue
@@ -559,6 +574,10 @@ class LocalSynthesizer:
                 and len(term) >= 3
                 and not PERIOD_TERM_RE.match(term)
             }
+            # Filings report capital expenditure as "purchases of property, plant and equipment",
+            # so the statement line never contains the words the question used.
+            if CAPITAL_EXPENDITURE_RE.search(question.casefold()):
+                metric_terms |= {"purchases", "property", "plant", "equipment"}
             if not metric_terms:
                 continue
             for raw_line in chunk.text.splitlines():
@@ -594,6 +613,10 @@ class LocalSynthesizer:
                 }
                 score = (
                     overlap,
+                    1
+                    if statement_pages.get((chunk.doc_name, chunk.page_number))
+                    in asked_families
+                    else 0,
                     -len(label_terms - metric_terms),
                     -len(line.split()),
                     -chunk.page_number,
@@ -602,7 +625,7 @@ class LocalSynthesizer:
                     best = (score, chunk, line)
         if best is None:
             return None
-        (overlap, _, _, _), chunk, line = best
+        (overlap, _, _, _, _), chunk, line = best
         return (
             f"From [{chunk.doc_name}, Page {chunk.page_number}]:\n- {line}",
             overlap,
@@ -632,14 +655,21 @@ class LocalSynthesizer:
                 -(float(chunk.rerank_score or chunk.rrf_score or 0.0)),
             ),
         )
-        best_score: tuple[float, float, float, float, float, float] | None = None
+        best_score: tuple[float, ...] | None = None
         best_chunk: RetrievedDocument | None = None
         best_cells = []
+        # Which statement each page opens, and which statements the question named. A question that
+        # says "the cash flow statement" is answered from that statement, not from whichever table
+        # happens to repeat the figure under a synonym.
         statement_pages = {
-            (chunk.doc_name, chunk.page_number)
+            (chunk.doc_name, chunk.page_number): statement_family(chunk.text)
             for chunk in ordered
-            if chunk.chunk_index == 0 and is_statement_heading(chunk.text)
+            if chunk.chunk_index == 0
         }
+        statement_pages = {
+            key: family for key, family in statement_pages.items() if family is not None
+        }
+        asked_families = asked_statement_families(question)
         for chunk in ordered:
             matched_cells = TableASTParser.match_query_cells(
                 f"{question} {' '.join(sorted(terms))}",
@@ -709,6 +739,10 @@ class LocalSynthesizer:
                 1.0 if has_total else 0.0,
                 float(len(statement_rows)),
                 1.0
+                if statement_pages.get((chunk.doc_name, chunk.page_number))
+                in asked_families
+                else 0.0,
+                1.0
                 if (chunk.doc_name, chunk.page_number) in statement_pages
                 else 0.0,
                 float(chunk.contains_table),
@@ -721,7 +755,9 @@ class LocalSynthesizer:
         # When the parsed-table winner is not a statement page, answer from the statement line.
         # When it is a statement page, a line that matches the asked-for metric more closely still
         # wins: "Total assets" beats the statement of changes in equity's "Balance ... (Total)".
-        statement_line = cls._statement_line_answer(terms, ordered, statement_pages)
+        statement_line = cls._statement_line_answer(
+            question, terms, ordered, statement_pages, asked_families
+        )
         if statement_line:
             line_answer, line_overlap = statement_line
             table_overlap = best_score[0] if best_score else -1.0

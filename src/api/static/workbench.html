@@ -1338,7 +1338,9 @@
       const pdfUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) + "/pdf";
       const imageUrl = "/documents/" + encodeURIComponent(currentCitation.doc_name) +
         "/pages/" + pageNumber + "/image?highlight=" + encodeURIComponent(lastQuestion);
-      byId("sourcePage").textContent = "Page " + pageNumber + " \u00b7 SCAR score " + currentCitation.rerank_score;
+      const rerankScore = Number(currentCitation.rerank_score);
+      byId("sourcePage").textContent = "Page " + pageNumber +
+        (Number.isFinite(rerankScore) && rerankScore > 0 ? " \u00b7 SCAR score " + rerankScore : "");
       resetPageView();
       await loadPageImage(
         imageUrl,
@@ -1384,6 +1386,7 @@
         currentPageIndex = 0;
         byId("sourceEmpty").hidden = false;
         byId("sourceContent").hidden = true;
+        byId("sourceMeta").textContent = "The cited page preview appears here after a query";
         return;
       }
       currentCitation = citation;
@@ -1392,6 +1395,7 @@
       currentPageIndex = Math.max(0, currentPageNumbers.indexOf(citation.page_number));
       byId("sourceEmpty").hidden = true;
       byId("sourceContent").hidden = false;
+      byId("sourceMeta").textContent = "Rendered from the original PDF, with query terms highlighted";
       byId("sourceTitle").textContent = citation.doc_name;
       byId("sourceExcerpt").innerHTML = highlightExcerpt(citation.excerpt, lastQuestion);
       setSourceTab("image");

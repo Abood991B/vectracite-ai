@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-__all__ = ["is_statement_heading", "statement_family_count"]
+__all__ = ["asked_statement_families", "is_statement_heading", "statement_family", "statement_family_count"]
 
 # Matching runs on letters only, because extraction breaks words: 3M's FY2018 heading extracts
 # as "Consolidated Statement of Incom e". Digits and punctuation are dropped with them. Every
@@ -73,17 +73,60 @@ def statement_family_count(text: str) -> int:
     return sum(1 for family in FAMILY_RES if family.search(flattened))
 
 
+def statement_family(text: str) -> str | None:
+    """The one consolidated statement this page opens, or None when it opens none.
+
+    Pass the page's opening chunk. The family name is the canonical regex fragment, so a caller can
+    match a question that names a statement ("the cash flow statement") against the page that is
+    that statement.
+    """
+    head = text[:STATEMENT_HEADING_WINDOW]
+    if statement_family_count(head) > 1:
+        return None
+    flattened, positions = _letter_indexed(head)
+    match = STATEMENT_HEADING_RE.search(flattened)
+    if match is None:
+        return None
+    if not _is_title_prefix(head[: positions[match.start()]]):
+        return None
+    return next((family for family in STATEMENT_FAMILIES if re.search(family, flattened)), None)
+
+
 def is_statement_heading(text: str) -> bool:
     """True when this chunk opens a page that is itself a consolidated statement.
 
     Pass the page's opening chunk. A page that lists several statements is a table of contents,
     and a heading reached through a sentence belongs to prose about the statements.
     """
-    head = text[:STATEMENT_HEADING_WINDOW]
-    if statement_family_count(head) > 1:
-        return False
-    flattened, positions = _letter_indexed(head)
-    match = STATEMENT_HEADING_RE.search(flattened)
-    if match is None:
-        return False
-    return _is_title_prefix(head[: positions[match.start()]])
+    return statement_family(text) is not None
+
+
+# What a question says when it names the statement it wants answered from. A question that names
+# none is answered from whichever statement carries the figure.
+ASKED_STATEMENT_PATTERNS = (
+    (r"cash ?flows?", ("statements?ofcashflows",)),
+    (
+        r"balance ?sheets?|financial position",
+        ("balancesheets?", "statements?offinancialposition"),
+    ),
+    (
+        r"income statements?|statements? of (?:operations|income|earnings)|\boperations\b",
+        ("statements?ofoperations", "statements?ofincome", "statements?ofearnings"),
+    ),
+    (r"comprehensive income", ("statements?ofcomprehensiveincome",)),
+    (
+        r"changes in equity|equity statement|stockholders'? equity|shareholders'? equity",
+        ("statements?ofchangesin",),
+    ),
+)
+
+
+def asked_statement_families(question: str) -> frozenset[str]:
+    """The statement families a question names, empty when it names none."""
+    folded = question.casefold()
+    return frozenset(
+        family
+        for pattern, families in ASKED_STATEMENT_PATTERNS
+        if re.search(pattern, folded)
+        for family in families
+    )

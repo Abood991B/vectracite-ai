@@ -15,7 +15,7 @@ from qdrant_client import QdrantClient
 import pytest
 
 from src.domain.documents import DocumentChunk, RetrievedDocument
-from src.domain.financial_statements import is_statement_heading
+from src.domain.financial_statements import asked_statement_families, is_statement_heading
 from src.retrieval.hybrid_retriever import HybridRetriever
 from src.usecases.synthesis import LocalSynthesizer, wants_table_evidence
 
@@ -89,6 +89,50 @@ def test_a_table_of_contents_listing_several_statements_is_not_one() -> None:
         "Consolidated Balance Sheets at December 31, 2019 and 2018 F-4 "
         "Consolidated Statements of Operations for the Years Ended December 31 F-5"
     )
+
+
+def test_a_question_names_the_statement_it_asks_for() -> None:
+    assert "statements?ofcashflows" in asked_statement_families(
+        "What is capex? Rely on the details shown in the cash flow statement."
+    )
+    assert "balancesheets?" in asked_statement_families("What were total assets on the balance sheet?")
+    assert asked_statement_families("What were total assets?") == frozenset()
+
+
+def test_a_named_cash_flow_statement_beats_a_balance_sheet_that_repeats_the_metric() -> None:
+    """The balance sheet also reports property, plant and equipment, in a different role.
+
+    Asked for capital expenditure from the cash flow statement, the answer must cite the spending
+    line on that statement, not the asset balance the balance sheet carries under the same words.
+    """
+    balance_sheet = _evidence(
+        58,
+        "[DOCUMENT: 3M_2018_10K | PAGE: 58] Table of Contents 3M Company and Subsidiaries "
+        "Consolidated Balance Sheets At December 31 2018 2017 "
+        "Property, plant and equipment 24,873 24,914 "
+        "Property, plant and equipment - net 8,738 8,866",
+        doc_name="3M_2018_10K",
+        score=0.9,
+    )
+    cash_flow = _evidence(
+        60,
+        "[DOCUMENT: 3M_2018_10K | PAGE: 60] Table of Contents 3M Company and Subsidiaries "
+        "Consolidated Statement of Cash Flows Years ended December 31 "
+        "Purchases of property, plant and equipment (PP&E) (1,577) (1,373) (1,420)",
+        doc_name="3M_2018_10K",
+        score=0.4,
+    )
+
+    answer = LocalSynthesizer().answer(
+        "What is the FY2018 capital expenditure amount (in USD millions) for 3M? Give a response "
+        "to the question by relying on the details shown in the cash flow statement.",
+        [balance_sheet, cash_flow],
+        ["3M_2018_10K"],
+    )
+
+    assert "Page 60" in answer
+    assert "1,577" in answer
+    assert "Page 58" not in answer
 
 
 def test_the_statement_scan_returns_every_chunk_of_the_statement_pages(retriever) -> None:
@@ -230,3 +274,9 @@ def test_an_idiomatic_make_up_is_not_a_table_question() -> None:
 def test_a_revenue_question_with_make_is_still_a_table_question() -> None:
     """Dropping the bare verbs must not drop genuine financial questions."""
     assert wants_table_evidence("How much revenue did AMD make in 2022?")
+
+
+def test_a_yes_no_question_is_not_a_table_question_for_its_year_token() -> None:
+    """FY22 matched the year pattern and sent a risk-factor question to a "customer" table row."""
+    assert not wants_table_evidence("Did AMD report customer concentration in FY22?")
+    assert not wants_table_evidence("Is 3M a capital-intensive business based on FY2022 data?")
